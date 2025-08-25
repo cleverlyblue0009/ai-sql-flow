@@ -1,24 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Enterprise AI Platform Design System */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
+
+    /* Enterprise Color Palette */
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 217 91% 60%;
+    
+    --enterprise-blue: 221 39% 11%;
+    --enterprise-blue-light: 221 83% 53%;
+    --enterprise-gray: 215 25% 27%;
+    --enterprise-gray-light: 215 16% 47%;
+    
+    --success: 142 76% 36%;
+    --success-light: 142 69% 58%;
+    --warning: 38 92% 50%;
+    --danger: 0 84% 60%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -38,59 +50,70 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
+    /* Gradients */
+    --gradient-enterprise: linear-gradient(135deg, hsl(var(--enterprise-blue)), hsl(var(--enterprise-blue-light)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
+    --gradient-glow: 0 0 40px hsl(var(--primary-glow) / 0.3);
+
+    /* Sidebar */
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 221 39% 11%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 215 25% 14%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 215 25% 14%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 221 39% 11%;
+    --primary-glow: 217 91% 60%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 215 25% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 215 25% 16%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 215 25% 18%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 215 25% 18%;
+    --input: 215 25% 18%;
+    --ring: 217 91% 60%;
+
+    --success: 142 69% 58%;
+    --success-light: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --danger: 0 84% 60%;
+
+    /* Dark theme gradients */
+    --gradient-enterprise: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
+    --gradient-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
+
+    --sidebar-background: 221 39% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 221 39% 11%;
+    --sidebar-accent: 215 25% 16%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 25% 18%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -100,6 +123,38 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* Enterprise Components */
+  .enterprise-card {
+    @apply bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-all duration-300;
+  }
+
+  .enterprise-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+
+  .enterprise-button-success {
+    @apply bg-success text-white hover:bg-success/90 font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+
+  .metrics-card {
+    @apply enterprise-card p-6 space-y-2;
+  }
+
+  .hero-section {
+    background: var(--gradient-enterprise);
+    @apply text-white p-8 rounded-lg relative overflow-hidden;
+  }
+
+  .glow-effect {
+    box-shadow: var(--gradient-glow);
   }
 }
