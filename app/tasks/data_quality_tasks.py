@@ -1,6 +1,7 @@
 from celery import Celery
 import pandas as pd
 import io
+import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
@@ -132,7 +133,7 @@ def analyze_data_quality_task(
             update_job_progress(job_id, 15.0, "Loading data file")
             
             # Download and load data file
-            file_content = await storage_manager.download_file(data_profile.file_path)
+            file_content = asyncio.run(storage_manager.download_file(data_profile.file_path))
             if not file_content:
                 raise Exception(f"Failed to download file: {data_profile.file_path}")
             
@@ -227,7 +228,7 @@ def clean_data_task(
             update_job_progress(job_id, 15.0, "Loading data file")
             
             # Download and load data file
-            file_content = await storage_manager.download_file(data_profile.file_path)
+            file_content = asyncio.run(storage_manager.download_file(data_profile.file_path))
             if not file_content:
                 raise Exception(f"Failed to download file: {data_profile.file_path}")
             
@@ -266,7 +267,7 @@ def clean_data_task(
                     cleaned_file_path = '/'.join(path_parts[:-1] + [cleaned_filename])
                     
                     # Upload cleaned file
-                    await storage_manager.upload_file(csv_content, cleaned_file_path)
+                    asyncio.run(storage_manager.upload_file(csv_content, cleaned_file_path))
             
             update_job_progress(job_id, 90.0, "Finalizing results")
             
