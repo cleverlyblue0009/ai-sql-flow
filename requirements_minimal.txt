@@ -1,0 +1,9 @@
+# Minimal requirements to get the app running
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+pydantic
+pydantic-settings
+structlog
