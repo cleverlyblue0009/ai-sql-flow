@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 import traceback
+import asyncio
 
 from ..database.config import settings, SessionLocal
 from ..database.models import DataProfile, Job, JobStatus
@@ -39,6 +40,15 @@ logger = logging.getLogger(__name__)
 analyzer = DataQualityAnalyzer()
 cleaner = DataCleaner()
 storage_manager = FileStorageManager()
+
+def run_async(coro):
+    """Helper function to run async code in sync context"""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 
 def get_db():
@@ -132,7 +142,7 @@ def analyze_data_quality_task(
             update_job_progress(job_id, 15.0, "Loading data file")
             
             # Download and load data file
-            file_content = await storage_manager.download_file(data_profile.file_path)
+            file_content = run_async(storage_manager.download_file(data_profile.file_path))
             if not file_content:
                 raise Exception(f"Failed to download file: {data_profile.file_path}")
             
@@ -227,7 +237,7 @@ def clean_data_task(
             update_job_progress(job_id, 15.0, "Loading data file")
             
             # Download and load data file
-            file_content = await storage_manager.download_file(data_profile.file_path)
+            file_content = run_async(storage_manager.download_file(data_profile.file_path))
             if not file_content:
                 raise Exception(f"Failed to download file: {data_profile.file_path}")
             
@@ -266,7 +276,7 @@ def clean_data_task(
                     cleaned_file_path = '/'.join(path_parts[:-1] + [cleaned_filename])
                     
                     # Upload cleaned file
-                    await storage_manager.upload_file(csv_content, cleaned_file_path)
+                    run_async(storage_manager.upload_file(csv_content, cleaned_file_path))
             
             update_job_progress(job_id, 90.0, "Finalizing results")
             
