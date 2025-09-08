@@ -126,6 +126,40 @@ async def get_optional_user(
         return None
 
 
+async def get_current_user_from_token(token: str, db: Session) -> User:
+    """Get current user from token (for WebSocket authentication)"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    
+    try:
+        # Verify token
+        payload = verify_token(token)
+        if payload is None:
+            raise credentials_exception
+        
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+        
+        # Get user from database
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise credentials_exception
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+        
+        return user
+    
+    except Exception:
+        raise credentials_exception
+
+
 class RateLimiter:
     """Rate limiting dependency"""
     def __init__(self, max_requests: int = 100, window_seconds: int = 3600):
