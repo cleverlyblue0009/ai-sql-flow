@@ -62,6 +62,7 @@ services:
       MINIO_SECRET_KEY: minioadmin
       S3_BUCKET_NAME: ai-data-platform-storage
       SECRET_KEY: your-super-secret-key-change-in-production
+      ENCRYPTION_KEY: your-encryption-key-32-chars-long!
       DEBUG: "true"
       LOG_LEVEL: INFO
     ports:
@@ -95,6 +96,7 @@ services:
       MINIO_SECRET_KEY: minioadmin
       S3_BUCKET_NAME: ai-data-platform-storage
       SECRET_KEY: your-super-secret-key-change-in-production
+      ENCRYPTION_KEY: your-encryption-key-32-chars-long!
     depends_on:
       postgres:
         condition: service_healthy
