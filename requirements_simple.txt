@@ -1,0 +1,10 @@
+# Minimal working requirements
+fastapi
+uvicorn[standard]
+python-multipart
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic-settings
+python-dotenv
+aiosqlite

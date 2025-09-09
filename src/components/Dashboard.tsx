@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 import { 
   TrendingUp, 
   Database, 
@@ -108,6 +109,22 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
+  const [apiStatus, setApiStatus] = useState<string>("Not tested");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const testApiConnection = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/test');
+      const data = await response.json();
+      setApiStatus(`✅ Connected! ${data.message}`);
+    } catch (error) {
+      setApiStatus(`❌ Connection failed: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -243,6 +260,25 @@ export default function Dashboard() {
                   </div>
                 </Button>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* API Connection Test */}
+          <Card className="enterprise-card mt-6">
+            <CardHeader>
+              <CardTitle>API Connection Test</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={testApiConnection} 
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? "Testing..." : "Test Backend Connection"}
+              </Button>
+              <div className="text-sm p-3 bg-muted rounded">
+                Status: {apiStatus}
+              </div>
             </CardContent>
           </Card>
 
