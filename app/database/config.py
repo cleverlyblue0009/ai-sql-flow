@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     debug: bool = True
     log_level: str = "INFO"
     max_file_size_mb: int = 100
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:8080"]
     
     # Additional settings
     jwt_secret_key: str = "your-jwt-secret-key-change-this-in-production"
