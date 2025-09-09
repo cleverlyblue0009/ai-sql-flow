@@ -1,9 +1,36 @@
-# Minimal requirements to get the app running
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg2-binary
-python-dotenv
-pydantic
-pydantic-settings
-structlog
+# Minimal requirements for development (no conflicts)
+# Core FastAPI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+websockets==12.0
+
+# Data validation
+pydantic>=2.0.0,<3.0.0
+pydantic-settings>=2.0.0,<3.0.0
+
+# Database (optional for development)
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Authentication (basic)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+
+# Utilities
+python-dotenv==1.0.0
+aiofiles==23.2.1
+email-validator==2.1.0
+
+# Development
+httpx==0.25.2  # Compatible version
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Basic data processing
+numpy==1.24.4
+pandas==2.0.3
+
+# Logging
+structlog==23.2.0
