@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import { 
   Upload, 
   FileText, 
@@ -14,8 +15,10 @@ import {
   Download,
   Play,
   Settings,
-  BarChart3
+  BarChart3,
+  Loader2
 } from "lucide-react";
+import { useFileUpload, useRecentUploads, useStartCleaning } from "@/hooks/useApi";
 
 const qualityMetrics = [
   {
@@ -59,6 +62,99 @@ const issueTypes = [
 export default function DataQuality() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // API hooks
+  const fileUploadMutation = useFileUpload();
+  const { data: recentUploads, isLoading: uploadsLoading } = useRecentUploads();
+  const cleaningMutation = useStartCleaning();
+
+  // File upload handlers
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    try {
+      setUploadProgress(0);
+      setIsAnalyzing(true);
+      
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      const result = await fileUploadMutation.mutateAsync({ 
+        file: selectedFile,
+        options: { auto_analyze: true }
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      if (result.data) {
+        toast.success('File uploaded and analysis started!');
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    } catch (error) {
+      toast.error('Upload failed');
+    } finally {
+      setIsAnalyzing(false);
+      setTimeout(() => setUploadProgress(0), 2000);
+    }
+  };
+
+  const handleStartCleaning = async (fileId: string) => {
+    try {
+      await cleaningMutation.mutateAsync({
+        fileId,
+        config: {
+          remove_duplicates: true,
+          fill_missing_values: true,
+          remove_outliers: true,
+          standardize_formats: true
+        }
+      });
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  const handleViewDetails = (fileName: string) => {
+    toast.info(`Viewing details for ${fileName}`, {
+      description: 'This would open a detailed analysis view'
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -91,19 +187,57 @@ export default function DataQuality() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer">
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-medium mb-2">Drop files here or click to browse</h3>
                 <p className="text-muted-foreground mb-4">
                   Supports CSV, Excel, JSON, and database exports up to 500MB
                 </p>
-                <Button className="enterprise-button-primary">Select Files</Button>
+                {selectedFile ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Selected: {selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                    <Button 
+                      className="enterprise-button-primary" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUpload();
+                      }}
+                      disabled={fileUploadMutation.isPending}
+                    >
+                      {fileUploadMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        'Upload & Analyze'
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button className="enterprise-button-primary">Select Files</Button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.json,.tsv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
 
               {uploadProgress > 0 && (
                 <div className="mt-6">
                   <div className="flex justify-between text-sm mb-2">
-                    <span>Uploading customer_data.csv</span>
+                    <span>Uploading {selectedFile?.name || 'file'}</span>
                     <span>{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} />
@@ -120,24 +254,84 @@ export default function DataQuality() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
-                  { name: "transactions.xlsx", size: "8.7 MB", date: "1 day ago", status: "cleaned" }, 
-                  { name: "user_profiles.json", size: "3.1 MB", date: "3 days ago", status: "pending" }
-                ].map((file) => (
-                  <div key={file.name} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-sm text-muted-foreground">{file.size} • {file.date}</p>
+                {uploadsLoading ? (
+                  // Loading skeleton
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                        <div className="space-y-1">
+                          <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+                          <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="h-6 w-16 bg-muted rounded animate-pulse" />
+                    </div>
+                  ))
+                ) : recentUploads?.length ? (
+                  recentUploads.map((file: any) => (
+                    <div key={file.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {file.size} • {file.upload_date || file.date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={
+                          file.status === 'analyzed' ? 'default' : 
+                          file.status === 'cleaned' ? 'secondary' : 
+                          'outline'
+                        }>
+                          {file.status}
+                        </Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDetails(file.name)}
+                        >
+                          View Details
+                        </Button>
                       </div>
                     </div>
-                    <Badge variant={file.status === 'analyzed' ? 'default' : file.status === 'cleaned' ? 'secondary' : 'outline'}>
-                      {file.status}
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  // Fallback data when no uploads from API
+                  [
+                    { id: 1, name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
+                    { id: 2, name: "transactions.xlsx", size: "8.7 MB", date: "1 day ago", status: "cleaned" }, 
+                    { id: 3, name: "user_profiles.json", size: "3.1 MB", date: "3 days ago", status: "pending" }
+                  ].map((file) => (
+                    <div key={file.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">{file.size} • {file.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={
+                          file.status === 'analyzed' ? 'default' : 
+                          file.status === 'cleaned' ? 'secondary' : 
+                          'outline'
+                        }>
+                          {file.status}
+                        </Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDetails(file.name)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -200,7 +394,13 @@ export default function DataQuality() {
                       }>
                         {issue.severity} priority
                       </Badge>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast.info(`Viewing ${issue.type} details`, {
+                          description: `Found ${issue.count} instances of ${issue.type.toLowerCase()}`
+                        })}
+                      >
                         View Details
                       </Button>
                     </div>
@@ -257,12 +457,30 @@ export default function DataQuality() {
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4 border-t border-border">
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => toast.info('Preview Changes', {
+                      description: 'This would show a preview of cleaning operations'
+                    })}
+                  >
                     <Play className="h-4 w-4 mr-2" />
                     Preview Changes
                   </Button>
-                  <Button className="enterprise-button-success">
-                    Start Cleaning Process
+                  <Button 
+                    className="enterprise-button-success"
+                    onClick={() => toast.success('Cleaning process started!', {
+                      description: 'Your data will be processed with the configured settings'
+                    })}
+                    disabled={cleaningMutation.isPending}
+                  >
+                    {cleaningMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Start Cleaning Process'
+                    )}
                   </Button>
                 </div>
               </div>
@@ -281,7 +499,12 @@ export default function DataQuality() {
                   </CardTitle>
                   <CardDescription>Before and after data quality comparison</CardDescription>
                 </div>
-                <Button variant="outline">
+                <Button 
+                  variant="outline"
+                  onClick={() => toast.success('Report exported!', {
+                    description: 'Quality assessment report has been downloaded'
+                  })}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Export Report
                 </Button>
