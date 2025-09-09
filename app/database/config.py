@@ -4,13 +4,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 # from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import redis
-from typing import List
+from typing import List, Optional
 import os
 
 
 class Settings(BaseSettings):
+    # Environment
+    environment: str = "development"
+    
     # Database
-    database_url: str = "postgresql://username:password@localhost:5432/ai_data_platform"
+    database_url: str = "sqlite:///./ai_data_platform.db"
     async_database_url: str = "postgresql+asyncpg://username:password@localhost:5432/ai_data_platform"
     redis_url: str = "redis://localhost:6379/0"
     
@@ -62,6 +65,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"  # This allows extra fields to be ignored instead of raising an error
 
 
 # Initialize settings
@@ -80,8 +84,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for models
 Base = declarative_base()
 
-# Redis connection
-redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+# Redis connection (optional for development)
+try:
+    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+    # Test connection
+    redis_client.ping()
+except (redis.ConnectionError, redis.TimeoutError):
+    print("Warning: Redis connection failed. Some features may not work.")
+    redis_client = None
 
 
 # Database dependency
