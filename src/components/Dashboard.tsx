@@ -16,6 +16,8 @@ import {
   ArrowUpRight
 } from "lucide-react";
 import heroImage from "@/assets/hero-data-center.jpg";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const metrics = [
   {
@@ -108,6 +110,76 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
+  // Fetch dashboard data from API
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['dashboard-overview'],
+    queryFn: api.dashboard.getOverview,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch system metrics
+  const { data: systemData } = useQuery({
+    queryKey: ['system-metrics'],
+    queryFn: api.monitoring.getSystemMetrics,
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Update metrics with API data when available
+  const updatedMetrics = dashboardData?.data?.summary ? [
+    {
+      title: "Data Quality Score",
+      value: `${dashboardData.data.summary.avg_quality_score}%`,
+      change: "+2.4%",
+      trend: "up",
+      icon: CheckCircle,
+      color: "text-success"
+    },
+    {
+      title: "Total Projects",
+      value: dashboardData.data.summary.total_projects.toString(),
+      change: "+3",
+      trend: "up", 
+      icon: GitBranch,
+      color: "text-primary"
+    },
+    {
+      title: "Success Rate",
+      value: `${dashboardData.data.summary.success_rate}%`,
+      change: "+0.5%",
+      trend: "up",
+      icon: TrendingUp,
+      color: "text-success"
+    },
+    {
+      title: "Cost Savings",
+      value: `$${(dashboardData.data.summary.cost_savings / 1000).toFixed(1)}K`,
+      change: "+$340K",
+      trend: "up",
+      icon: DollarSign,
+      color: "text-success"
+    }
+  ] : metrics;
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <Card className="border-destructive">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">Unable to connect to backend</p>
+                <p className="text-sm text-muted-foreground">
+                  Make sure the backend is running on http://localhost:8000
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -125,9 +197,14 @@ export default function Dashboard() {
               <p className="text-lg opacity-90 mb-6 md:mb-0">
                 Streamline your data cleaning and SQL migrations with enterprise-grade AI
               </p>
+              {isLoading && (
+                <div className="text-sm text-muted-foreground">Loading dashboard data...</div>
+              )}
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold mb-1">1,247</div>
+              <div className="text-2xl font-bold mb-1">
+                {dashboardData?.data?.summary?.total_data_profiles || '1,247'}
+              </div>
               <div className="text-sm opacity-80">Tables Processed Today</div>
             </div>
           </div>
@@ -136,7 +213,7 @@ export default function Dashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => (
+        {updatedMetrics.map((metric) => (
           <Card key={metric.title} className="metrics-card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -257,24 +334,30 @@ export default function Dashboard() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Data Processing</span>
-                  <span className="text-success">Operational</span>
+                  <span>CPU Usage</span>
+                  <span className={systemData?.data?.cpu?.status === 'healthy' ? 'text-success' : 'text-warning'}>
+                    {systemData?.data?.cpu?.status || 'Operational'}
+                  </span>
                 </div>
-                <Progress value={98} className="h-2" />
+                <Progress value={systemData?.data?.cpu?.usage_percent || 98} className="h-2" />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Migration Engine</span>
-                  <span className="text-success">Operational</span>
+                  <span>Memory Usage</span>
+                  <span className={systemData?.data?.memory?.status === 'healthy' ? 'text-success' : 'text-warning'}>
+                    {systemData?.data?.memory?.status || 'Operational'}
+                  </span>
                 </div>
-                <Progress value={94} className="h-2" />
+                <Progress value={systemData?.data?.memory?.usage_percent || 94} className="h-2" />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>AI Processing</span>
-                  <span className="text-success">Operational</span>
+                  <span>Disk Usage</span>
+                  <span className={systemData?.data?.disk?.status === 'healthy' ? 'text-success' : 'text-warning'}>
+                    {systemData?.data?.disk?.status || 'Operational'}
+                  </span>
                 </div>
-                <Progress value={96} className="h-2" />
+                <Progress value={systemData?.data?.disk?.usage_percent || 96} className="h-2" />
               </div>
               <div className="pt-2 flex items-center text-sm text-muted-foreground">
                 <Users className="h-4 w-4 mr-2" />

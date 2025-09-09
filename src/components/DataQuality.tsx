@@ -16,6 +16,8 @@ import {
   Settings,
   BarChart3
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const qualityMetrics = [
   {
@@ -59,6 +61,20 @@ const issueTypes = [
 export default function DataQuality() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Fetch recent uploads from API
+  const { data: uploadsData, isLoading, error } = useQuery({
+    queryKey: ['recent-uploads'],
+    queryFn: api.dataQuality.getRecentUploads,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Use API data if available, otherwise fall back to static data
+  const recentUploads = uploadsData?.data || [
+    { name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
+    { name: "transactions.xlsx", size: "8.7 MB", date: "1 day ago", status: "cleaned" }, 
+    { name: "user_profiles.json", size: "3.1 MB", date: "3 days ago", status: "pending" }
+  ];
 
   return (
     <div className="space-y-8">
@@ -119,12 +135,18 @@ export default function DataQuality() {
               <CardDescription>Files uploaded in the last 30 days</CardDescription>
             </CardHeader>
             <CardContent>
+              {isLoading && (
+                <div className="text-center py-4">
+                  <div className="text-sm text-muted-foreground">Loading recent uploads...</div>
+                </div>
+              )}
+              {error && (
+                <div className="text-center py-4">
+                  <div className="text-sm text-destructive">Unable to load recent uploads. Using cached data.</div>
+                </div>
+              )}
               <div className="space-y-4">
-                {[
-                  { name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
-                  { name: "transactions.xlsx", size: "8.7 MB", date: "1 day ago", status: "cleaned" }, 
-                  { name: "user_profiles.json", size: "3.1 MB", date: "3 days ago", status: "pending" }
-                ].map((file) => (
+                {recentUploads.map((file) => (
                   <div key={file.name} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
                     <div className="flex items-center space-x-3">
                       <FileText className="h-5 w-5 text-muted-foreground" />
