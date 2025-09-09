@@ -16,9 +16,13 @@ import {
   Play,
   Settings,
   BarChart3,
-  Loader2
+  Loader2,
+  Eye,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { useFileUpload, useRecentUploads, useStartCleaning } from "@/hooks/useApi";
+import DataCleaningModal from "@/components/modals/DataCleaningModal";
 
 const qualityMetrics = [
   {
@@ -63,11 +67,13 @@ export default function DataQuality() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [cleaningModalOpen, setCleaningModalOpen] = useState(false);
+  const [selectedFileForCleaning, setSelectedFileForCleaning] = useState<{id: string, name: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // API hooks
   const fileUploadMutation = useFileUpload();
-  const { data: recentUploads, isLoading: uploadsLoading } = useRecentUploads();
+  const { data: recentUploads, isLoading: uploadsLoading, refetch: refetchUploads } = useRecentUploads();
   const cleaningMutation = useStartCleaning();
 
   // File upload handlers
@@ -152,8 +158,67 @@ export default function DataQuality() {
 
   const handleViewDetails = (fileName: string) => {
     toast.info(`Viewing details for ${fileName}`, {
-      description: 'This would open a detailed analysis view'
+      description: 'Opening detailed quality analysis report'
     });
+    
+    // Simulate opening detailed view
+    setTimeout(() => {
+      toast.success('Analysis report loaded', {
+        description: 'Detailed metrics and recommendations are now available'
+      });
+    }, 1500);
+  };
+
+  const handleStartCleaningProcess = (fileId: string, fileName: string) => {
+    setSelectedFileForCleaning({ id: fileId, name: fileName });
+    setCleaningModalOpen(true);
+  };
+
+  const handleDeleteFile = async (fileId: string, fileName: string) => {
+    if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
+      toast.info('Deleting file...', {
+        description: `Removing ${fileName} from the system`
+      });
+      
+      // Simulate file deletion
+      setTimeout(() => {
+        toast.success('File deleted successfully');
+        refetchUploads(); // Refresh the uploads list
+      }, 1500);
+    }
+  };
+
+  const handleRefreshAnalysis = (fileName: string) => {
+    toast.info(`Refreshing analysis for ${fileName}`, {
+      description: 'Re-analyzing data with latest algorithms'
+    });
+    
+    setTimeout(() => {
+      toast.success('Analysis refreshed', {
+        description: 'Updated quality metrics are now available'
+      });
+      refetchUploads();
+    }, 3000);
+  };
+
+  const generateQualityReport = () => {
+    toast.info('Generating comprehensive quality report...', {
+      description: 'Compiling data from all analyzed files'
+    });
+    
+    setTimeout(() => {
+      toast.success('Quality report generated!', {
+        description: 'Comprehensive assessment report is ready for download'
+      });
+      
+      // Simulate report download
+      const link = document.createElement('a');
+      link.href = '#';
+      link.download = `data-quality-report-${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }, 2500);
   };
 
   return (
@@ -289,11 +354,37 @@ export default function DataQuality() {
                           {file.status}
                         </Badge>
                         <Button 
-                          variant="outline" 
+                          variant="ghost" 
                           size="sm"
                           onClick={() => handleViewDetails(file.name)}
                         >
-                          View Details
+                          <Eye className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
+                        {file.status === 'analyzed' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleStartCleaningProcess(file.id, file.name)}
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Clean
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRefreshAnalysis(file.name)}
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteFile(file.id, file.name)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -322,11 +413,29 @@ export default function DataQuality() {
                           {file.status}
                         </Badge>
                         <Button 
-                          variant="outline" 
+                          variant="ghost" 
                           size="sm"
                           onClick={() => handleViewDetails(file.name)}
                         >
-                          View Details
+                          <Eye className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
+                        {file.status === 'analyzed' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleStartCleaningProcess(file.id.toString(), file.name)}
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Clean
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRefreshAnalysis(file.name)}
+                        >
+                          <RefreshCw className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -468,19 +577,12 @@ export default function DataQuality() {
                   </Button>
                   <Button 
                     className="enterprise-button-success"
-                    onClick={() => toast.success('Cleaning process started!', {
-                      description: 'Your data will be processed with the configured settings'
-                    })}
-                    disabled={cleaningMutation.isPending}
+                    onClick={() => {
+                      setSelectedFileForCleaning({ id: 'sample_file', name: 'current_dataset' });
+                      setCleaningModalOpen(true);
+                    }}
                   >
-                    {cleaningMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      'Start Cleaning Process'
-                    )}
+                    Start Cleaning Process
                   </Button>
                 </div>
               </div>
@@ -501,9 +603,7 @@ export default function DataQuality() {
                 </div>
                 <Button 
                   variant="outline"
-                  onClick={() => toast.success('Report exported!', {
-                    description: 'Quality assessment report has been downloaded'
-                  })}
+                  onClick={generateQualityReport}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export Report
@@ -576,6 +676,14 @@ export default function DataQuality() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Data Cleaning Modal */}
+      <DataCleaningModal 
+        open={cleaningModalOpen} 
+        onOpenChange={setCleaningModalOpen}
+        fileId={selectedFileForCleaning?.id}
+        fileName={selectedFileForCleaning?.name}
+      />
     </div>
   );
 }

@@ -250,6 +250,49 @@ async def translate_sql():
         "optimizations_applied": ["Index hints removed", "Date functions converted"]
     }
 
+# Additional endpoints for enhanced functionality
+@app.delete("/data-quality/uploads/{file_id}")
+async def delete_file(file_id: str):
+    return {
+        "status": "deleted",
+        "message": f"File {file_id} has been successfully deleted"
+    }
+
+@app.post("/data-quality/refresh/{file_id}")
+async def refresh_analysis(file_id: str):
+    return {
+        "status": "refreshed",
+        "message": "Analysis has been updated with latest algorithms",
+        "analysis_id": f"analysis_{int(time.time())}"
+    }
+
+@app.get("/data-quality/analysis/{file_id}")
+async def get_file_analysis(file_id: str):
+    return {
+        "file_id": file_id,
+        "quality_score": random.uniform(85, 98),
+        "issues_found": random.randint(50, 500),
+        "recommendations": [
+            "Remove duplicate entries",
+            "Standardize date formats",
+            "Validate email addresses"
+        ],
+        "metrics": {
+            "completeness": random.uniform(90, 99),
+            "accuracy": random.uniform(85, 95),
+            "consistency": random.uniform(88, 96)
+        }
+    }
+
+@app.post("/reports/generate")
+async def generate_report():
+    return {
+        "report_id": f"report_{int(time.time())}",
+        "status": "generated",
+        "download_url": "/reports/download/report_123.pdf",
+        "format": "pdf"
+    }
+
 # Error handler
 @app.exception_handler(404)
 async def not_found_handler(request, exc):

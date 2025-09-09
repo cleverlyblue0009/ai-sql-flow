@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +22,9 @@ import {
 import { toast } from "sonner";
 import heroImage from "@/assets/hero-data-center.jpg";
 import { useDashboardOverview, useApiHealth } from "@/hooks/useApi";
+import FileUploadModal from "@/components/modals/FileUploadModal";
+import MigrationModal from "@/components/modals/MigrationModal";
+import ReportModal from "@/components/modals/ReportModal";
 
 // Quick actions configuration - static as these are UI actions
 const quickActions = [
@@ -78,27 +82,23 @@ const formatChange = (value: number, isPercentage: boolean = false, isCurrency: 
 export default function Dashboard() {
   const { data: dashboardData, isLoading, error, refetch } = useDashboardOverview();
   const { data: apiHealthy } = useApiHealth();
+  
+  // Modal states
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [migrationModalOpen, setMigrationModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   // Handle action button clicks
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'migration':
-        // Navigate to migration page or show migration dialog
-        toast.info('Starting new migration...', {
-          description: 'This would open the migration setup dialog'
-        });
+        setMigrationModalOpen(true);
         break;
       case 'upload':
-        // Trigger file upload
-        toast.info('Opening file upload...', {
-          description: 'This would open the file upload dialog'
-        });
+        setUploadModalOpen(true);
         break;
       case 'report':
-        // Generate report
-        toast.info('Generating report...', {
-          description: 'This would start the report generation process'
-        });
+        setReportModalOpen(true);
         break;
       default:
         toast.info(`Action: ${action}`);
@@ -441,6 +441,20 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+      
+      {/* Modals */}
+      <FileUploadModal 
+        open={uploadModalOpen} 
+        onOpenChange={setUploadModalOpen} 
+      />
+      <MigrationModal 
+        open={migrationModalOpen} 
+        onOpenChange={setMigrationModalOpen} 
+      />
+      <ReportModal 
+        open={reportModalOpen} 
+        onOpenChange={setReportModalOpen} 
+      />
     </div>
   );
 }
