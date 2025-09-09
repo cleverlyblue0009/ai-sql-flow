@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 100
     allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
+    # Additional settings
+    jwt_secret_key: str = "your-jwt-secret-key-change-this-in-production"
+    storage_type: str = "local"
+    local_storage_path: str = "./storage"
+    smtp_server: str = "localhost"
+    smtp_use_tls: bool = True
+    prometheus_enabled: bool = False
+    reload: bool = True
+    
     class Config:
         env_file = ".env"
 

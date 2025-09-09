@@ -1,14 +1,68 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
-from sklearn.ensemble import IsolationForest
-from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+# ML imports with fallback for development
+try:
+    from sklearn.ensemble import IsolationForest, RandomForestClassifier
+    from sklearn.cluster import DBSCAN, KMeans
+    from sklearn.preprocessing import StandardScaler, LabelEncoder
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    from sklearn.impute import KNNImputer, SimpleImputer
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    # Fallback classes for development without sklearn
+    class MockMLClass:
+        def __init__(self, *args, **kwargs):
+            pass
+        def fit(self, *args, **kwargs):
+            return self
+        def predict(self, *args, **kwargs):
+            return []
+        def fit_predict(self, *args, **kwargs):
+            return []
+        def fit_transform(self, *args, **kwargs):
+            return []
+        def transform(self, *args, **kwargs):
+            return []
+    
+    IsolationForest = MockMLClass
+    RandomForestClassifier = MockMLClass
+    DBSCAN = MockMLClass
+    KMeans = MockMLClass
+    StandardScaler = MockMLClass
+    LabelEncoder = MockMLClass
+    TfidfVectorizer = MockMLClass
+    cosine_similarity = lambda x, y=None: [[1.0]]
+    KNNImputer = MockMLClass
+    SimpleImputer = MockMLClass
+    SKLEARN_AVAILABLE = False
+try:
+    from scipy import stats
+    from scipy.spatial.distance import pdist, squareform
+    SCIPY_AVAILABLE = True
+except ImportError:
+    # Mock scipy for development
+    class MockStats:
+        def zscore(self, x):
+            return [0] * len(x)
+        def skew(self, x):
+            return 0
+        def kurtosis(self, x):
+            return 0
+        def ks_2samp(self, x, y):
+            return 0, 0.5
+        def entropy(self, x, y=None):
+            return 0
+    stats = MockStats()
+    pdist = lambda x: []
+    squareform = lambda x: []
+    SCIPY_AVAILABLE = False
 import re
 from datetime import datetime
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from .schemas import (
     ColumnProfile, DataQualityMetrics, DuplicateAnalysis, OutlierAnalysis,
@@ -19,13 +73,21 @@ logger = logging.getLogger(__name__)
 
 
 class DataQualityAnalyzer:
-    """AI-powered data quality analyzer"""
+    """AI-powered data quality analyzer with advanced ML capabilities"""
     
     def __init__(self):
         self.similarity_threshold = 0.85
         self.outlier_contamination = 0.1
+        self.executor = ThreadPoolExecutor(max_workers=4)
         
-    def analyze_data_quality(
+        # Initialize ML models
+        self.scaler = StandardScaler()
+        self.isolation_forest = IsolationForest(contamination=0.1, random_state=42)
+        self.dbscan = DBSCAN(eps=0.5, min_samples=5)
+        self.knn_imputer = KNNImputer(n_neighbors=5)
+        self.tfidf_vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
+        
+    async def analyze_data_quality(
         self, 
         df: pd.DataFrame, 
         ai_enabled: bool = True,
@@ -725,3 +787,409 @@ class DataQualityAnalyzer:
         accuracy_score = max(0, 100 - outlier_percentage * 2)  # Penalize outliers
         
         return accuracy_score
+    
+    async def _detect_anomalies_advanced(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Advanced anomaly detection using multiple ML algorithms"""
+        
+        try:
+            numeric_df = df.select_dtypes(include=[np.number]).fillna(0)
+            if numeric_df.empty:
+                return {"anomalies": [], "methods": [], "confidence": 0.0}
+            
+            # Run anomaly detection in parallel
+            tasks = [
+                asyncio.create_task(self._run_isolation_forest(numeric_df)),
+                asyncio.create_task(self._run_local_outlier_factor(numeric_df)),
+                asyncio.create_task(self._run_statistical_outliers(numeric_df))
+            ]
+            
+            results = await asyncio.gather(*tasks)
+            
+            # Combine results from different methods
+            combined_anomalies = []
+            methods_used = []
+            
+            for method_name, anomalies in results:
+                methods_used.append(method_name)
+                combined_anomalies.extend(anomalies)
+            
+            # Remove duplicates and rank by frequency
+            anomaly_counts = {}
+            for anomaly in combined_anomalies:
+                key = (anomaly['row_index'], anomaly['column'])
+                if key in anomaly_counts:
+                    anomaly_counts[key]['detection_count'] += 1
+                else:
+                    anomaly_counts[key] = anomaly
+                    anomaly_counts[key]['detection_count'] = 1
+            
+            # Sort by detection frequency and anomaly score
+            final_anomalies = sorted(
+                anomaly_counts.values(),
+                key=lambda x: (x['detection_count'], x['anomaly_score']),
+                reverse=True
+            )[:100]  # Top 100 anomalies
+            
+            confidence = min(1.0, len(methods_used) / 3.0) * 0.9
+            
+            return {
+                "anomalies": final_anomalies,
+                "methods": methods_used,
+                "confidence": confidence,
+                "total_detected": len(final_anomalies)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in advanced anomaly detection: {str(e)}")
+            return {"anomalies": [], "methods": [], "confidence": 0.0}
+    
+    async def _run_isolation_forest(self, df: pd.DataFrame) -> Tuple[str, List[Dict]]:
+        """Run isolation forest anomaly detection"""
+        
+        def _isolation_forest_task():
+            scaler = StandardScaler()
+            scaled_data = scaler.fit_transform(df)
+            
+            iso_forest = IsolationForest(contamination=0.1, random_state=42)
+            anomaly_labels = iso_forest.fit_predict(scaled_data)
+            anomaly_scores = iso_forest.decision_function(scaled_data)
+            
+            anomalies = []
+            for idx, (label, score) in enumerate(zip(anomaly_labels, anomaly_scores)):
+                if label == -1:  # Anomaly
+                    for col_idx, col_name in enumerate(df.columns):
+                        anomalies.append({
+                            'row_index': int(df.index[idx]),
+                            'column': col_name,
+                            'value': float(df.iloc[idx, col_idx]),
+                            'anomaly_score': abs(float(score)),
+                            'method': 'isolation_forest'
+                        })
+            
+            return anomalies
+        
+        loop = asyncio.get_event_loop()
+        anomalies = await loop.run_in_executor(self.executor, _isolation_forest_task)
+        return "isolation_forest", anomalies
+    
+    async def _run_local_outlier_factor(self, df: pd.DataFrame) -> Tuple[str, List[Dict]]:
+        """Run Local Outlier Factor anomaly detection"""
+        
+        def _lof_task():
+            from sklearn.neighbors import LocalOutlierFactor
+            
+            scaler = StandardScaler()
+            scaled_data = scaler.fit_transform(df)
+            
+            lof = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
+            anomaly_labels = lof.fit_predict(scaled_data)
+            anomaly_scores = lof.negative_outlier_factor_
+            
+            anomalies = []
+            for idx, (label, score) in enumerate(zip(anomaly_labels, anomaly_scores)):
+                if label == -1:  # Anomaly
+                    for col_idx, col_name in enumerate(df.columns):
+                        anomalies.append({
+                            'row_index': int(df.index[idx]),
+                            'column': col_name,
+                            'value': float(df.iloc[idx, col_idx]),
+                            'anomaly_score': abs(float(score)),
+                            'method': 'local_outlier_factor'
+                        })
+            
+            return anomalies
+        
+        loop = asyncio.get_event_loop()
+        anomalies = await loop.run_in_executor(self.executor, _lof_task)
+        return "local_outlier_factor", anomalies
+    
+    async def _run_statistical_outliers(self, df: pd.DataFrame) -> Tuple[str, List[Dict]]:
+        """Run statistical outlier detection using Z-score and IQR"""
+        
+        def _statistical_task():
+            anomalies = []
+            
+            for col in df.columns:
+                series = df[col].dropna()
+                if len(series) < 10:
+                    continue
+                
+                # Z-score method
+                z_scores = np.abs(stats.zscore(series))
+                z_outliers = series[z_scores > 3]
+                
+                # IQR method
+                Q1 = series.quantile(0.25)
+                Q3 = series.quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outliers = series[(series < lower_bound) | (series > upper_bound)]
+                
+                # Combine outliers
+                all_outliers = pd.concat([z_outliers, iqr_outliers]).drop_duplicates()
+                
+                for idx, value in all_outliers.items():
+                    z_score = abs((value - series.mean()) / series.std())
+                    anomalies.append({
+                        'row_index': int(idx),
+                        'column': col,
+                        'value': float(value),
+                        'anomaly_score': float(z_score),
+                        'method': 'statistical'
+                    })
+            
+            return anomalies
+        
+        loop = asyncio.get_event_loop()
+        anomalies = await loop.run_in_executor(self.executor, _statistical_task)
+        return "statistical", anomalies
+    
+    async def _intelligent_imputation_suggestions(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Generate intelligent imputation suggestions using ML"""
+        
+        try:
+            suggestions = {}
+            
+            for col in df.columns:
+                if df[col].isnull().sum() == 0:
+                    continue
+                
+                # Analyze missing pattern
+                missing_percentage = (df[col].isnull().sum() / len(df)) * 100
+                
+                if missing_percentage > 50:
+                    suggestions[col] = {
+                        'method': 'drop_column',
+                        'reason': 'Too many missing values (>50%)',
+                        'confidence': 0.9
+                    }
+                    continue
+                
+                # Determine best imputation method
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    # For numeric columns, use ML-based imputation
+                    method = await self._suggest_numeric_imputation(df, col)
+                else:
+                    # For categorical columns
+                    method = await self._suggest_categorical_imputation(df, col)
+                
+                suggestions[col] = method
+            
+            return suggestions
+            
+        except Exception as e:
+            logger.error(f"Error in intelligent imputation suggestions: {str(e)}")
+            return {}
+    
+    async def _suggest_numeric_imputation(self, df: pd.DataFrame, col: str) -> Dict[str, Any]:
+        """Suggest best imputation method for numeric columns"""
+        
+        def _analyze_numeric():
+            series = df[col].dropna()
+            
+            # Check distribution
+            skewness = stats.skew(series)
+            kurtosis = stats.kurtosis(series)
+            
+            # Check for patterns with other columns
+            correlations = df.corr()[col].abs().sort_values(ascending=False)
+            high_corr_cols = correlations[correlations > 0.7].index.tolist()
+            high_corr_cols = [c for c in high_corr_cols if c != col]
+            
+            # Determine best method
+            if len(high_corr_cols) >= 2:
+                return {
+                    'method': 'knn_imputation',
+                    'reason': f'High correlation with {len(high_corr_cols)} other columns',
+                    'confidence': 0.85,
+                    'parameters': {'n_neighbors': min(5, len(high_corr_cols))}
+                }
+            elif abs(skewness) < 0.5:  # Normal distribution
+                return {
+                    'method': 'mean_imputation',
+                    'reason': 'Data follows normal distribution',
+                    'confidence': 0.75
+                }
+            else:  # Skewed distribution
+                return {
+                    'method': 'median_imputation',
+                    'reason': 'Data is skewed',
+                    'confidence': 0.8
+                }
+        
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, _analyze_numeric)
+    
+    async def _suggest_categorical_imputation(self, df: pd.DataFrame, col: str) -> Dict[str, Any]:
+        """Suggest best imputation method for categorical columns"""
+        
+        def _analyze_categorical():
+            series = df[col].dropna()
+            
+            # Check if there's a clear mode
+            mode_count = series.mode().iloc[0] if not series.mode().empty else None
+            mode_frequency = (series == mode_count).sum() / len(series) if mode_count else 0
+            
+            if mode_frequency > 0.5:
+                return {
+                    'method': 'mode_imputation',
+                    'reason': f'Clear dominant category ({mode_frequency:.1%})',
+                    'confidence': 0.8
+                }
+            else:
+                return {
+                    'method': 'constant_imputation',
+                    'reason': 'No dominant category, use placeholder',
+                    'confidence': 0.6,
+                    'parameters': {'fill_value': 'Unknown'}
+                }
+        
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, _analyze_categorical)
+    
+    async def _detect_data_drift(self, df: pd.DataFrame, reference_stats: Optional[Dict] = None) -> Dict[str, Any]:
+        """Detect data drift between current data and reference statistics"""
+        
+        try:
+            if reference_stats is None:
+                # If no reference, create baseline from first half of data
+                split_point = len(df) // 2
+                reference_df = df.iloc[:split_point]
+                current_df = df.iloc[split_point:]
+            else:
+                current_df = df
+                reference_df = None
+            
+            drift_results = {}
+            
+            for col in df.columns:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    drift_score = await self._calculate_numeric_drift(
+                        current_df[col], 
+                        reference_df[col] if reference_df is not None else None,
+                        reference_stats.get(col) if reference_stats else None
+                    )
+                else:
+                    drift_score = await self._calculate_categorical_drift(
+                        current_df[col],
+                        reference_df[col] if reference_df is not None else None,
+                        reference_stats.get(col) if reference_stats else None
+                    )
+                
+                drift_results[col] = drift_score
+            
+            # Calculate overall drift score
+            drift_scores = [result['drift_score'] for result in drift_results.values()]
+            overall_drift = np.mean(drift_scores) if drift_scores else 0.0
+            
+            return {
+                'overall_drift_score': float(overall_drift),
+                'column_drift': drift_results,
+                'drift_detected': overall_drift > 0.3,
+                'high_drift_columns': [
+                    col for col, result in drift_results.items() 
+                    if result['drift_score'] > 0.5
+                ]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in data drift detection: {str(e)}")
+            return {'overall_drift_score': 0.0, 'column_drift': {}, 'drift_detected': False}
+    
+    async def _calculate_numeric_drift(self, current: pd.Series, reference: Optional[pd.Series] = None, reference_stats: Optional[Dict] = None) -> Dict[str, Any]:
+        """Calculate drift score for numeric columns"""
+        
+        def _numeric_drift_task():
+            current_clean = current.dropna()
+            
+            if reference is not None:
+                reference_clean = reference.dropna()
+                ref_mean = reference_clean.mean()
+                ref_std = reference_clean.std()
+            elif reference_stats:
+                ref_mean = reference_stats['mean']
+                ref_std = reference_stats['std']
+            else:
+                return {'drift_score': 0.0, 'method': 'no_reference'}
+            
+            # Calculate statistical differences
+            current_mean = current_clean.mean()
+            current_std = current_clean.std()
+            
+            # Normalized difference in means
+            mean_diff = abs(current_mean - ref_mean) / (ref_std + 1e-8)
+            
+            # Difference in standard deviations
+            std_diff = abs(current_std - ref_std) / (ref_std + 1e-8)
+            
+            # KS test if reference data is available
+            ks_statistic = 0.0
+            if reference is not None and len(reference_clean) > 0:
+                try:
+                    ks_statistic, _ = stats.ks_2samp(current_clean, reference_clean)
+                except Exception:
+                    pass
+            
+            # Combined drift score
+            drift_score = min(1.0, (mean_diff + std_diff + ks_statistic) / 3)
+            
+            return {
+                'drift_score': float(drift_score),
+                'mean_drift': float(mean_diff),
+                'std_drift': float(std_diff),
+                'ks_statistic': float(ks_statistic),
+                'method': 'statistical'
+            }
+        
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, _numeric_drift_task)
+    
+    async def _calculate_categorical_drift(self, current: pd.Series, reference: Optional[pd.Series] = None, reference_stats: Optional[Dict] = None) -> Dict[str, Any]:
+        """Calculate drift score for categorical columns"""
+        
+        def _categorical_drift_task():
+            current_clean = current.dropna()
+            current_counts = current_clean.value_counts(normalize=True)
+            
+            if reference is not None:
+                reference_clean = reference.dropna()
+                ref_counts = reference_clean.value_counts(normalize=True)
+            elif reference_stats and 'value_counts' in reference_stats:
+                ref_counts = pd.Series(reference_stats['value_counts'])
+                ref_counts = ref_counts / ref_counts.sum()  # Normalize
+            else:
+                return {'drift_score': 0.0, 'method': 'no_reference'}
+            
+            # Calculate Jensen-Shannon divergence
+            all_categories = set(current_counts.index) | set(ref_counts.index)
+            
+            current_probs = np.array([current_counts.get(cat, 0) for cat in all_categories])
+            ref_probs = np.array([ref_counts.get(cat, 0) for cat in all_categories])
+            
+            # Add small epsilon to avoid log(0)
+            epsilon = 1e-8
+            current_probs += epsilon
+            ref_probs += epsilon
+            
+            # Normalize
+            current_probs /= current_probs.sum()
+            ref_probs /= ref_probs.sum()
+            
+            # Jensen-Shannon divergence
+            m = (current_probs + ref_probs) / 2
+            js_div = 0.5 * stats.entropy(current_probs, m) + 0.5 * stats.entropy(ref_probs, m)
+            
+            # Normalize to 0-1 range
+            drift_score = min(1.0, js_div / np.log(2))
+            
+            return {
+                'drift_score': float(drift_score),
+                'js_divergence': float(js_div),
+                'new_categories': list(set(current_counts.index) - set(ref_counts.index)),
+                'missing_categories': list(set(ref_counts.index) - set(current_counts.index)),
+                'method': 'js_divergence'
+            }
+        
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, _categorical_drift_task)

@@ -15,6 +15,8 @@ from .auth import router as auth_router
 from .data_quality import router as data_quality_router
 from .dashboard import router as dashboard_router
 from .migration import router as migration_router
+from .monitoring import router as monitoring_router
+from .settings import router as settings_router
 from .websocket import router as websocket_router
 from .utils.logging_config import setup_logging
 
@@ -276,6 +278,8 @@ app.include_router(auth_router)
 app.include_router(data_quality_router)
 app.include_router(dashboard_router)
 app.include_router(migration_router)
+app.include_router(monitoring_router)
+app.include_router(settings_router)
 app.include_router(websocket_router)
 
 # Custom OpenAPI schema
