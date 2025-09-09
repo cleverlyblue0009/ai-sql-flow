@@ -10,8 +10,8 @@ import os
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://username:password@localhost:5432/ai_data_platform"
-    async_database_url: str = "postgresql+asyncpg://username:password@localhost:5432/ai_data_platform"
+    database_url: str = "sqlite:///./ai_data_platform.db"
+    async_database_url: str = "sqlite+aiosqlite:///./ai_data_platform.db"
     redis_url: str = "redis://localhost:6379/0"
     
     # Security
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     debug: bool = True
     log_level: str = "INFO"
     max_file_size_mb: int = 100
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    allowed_origins: List[str] = ["http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080", "http://127.0.0.1:3000"]
     
     class Config:
         env_file = ".env"

@@ -18,8 +18,8 @@ from .dependencies import (
     get_current_user, get_current_active_user, get_current_verified_user,
     require_admin, RateLimiter
 )
-from ..utils.email import send_verification_email, send_password_reset_email
-from ..utils.audit import log_user_action
+# from ..utils.email import send_verification_email, send_password_reset_email
+# from ..utils.audit import log_user_action
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
