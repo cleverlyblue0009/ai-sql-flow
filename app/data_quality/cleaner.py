@@ -1,11 +1,17 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
-from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
+from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import DBSCAN
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import re
 from datetime import datetime
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from .schemas import DataCleaningResult
 
@@ -16,16 +22,22 @@ class DataCleaner:
     """AI-powered data cleaning engine"""
     
     def __init__(self):
+        self.executor = ThreadPoolExecutor(max_workers=4)
         self.cleaning_operations = {
             "remove_duplicates": self._remove_duplicates,
             "fill_missing": self._fill_missing_values,
             "remove_outliers": self._remove_outliers,
             "standardize_format": self._standardize_format,
             "correct_types": self._correct_data_types,
-            "normalize_values": self._normalize_values
+            "normalize_values": self._normalize_values,
+            "smart_duplicate_detection": self._smart_duplicate_detection,
+            "ml_imputation": self._ml_imputation,
+            "anomaly_detection": self._anomaly_detection,
+            "text_standardization": self._text_standardization,
+            "auto_encoding_detection": self._auto_encoding_detection
         }
     
-    def clean_data(
+    async def clean_data(
         self,
         df: pd.DataFrame,
         cleaning_operations: List[Dict[str, Any]],
@@ -49,8 +61,13 @@ class DataCleaner:
                 if op_name in self.cleaning_operations:
                     logger.info(f"Executing operation: {op_name}")
                     
-                    # Execute operation
-                    result = self.cleaning_operations[op_name](cleaned_df, op_params)
+                    # Execute operation (handle both sync and async)
+                    operation_func = self.cleaning_operations[op_name]
+                    if asyncio.iscoroutinefunction(operation_func):
+                        result = await operation_func(cleaned_df, op_params)
+                    else:
+                        result = operation_func(cleaned_df, op_params)
+                    
                     cleaned_df = result["data"]
                     modifications[op_name] = result["modifications"]
                     cleaning_summary[op_name] = result["summary"]
@@ -467,3 +484,373 @@ class DataCleaner:
             return "category"
         
         return str(series.dtype)
+    
+    async def _smart_duplicate_detection(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Advanced duplicate detection using ML similarity matching"""
+        
+        try:
+            similarity_threshold = params.get("similarity_threshold", 0.85)
+            text_columns = params.get("text_columns", df.select_dtypes(include=['object']).columns.tolist())
+            
+            def _detect_duplicates():
+                duplicates_found = 0
+                duplicate_groups = []
+                
+                if not text_columns:
+                    return df, duplicates_found, duplicate_groups
+                
+                # Create text features for similarity analysis
+                text_data = df[text_columns].fillna('').astype(str)
+                combined_text = text_data.apply(lambda x: ' '.join(x), axis=1)
+                
+                if len(combined_text) <= 1:
+                    return df, duplicates_found, duplicate_groups
+                
+                # Use TF-IDF for text similarity
+                vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
+                tfidf_matrix = vectorizer.fit_transform(combined_text)
+                
+                # Calculate similarity matrix
+                similarity_matrix = cosine_similarity(tfidf_matrix)
+                
+                # Find similar pairs above threshold
+                similar_pairs = []
+                for i in range(len(similarity_matrix)):
+                    for j in range(i + 1, len(similarity_matrix)):
+                        if similarity_matrix[i][j] > similarity_threshold:
+                            similar_pairs.append((i, j, similarity_matrix[i][j]))
+                
+                # Group similar records
+                groups = {}
+                for i, j, sim in similar_pairs:
+                    found_group = False
+                    for group_id, group in groups.items():
+                        if i in group or j in group:
+                            group.update([i, j])
+                            found_group = True
+                            break
+                    if not found_group:
+                        groups[len(groups)] = {i, j}
+                
+                # Remove duplicates (keep first in each group)
+                rows_to_keep = set(range(len(df)))
+                for group in groups.values():
+                    group_list = sorted(list(group))
+                    # Remove all but the first row in each group
+                    for idx in group_list[1:]:
+                        rows_to_keep.discard(idx)
+                        duplicates_found += 1
+                    
+                    # Store group info
+                    if len(group_list) > 1:
+                        duplicate_groups.append({
+                            'group_id': len(duplicate_groups),
+                            'similarity_score': float(np.mean([
+                                similarity_matrix[group_list[i]][group_list[j]]
+                                for i in range(len(group_list))
+                                for j in range(i + 1, len(group_list))
+                            ])),
+                            'record_indices': group_list
+                        })
+                
+                cleaned_df = df.iloc[list(rows_to_keep)].reset_index(drop=True)
+                return cleaned_df, duplicates_found, duplicate_groups
+            
+            loop = asyncio.get_event_loop()
+            cleaned_df, duplicates_found, duplicate_groups = await loop.run_in_executor(
+                self.executor, _detect_duplicates
+            )
+            
+            return {
+                "data": cleaned_df,
+                "modifications": duplicates_found,
+                "summary": {
+                    "smart_duplicates_removed": duplicates_found,
+                    "similarity_threshold": similarity_threshold,
+                    "duplicate_groups_found": len(duplicate_groups),
+                    "method": "ml_similarity"
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in smart duplicate detection: {str(e)}")
+            return {"data": df, "modifications": 0, "summary": {"error": str(e)}}
+    
+    async def _ml_imputation(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Advanced ML-based imputation using multiple algorithms"""
+        
+        try:
+            columns = params.get("columns", df.columns.tolist())
+            method = params.get("method", "iterative")  # iterative, knn, random_forest
+            
+            def _perform_imputation():
+                cleaned_df = df.copy()
+                modifications = {}
+                
+                for col in columns:
+                    if col not in df.columns or df[col].isnull().sum() == 0:
+                        continue
+                    
+                    original_missing = df[col].isnull().sum()
+                    
+                    if pd.api.types.is_numeric_dtype(df[col]):
+                        # For numeric columns
+                        if method == "iterative":
+                            # Use iterative imputer (MICE algorithm)
+                            numeric_cols = df.select_dtypes(include=[np.number]).columns
+                            if len(numeric_cols) > 1:
+                                imputer = IterativeImputer(random_state=42, max_iter=10)
+                                imputed_data = imputer.fit_transform(df[numeric_cols])
+                                col_idx = list(numeric_cols).index(col)
+                                cleaned_df[col] = imputed_data[:, col_idx]
+                        elif method == "knn":
+                            # Use KNN imputation
+                            numeric_cols = df.select_dtypes(include=[np.number]).columns
+                            if len(numeric_cols) > 1:
+                                imputer = KNNImputer(n_neighbors=5)
+                                imputed_data = imputer.fit_transform(df[numeric_cols])
+                                col_idx = list(numeric_cols).index(col)
+                                cleaned_df[col] = imputed_data[:, col_idx]
+                    else:
+                        # For categorical columns, use mode or constant
+                        mode_value = df[col].mode()
+                        if not mode_value.empty:
+                            cleaned_df[col].fillna(mode_value.iloc[0], inplace=True)
+                    
+                    filled_count = original_missing - cleaned_df[col].isnull().sum()
+                    modifications[col] = int(filled_count)
+                
+                return cleaned_df, modifications
+            
+            loop = asyncio.get_event_loop()
+            cleaned_df, modifications = await loop.run_in_executor(
+                self.executor, _perform_imputation
+            )
+            
+            total_filled = sum(modifications.values())
+            
+            return {
+                "data": cleaned_df,
+                "modifications": total_filled,
+                "summary": {
+                    "total_filled": total_filled,
+                    "method_used": method,
+                    "columns_processed": len([col for col in columns if col in modifications]),
+                    "by_column": modifications
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in ML imputation: {str(e)}")
+            return {"data": df, "modifications": 0, "summary": {"error": str(e)}}
+    
+    async def _anomaly_detection(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Advanced anomaly detection using multiple ML algorithms"""
+        
+        try:
+            contamination = params.get("contamination", 0.1)
+            methods = params.get("methods", ["isolation_forest", "local_outlier_factor"])
+            
+            def _detect_anomalies():
+                numeric_df = df.select_dtypes(include=[np.number]).fillna(0)
+                if numeric_df.empty:
+                    return df, 0, []
+                
+                anomaly_scores = np.zeros(len(df))
+                
+                # Isolation Forest
+                if "isolation_forest" in methods:
+                    iso_forest = IsolationForest(contamination=contamination, random_state=42)
+                    iso_scores = iso_forest.fit_predict(numeric_df)
+                    anomaly_scores += (iso_scores == -1).astype(int)
+                
+                # Local Outlier Factor
+                if "local_outlier_factor" in methods:
+                    from sklearn.neighbors import LocalOutlierFactor
+                    lof = LocalOutlierFactor(contamination=contamination)
+                    lof_scores = lof.fit_predict(numeric_df)
+                    anomaly_scores += (lof_scores == -1).astype(int)
+                
+                # DBSCAN clustering for anomaly detection
+                if "dbscan" in methods:
+                    scaler = StandardScaler()
+                    scaled_data = scaler.fit_transform(numeric_df)
+                    dbscan = DBSCAN(eps=0.5, min_samples=5)
+                    cluster_labels = dbscan.fit_predict(scaled_data)
+                    anomaly_scores += (cluster_labels == -1).astype(int)
+                
+                # Consider rows anomalous if detected by majority of methods
+                threshold = len([m for m in methods if m in ["isolation_forest", "local_outlier_factor", "dbscan"]]) / 2
+                anomaly_mask = anomaly_scores > threshold
+                
+                anomalies_removed = anomaly_mask.sum()
+                anomaly_indices = np.where(anomaly_mask)[0].tolist()
+                
+                cleaned_df = df[~anomaly_mask].reset_index(drop=True)
+                
+                return cleaned_df, int(anomalies_removed), anomaly_indices
+            
+            loop = asyncio.get_event_loop()
+            cleaned_df, anomalies_removed, anomaly_indices = await loop.run_in_executor(
+                self.executor, _detect_anomalies
+            )
+            
+            return {
+                "data": cleaned_df,
+                "modifications": anomalies_removed,
+                "summary": {
+                    "anomalies_removed": anomalies_removed,
+                    "methods_used": methods,
+                    "contamination": contamination,
+                    "anomaly_indices": anomaly_indices[:50]  # Limit to first 50
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in anomaly detection: {str(e)}")
+            return {"data": df, "modifications": 0, "summary": {"error": str(e)}}
+    
+    async def _text_standardization(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Advanced text standardization using NLP techniques"""
+        
+        try:
+            columns = params.get("columns", df.select_dtypes(include=['object']).columns.tolist())
+            operations = params.get("operations", ["normalize_case", "remove_extra_spaces", "standardize_encoding"])
+            
+            def _standardize_text():
+                cleaned_df = df.copy()
+                modifications = {}
+                
+                for col in columns:
+                    if col not in df.columns:
+                        continue
+                    
+                    original_values = cleaned_df[col].copy()
+                    changes_made = 0
+                    
+                    # Convert to string
+                    cleaned_df[col] = cleaned_df[col].astype(str)
+                    
+                    # Normalize case
+                    if "normalize_case" in operations:
+                        cleaned_df[col] = cleaned_df[col].str.lower()
+                    
+                    # Remove extra spaces
+                    if "remove_extra_spaces" in operations:
+                        cleaned_df[col] = cleaned_df[col].str.strip()
+                        cleaned_df[col] = cleaned_df[col].str.replace(r'\s+', ' ', regex=True)
+                    
+                    # Standardize common abbreviations
+                    if "standardize_abbreviations" in operations:
+                        abbreviations = {
+                            r'\bst\b': 'street',
+                            r'\bave\b': 'avenue',
+                            r'\bdr\b': 'drive',
+                            r'\brd\b': 'road',
+                            r'\bblvd\b': 'boulevard',
+                            r'\bapt\b': 'apartment',
+                            r'\bco\b': 'company',
+                            r'\binc\b': 'incorporated'
+                        }
+                        for pattern, replacement in abbreviations.items():
+                            cleaned_df[col] = cleaned_df[col].str.replace(pattern, replacement, regex=True)
+                    
+                    # Remove special characters
+                    if "remove_special_chars" in operations:
+                        cleaned_df[col] = cleaned_df[col].str.replace(r'[^\w\s]', '', regex=True)
+                    
+                    # Count changes
+                    changes_made = (original_values != cleaned_df[col]).sum()
+                    modifications[col] = int(changes_made)
+                
+                return cleaned_df, modifications
+            
+            loop = asyncio.get_event_loop()
+            cleaned_df, modifications = await loop.run_in_executor(
+                self.executor, _standardize_text
+            )
+            
+            total_changes = sum(modifications.values())
+            
+            return {
+                "data": cleaned_df,
+                "modifications": total_changes,
+                "summary": {
+                    "total_changes": total_changes,
+                    "operations_applied": operations,
+                    "columns_processed": len(columns),
+                    "by_column": modifications
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in text standardization: {str(e)}")
+            return {"data": df, "modifications": 0, "summary": {"error": str(e)}}
+    
+    async def _auto_encoding_detection(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Auto-detect and fix encoding issues"""
+        
+        try:
+            columns = params.get("columns", df.select_dtypes(include=['object']).columns.tolist())
+            
+            def _fix_encoding():
+                cleaned_df = df.copy()
+                encoding_fixes = {}
+                
+                for col in columns:
+                    if col not in df.columns:
+                        continue
+                    
+                    fixes_made = 0
+                    original_values = cleaned_df[col].copy()
+                    
+                    # Convert to string and handle common encoding issues
+                    text_series = cleaned_df[col].astype(str)
+                    
+                    # Fix common encoding issues
+                    encoding_fixes_map = {
+                        'â€™': "'",  # Smart quote
+                        'â€œ': '"',  # Smart quote
+                        'â€': '"',   # Smart quote
+                        'â€"': '—',  # Em dash
+                        'â€"': '–',  # En dash
+                        'Ã¡': 'á',   # Latin small letter a with acute
+                        'Ã©': 'é',   # Latin small letter e with acute
+                        'Ã­': 'í',   # Latin small letter i with acute
+                        'Ã³': 'ó',   # Latin small letter o with acute
+                        'Ãº': 'ú',   # Latin small letter u with acute
+                        'Ã±': 'ñ',   # Latin small letter n with tilde
+                        'Ã¼': 'ü',   # Latin small letter u with diaeresis
+                    }
+                    
+                    for bad_encoding, correct_char in encoding_fixes_map.items():
+                        text_series = text_series.str.replace(bad_encoding, correct_char)
+                    
+                    # Count fixes made
+                    fixes_made = (original_values != text_series).sum()
+                    if fixes_made > 0:
+                        cleaned_df[col] = text_series
+                        encoding_fixes[col] = int(fixes_made)
+                
+                return cleaned_df, encoding_fixes
+            
+            loop = asyncio.get_event_loop()
+            cleaned_df, encoding_fixes = await loop.run_in_executor(
+                self.executor, _fix_encoding
+            )
+            
+            total_fixes = sum(encoding_fixes.values())
+            
+            return {
+                "data": cleaned_df,
+                "modifications": total_fixes,
+                "summary": {
+                    "encoding_fixes": total_fixes,
+                    "columns_processed": len(columns),
+                    "fixes_by_column": encoding_fixes
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in encoding detection: {str(e)}")
+            return {"data": df, "modifications": 0, "summary": {"error": str(e)}}

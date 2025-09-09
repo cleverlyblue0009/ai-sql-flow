@@ -11,7 +11,7 @@ from .schemas import (
     DashboardMetrics, ActivityItem, QuickStats, SystemStatus,
     DashboardResponse, ActivityResponse
 )
-from .services import DashboardService
+from .dashboard_service import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 logger = logging.getLogger(__name__)
@@ -162,4 +162,118 @@ async def get_cost_analysis(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get cost analysis"
+        )
+
+
+@router.get("/comprehensive-overview", response_model=Dict[str, Any])
+async def get_comprehensive_overview(
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive dashboard overview with all metrics"""
+    
+    try:
+        overview = await dashboard_service.get_dashboard_overview(current_user.id, db)
+        return {
+            "status": "success",
+            "data": overview
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting comprehensive overview: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get comprehensive overview"
+        )
+
+
+@router.get("/activity-feed", response_model=Dict[str, Any])
+async def get_activity_feed(
+    limit: int = 20,
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's activity feed"""
+    
+    try:
+        activities = await dashboard_service.get_recent_activity(current_user.id, db, limit)
+        return {
+            "status": "success",
+            "data": {
+                "activities": activities,
+                "total_count": len(activities)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting activity feed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get activity feed"
+        )
+
+
+@router.get("/performance-dashboard", response_model=Dict[str, Any])
+async def get_performance_dashboard(
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get performance metrics dashboard"""
+    
+    try:
+        metrics = await dashboard_service.get_performance_metrics(current_user.id, db)
+        return {
+            "status": "success",
+            "data": metrics
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting performance dashboard: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get performance dashboard"
+        )
+
+
+@router.get("/data-quality-insights", response_model=Dict[str, Any])
+async def get_data_quality_insights(
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get data quality insights and analytics"""
+    
+    try:
+        insights = await dashboard_service.get_data_quality_insights(current_user.id, db)
+        return {
+            "status": "success",
+            "data": insights
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting data quality insights: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get data quality insights"
+        )
+
+
+@router.get("/migration-dashboard", response_model=Dict[str, Any])
+async def get_migration_dashboard(
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get migration dashboard with statistics and progress"""
+    
+    try:
+        dashboard_data = await dashboard_service.get_migration_dashboard(current_user.id, db)
+        return {
+            "status": "success",
+            "data": dashboard_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting migration dashboard: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get migration dashboard"
         )
