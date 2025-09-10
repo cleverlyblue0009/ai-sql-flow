@@ -2,20 +2,18 @@ from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-# from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import redis
 from typing import List
 import os
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str = "postgresql://username:password@localhost:5432/ai_data_platform"
-    async_database_url: str = "postgresql+asyncpg://username:password@localhost:5432/ai_data_platform"
+    # Database - Updated with working defaults
+    database_url: str = "sqlite:///./ai_data_platform.db"  # Changed to SQLite for easier setup
     redis_url: str = "redis://localhost:6379/0"
     
     # Security
-    secret_key: str = "your-secret-key-here"
+    secret_key: str = "your-secret-key-here-change-in-production"
     encryption_key: str = "your-encryption-key-32-chars-long!"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
@@ -27,16 +25,15 @@ class Settings(BaseSettings):
     github_client_id: str = ""
     github_client_secret: str = ""
     
-    # AWS/MinIO
+    # Storage - Fixed paths
+    storage_type: str = "local"
+    local_storage_path: str = "./storage"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_region: str = "us-east-1"
     s3_bucket_name: str = "ai-data-platform-storage"
-    minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
     
-    # Celery
+    # Celery - Fixed to use Redis
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/0"
     
@@ -44,30 +41,24 @@ class Settings(BaseSettings):
     huggingface_api_key: str = ""
     openai_api_key: str = ""
     
-    # Monitoring
-    sentry_dsn: str = ""
-    prometheus_port: int = 8001
-    
     # Email
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
+    smtp_use_tls: bool = True
     
     # Application
     debug: bool = True
     log_level: str = "INFO"
     max_file_size_mb: int = 100
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
-    
-    # Additional settings
-    jwt_secret_key: str = "your-jwt-secret-key-change-this-in-production"
-    storage_type: str = "local"
-    local_storage_path: str = "./storage"
-    smtp_server: str = "localhost"
-    smtp_use_tls: bool = True
-    prometheus_enabled: bool = False
-    reload: bool = True
+    allowed_origins: List[str] = [
+        "http://localhost:3000", 
+        "http://localhost:8000", 
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000"
+    ]
     
     class Config:
         env_file = ".env"
@@ -76,21 +67,31 @@ class Settings(BaseSettings):
 # Initialize settings
 settings = Settings()
 
+# Create storage directory if it doesn't exist
+os.makedirs(settings.local_storage_path, exist_ok=True)
+
 # Database engines
-engine = create_engine(settings.database_url, pool_pre_ping=True)
-# async_engine = create_async_engine(settings.async_database_url, echo=settings.debug)
+engine = create_engine(
+    settings.database_url, 
+    pool_pre_ping=True,
+    # SQLite specific settings
+    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {}
+)
 
 # Session makers
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# AsyncSessionLocal = sessionmaker(
-#     async_engine, class_=AsyncSession, expire_on_commit=False
-# )
 
 # Base class for models
 Base = declarative_base()
 
-# Redis connection
-redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+# Redis connection (with error handling)
+try:
+    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+    # Test connection
+    redis_client.ping()
+except Exception as e:
+    print(f"Redis connection failed: {e}. Some features may not work.")
+    redis_client = None
 
 
 # Database dependency
@@ -102,11 +103,7 @@ def get_db():
         db.close()
 
 
-# async def get_async_db():
-#     async with AsyncSessionLocal() as session:
-#         yield session
-
-
 # Initialize database
 def create_tables():
+    """Create all database tables"""
     Base.metadata.create_all(bind=engine)
