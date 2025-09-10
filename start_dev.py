@@ -131,7 +131,7 @@ def main():
     elif choice == "3":
         print("\n🚀 Starting both backend and frontend...")
         print("   Backend will run on: http://localhost:8000")
-        print("   Frontend will run on: http://localhost:5173")
+        print("   Frontend will run on: http://localhost:3000")
         print("   API Documentation: http://localhost:8000/docs")
         print("\n   Press Ctrl+C to stop both services")
         
