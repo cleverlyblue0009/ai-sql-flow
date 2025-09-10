@@ -16,7 +16,7 @@ except ImportError as e:
     print(f"Database import error: {e}")
     # Create mock settings for development
     class MockSettings:
-        allowed_origins = ["http://localhost:3000", "http://localhost:8000"]
+        allowed_origins = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8000"]
         debug = True
         log_level = "INFO"
         max_file_size_mb = 100
