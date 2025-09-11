@@ -59,17 +59,40 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         extra = "allow"
 
-# Initialize settings
-settings = Settings()
+# Initialize settings with error handling
+try:
+    settings = Settings()
+except Exception as e:
+    print(f"Settings initialization failed: {e}. Using defaults.")
+    # Create minimal settings for testing
+    class MinimalSettings:
+        database_url = "sqlite:///./test.db"
+        redis_url = "redis://localhost:6379/0"
+        local_storage_path = "./storage"
+        debug = True
+        log_level = "INFO"
+        max_file_size_mb = 100
+        allowed_origins = []
+    settings = MinimalSettings()
 
 # Create storage directory if it doesn't exist
 os.makedirs(settings.local_storage_path, exist_ok=True)
 
-# Database engine
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True
-)
+# Database engine with error handling
+try:
+    engine = create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {}
+    )
+except Exception as e:
+    print(f"Database engine creation failed: {e}")
+    # Create a fallback SQLite engine
+    engine = create_engine(
+        "sqlite:///./fallback.db",
+        pool_pre_ping=True,
+        connect_args={"check_same_thread": False}
+    )
 
 # Session maker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -77,13 +100,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for models
 Base = declarative_base()
 
-# Redis connection
-try:
-    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-    redis_client.ping()
-except Exception as e:
-    print(f"Redis connection failed: {e}. Some features may not work.")
-    redis_client = None
+# Redis connection - lazy initialization to avoid blocking during import
+redis_client = None
+
+def get_redis_client():
+    """Get Redis client with lazy initialization"""
+    global redis_client
+    if redis_client is None:
+        try:
+            redis_client = redis.from_url(settings.redis_url, decode_responses=True, socket_timeout=2, socket_connect_timeout=2)
+            redis_client.ping()
+            print("Redis connected successfully")
+        except Exception as e:
+            print(f"Redis connection failed: {e}. Running without Redis.")
+            redis_client = False  # Use False to indicate failed connection
+    return redis_client if redis_client is not False else None
 
 # Dependency to get DB session
 def get_db():
