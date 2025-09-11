@@ -119,7 +119,8 @@ class Connection(Base):
     
     # Relationships
     user = relationship("User", back_populates="connections")
-    migration_logs = relationship("MigrationLog", back_populates="source_connection")
+    source_migrations = relationship("MigrationLog", foreign_keys="MigrationLog.source_connection_id", back_populates="source_connection")
+    target_migrations = relationship("MigrationLog", foreign_keys="MigrationLog.target_connection_id", back_populates="target_connection")
 
 
 class Job(Base):
@@ -246,8 +247,8 @@ class MigrationLog(Base):
     
     # Relationships
     project = relationship("Project", back_populates="migration_logs")
-    source_connection = relationship("Connection", foreign_keys=[source_connection_id])
-    target_connection = relationship("Connection", foreign_keys=[target_connection_id])
+    source_connection = relationship("Connection", foreign_keys=[source_connection_id], back_populates="source_migrations")
+    target_connection = relationship("Connection", foreign_keys=[target_connection_id], back_populates="target_migrations")
 
 
 class AuditLog(Base):

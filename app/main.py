@@ -129,10 +129,12 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000", 
         "http://localhost:3001",
-        "http://127.0.0.1:3001"
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
@@ -215,13 +217,16 @@ async def logging_middleware(request: Request, call_next):
 async def health_check():
     """Health check endpoint for load balancers and monitoring"""
     return {
-        "status": "healthy",
-        "version": APP_VERSION,
-        "timestamp": time.time(),
-        "services": {
-            "authentication": "operational",
-            "data_quality": "operational",
-            "background_tasks": "operational"
+        "status": "success",
+        "data": {
+            "status": "healthy",
+            "version": APP_VERSION,
+            "timestamp": time.time(),
+            "services": {
+                "authentication": "operational",
+                "data_quality": "operational",
+                "background_tasks": "operational"
+            }
         }
     }
 
