@@ -16,7 +16,7 @@ except ImportError as e:
     print(f"Database import error: {e}")
     # Create mock settings for development
     class MockSettings:
-        allowed_origins = ["http://localhost:3000", "http://localhost:8000"]
+        allowed_origins = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8000"]
         debug = True
         log_level = "INFO"
         max_file_size_mb = 100
@@ -123,13 +123,18 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=getattr(settings, 'allowed_origins', ["*"]),
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000", 
+        "http://localhost:3001",
+        "http://127.0.0.1:3001"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Add trusted host middleware

@@ -627,7 +627,7 @@ async def _process_file_in_chunks(
 @router.get("/recent-uploads", response_model=List[Dict[str, Any]])
 async def get_recent_uploads(
     limit: int = 10,
-    current_user: User = Depends(get_current_verified_user),
+    #current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get recent file uploads for the current user"""
