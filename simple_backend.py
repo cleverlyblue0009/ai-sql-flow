@@ -47,6 +47,7 @@ async def upload_file(
     try:
         # Read file content
         content = await file.read()
+        print(f"Reading file: {file.filename}, size: {len(content)} bytes")
         
         # Try to read as DataFrame
         file_stream = io.BytesIO(content)
@@ -54,7 +55,16 @@ async def upload_file(
         if file.filename.lower().endswith('.csv'):
             df = pd.read_csv(file_stream, header=0 if has_header else None)
         elif file.filename.lower().endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(file_stream, header=0 if has_header else None)
+            try:
+                print(f"Attempting to read Excel file with openpyxl...")
+                df = pd.read_excel(file_stream, header=0 if has_header else None, engine='openpyxl')
+                print(f"Successfully read Excel file: {len(df)} rows, {len(df.columns)} columns")
+            except Exception as e:
+                print(f"openpyxl failed: {e}, trying default engine...")
+                # Try with default engine if openpyxl fails
+                file_stream.seek(0)
+                df = pd.read_excel(file_stream, header=0 if has_header else None)
+                print(f"Successfully read Excel file with default engine: {len(df)} rows, {len(df.columns)} columns")
         elif file.filename.lower().endswith('.json'):
             df = pd.read_json(file_stream)
         else:
@@ -100,7 +110,10 @@ async def upload_file(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
+        print(f"Error processing file {file.filename}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error processing file '{file.filename}': {str(e)}")
 
 @app.get("/data-quality/recent-uploads")
 async def get_recent_uploads():
@@ -121,58 +134,76 @@ async def get_recent_uploads():
 
 @app.get("/data-quality/quality-summary/{data_profile_id}")
 async def get_quality_summary(data_profile_id: int):
-    if data_profile_id not in uploaded_files:
-        raise HTTPException(status_code=404, detail="Data profile not found")
+    try:
+        print(f"Getting quality summary for profile {data_profile_id}")
+        print(f"Available profiles: {list(uploaded_files.keys())}")
+        
+        if data_profile_id not in uploaded_files:
+            raise HTTPException(status_code=404, detail="Data profile not found")
+        
+        file_info = uploaded_files[data_profile_id]
+        df = file_info["dataframe"]
+        print(f"DataFrame shape: {df.shape}")
+    except Exception as e:
+        print(f"Error in quality summary: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
-    file_info = uploaded_files[data_profile_id]
-    df = file_info["dataframe"]
-    
-    # Calculate real basic metrics
-    total_cells = df.size
-    non_null_cells = df.count().sum()
-    completeness = (non_null_cells / total_cells) * 100 if total_cells > 0 else 0
-    
-    duplicate_rows = len(df) - len(df.drop_duplicates())
-    uniqueness = ((len(df) - duplicate_rows) / len(df)) * 100 if len(df) > 0 else 100
-    
-    return {
-        "data_profile_id": data_profile_id,
-        "file_name": file_info["name"],
-        "overall_quality_score": (completeness + uniqueness) / 2,
-        "quality_metrics": {
-            "completeness": {
-                "score": completeness,
-                "issues": total_cells - non_null_cells,
-                "status": "good" if completeness > 90 else "warning",
-                "description": f"Missing values detected in {df.isnull().sum().sum()} cells"
+    try:
+        # Calculate real basic metrics
+        total_cells = df.size
+        non_null_cells = df.count().sum()
+        completeness = (non_null_cells / total_cells) * 100 if total_cells > 0 else 0
+        
+        duplicate_rows = len(df) - len(df.drop_duplicates())
+        uniqueness = ((len(df) - duplicate_rows) / len(df)) * 100 if len(df) > 0 else 100
+        
+        missing_count = int(df.isnull().sum().sum())
+        
+        return {
+            "data_profile_id": data_profile_id,
+            "file_name": file_info["name"],
+            "overall_quality_score": round((completeness + uniqueness) / 2, 1),
+            "quality_metrics": {
+                "completeness": {
+                    "score": round(completeness, 1),
+                    "issues": int(total_cells - non_null_cells),
+                    "status": "good" if completeness > 90 else "warning",
+                    "description": f"Missing values detected in {missing_count} cells"
+                },
+                "accuracy": {
+                    "score": 89.3,
+                    "issues": 203,
+                    "status": "warning",
+                    "description": "Format inconsistencies detected"
+                },
+                "consistency": {
+                    "score": 96.1,
+                    "issues": 45,
+                    "status": "excellent", 
+                    "description": "Minor duplicate records found"
+                },
+                "validity": {
+                    "score": 87.8,
+                    "issues": 156,
+                    "status": "warning",
+                    "description": "Invalid formats detected"
+                }
             },
-            "accuracy": {
-                "score": 89.3,
-                "issues": 203,
-                "status": "warning",
-                "description": "Format inconsistencies detected"
-            },
-            "consistency": {
-                "score": 96.1,
-                "issues": 45,
-                "status": "excellent", 
-                "description": "Minor duplicate records found"
-            },
-            "validity": {
-                "score": 87.8,
-                "issues": 156,
-                "status": "warning",
-                "description": "Invalid formats detected"
-            }
-        },
-        "issue_breakdown": [
-            {"type": "Duplicates", "count": duplicate_rows, "severity": "medium"},
-            {"type": "Missing Values", "count": int(df.isnull().sum().sum()), "severity": "high"},
-            {"type": "Outliers", "count": 234, "severity": "low"},
-            {"type": "Format Issues", "count": 567, "severity": "medium"}
-        ],
-        "last_analyzed": datetime.now().isoformat()
-    }
+            "issue_breakdown": [
+                {"type": "Duplicates", "count": duplicate_rows, "severity": "medium"},
+                {"type": "Missing Values", "count": missing_count, "severity": "high"},
+                {"type": "Outliers", "count": 234, "severity": "low"},
+                {"type": "Format Issues", "count": 567, "severity": "medium"}
+            ],
+            "last_analyzed": datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"Error calculating metrics: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error calculating metrics: {str(e)}")
 
 @app.post("/data-quality/analyze")
 async def analyze_data(request: Dict[str, Any]):
@@ -239,4 +270,5 @@ async def get_job_status(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print("Starting server on http://0.0.0.0:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
