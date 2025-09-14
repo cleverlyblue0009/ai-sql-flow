@@ -9,7 +9,7 @@ from datetime import datetime
 import logging
 
 from ..database.config import get_db
-from ..database.models import User, Project, DataProfile, Job
+from ..database.models import User, Project, DataProfile, Job, JobStatus
 from .schemas import (
     DataUploadRequest, DataAnalysisRequest, DataCleaningRequest,
     DataProfileResponse, DataCleaningResult, JobStatusResponse, DataQualityReport
@@ -203,6 +203,9 @@ async def analyze_data_quality(
                 detail="Data profile not found"
             )
         
+        # Use project_id from request or data profile
+        project_id = request.project_id or data_profile.project_id
+        
         # Create analysis job
         job_id = str(uuid.uuid4())
         job = Job(
@@ -210,7 +213,7 @@ async def analyze_data_quality(
             job_type="data_analysis",
             name=f"Analyze {data_profile.source_name}",
             user_id=current_user.id,
-            project_id=request.project_id,
+            project_id=project_id,
             parameters={
                 "data_profile_id": request.data_profile_id,
                 "analysis_types": request.analysis_types,
@@ -221,6 +224,13 @@ async def analyze_data_quality(
         
         db.add(job)
         db.commit()
+        
+        # Start the analysis process immediately (since we don't have Celery running)
+        try:
+            await _run_comprehensive_analysis(request.data_profile_id, job_id, request, db)
+        except Exception as e:
+            logger.error(f"Failed to start comprehensive analysis: {str(e)}")
+            # Don't fail the request if analysis fails to start
         
         return {
             "message": "Data quality analysis started",
@@ -689,3 +699,113 @@ def _detect_file_format(filename: str) -> str:
     }
     
     return format_mapping.get(extension, 'csv')
+
+
+async def _run_comprehensive_analysis(data_profile_id: int, job_id: str, request: DataAnalysisRequest, db: Session):
+    """Run comprehensive data quality analysis for a data profile"""
+    try:
+        # Update job status to running
+        job = db.query(Job).filter(Job.job_id == job_id).first()
+        if job:
+            job.status = JobStatus.RUNNING
+            job.started_at = datetime.utcnow()
+            job.progress_percentage = 10.0
+            job.current_step = "Loading data for analysis"
+            job.total_steps = 5
+            db.commit()
+        
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(DataProfile.id == data_profile_id).first()
+        if not data_profile:
+            raise ValueError(f"Data profile {data_profile_id} not found")
+        
+        # Load data from storage
+        from ..utils.file_storage import FileStorageManager
+        storage_manager = FileStorageManager()
+        
+        if not data_profile.file_path:
+            raise ValueError("No file path found in data profile")
+        
+        # Read file content
+        file_content = await storage_manager.download_file(data_profile.file_path)
+        if not file_content:
+            raise ValueError(f"Could not load file from {data_profile.file_path}")
+        
+        # Update progress
+        if job:
+            job.progress_percentage = 30.0
+            job.current_step = "Parsing data file"
+            db.commit()
+        
+        # Parse file into DataFrame
+        file_format = _detect_file_format(data_profile.source_name)
+        df = await _read_file(file_content, file_format, ",", "utf-8", True)
+        
+        # Apply sample size if specified
+        if request.sample_size and len(df) > request.sample_size:
+            df = df.sample(n=request.sample_size, random_state=42)
+            logger.info(f"Sampled {request.sample_size} rows from {len(df)} total rows")
+        
+        # Update progress
+        if job:
+            job.progress_percentage = 50.0
+            job.current_step = "Running AI-powered analysis"
+            db.commit()
+        
+        # Run comprehensive analysis using the analyzer
+        analysis_result = await analyzer.analyze_data_quality(
+            df, 
+            ai_enabled=request.ai_enabled,
+            sample_size=request.sample_size
+        )
+        
+        # Update progress
+        if job:
+            job.progress_percentage = 80.0
+            job.current_step = "Saving analysis results"
+            db.commit()
+        
+        # Update data profile with comprehensive results
+        if analysis_result.get("quality_metrics"):
+            metrics = analysis_result["quality_metrics"]
+            data_profile.completeness_score = metrics.completeness_score
+            data_profile.accuracy_score = metrics.accuracy_score
+            data_profile.consistency_score = metrics.consistency_score
+            data_profile.validity_score = metrics.validity_score
+            data_profile.uniqueness_score = metrics.uniqueness_score
+            data_profile.overall_quality_score = metrics.overall_quality_score
+        
+        # Store detailed analysis results
+        data_profile.column_profiles = analysis_result.get("column_profiles", [])
+        data_profile.duplicate_analysis = analysis_result.get("duplicate_analysis", {})
+        data_profile.outlier_analysis = analysis_result.get("outlier_analysis", {})
+        data_profile.missing_value_analysis = analysis_result.get("missing_value_analysis", {})
+        data_profile.pattern_analysis = analysis_result.get("pattern_analysis", {})
+        data_profile.ai_recommendations = analysis_result.get("ai_recommendations", {})
+        
+        # Update job as completed
+        if job:
+            job.status = JobStatus.COMPLETED
+            job.progress_percentage = 100.0
+            job.current_step = "Analysis completed"
+            job.completed_at = datetime.utcnow()
+            job.result = {
+                "analysis_completed": True,
+                "quality_score": data_profile.overall_quality_score,
+                "total_issues": sum([
+                    analysis_result.get("duplicate_analysis", {}).get("total_duplicates", 0),
+                    analysis_result.get("missing_value_analysis", {}).get("total_missing", 0),
+                    analysis_result.get("outlier_analysis", {}).get("total_outliers", 0)
+                ])
+            }
+        
+        db.commit()
+        logger.info(f"Comprehensive analysis completed for profile {data_profile_id}")
+        
+    except Exception as e:
+        logger.error(f"Comprehensive analysis failed: {str(e)}")
+        if job:
+            job.status = JobStatus.FAILED
+            job.error_message = str(e)
+            job.completed_at = datetime.utcnow()
+            db.commit()
