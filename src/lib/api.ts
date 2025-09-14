@@ -69,6 +69,7 @@ export const api = {
         rows: number;
         columns: number;
         quality_score: number;
+        has_cleaned_data?: boolean;
       }>;
     }>('/data-quality/recent-uploads'),
     
@@ -172,6 +173,54 @@ export const api = {
         quality_improvement: number;
       };
     }>(`/data-quality/validation-results/${dataProfileId}`),
+    
+    getIssueDetails: (dataProfileId: number, issueType: string) => apiRequest<{
+      issue_type: string;
+      data_profile_id: number;
+      file_name: string;
+      total_count: number;
+      severity: string;
+      description: string;
+      examples: string[];
+      recommendations: string[];
+    }>(`/data-quality/issue-details/${dataProfileId}/${encodeURIComponent(issueType)}`),
+    
+    exportCleanedData: async (dataProfileId: number) => {
+      const url = `${API_BASE_URL}/data-quality/export-cleaned-data/${dataProfileId}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = 'cleaned_data.csv';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      return { success: true, filename };
+    },
   },
   
   // Monitoring endpoints
