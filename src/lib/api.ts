@@ -118,6 +118,7 @@ export const api = {
     
     startCleaning: (data: {
       data_profile_id: number;
+      project_id?: number;
       cleaning_operations: Array<{
         operation: string;
         parameters: Record<string, any>;
@@ -138,6 +139,39 @@ export const api = {
       result: any;
       error_message: string;
     }>(`/data-quality/status/${jobId}`),
+    
+    getValidationResults: (dataProfileId: number) => apiRequest<{
+      data_profile_id: number;
+      before_cleaning: {
+        overall_quality_score: number;
+        completeness: number;
+        accuracy: number;
+        consistency: number;
+        validity: number;
+        total_rows: number;
+      };
+      after_cleaning: {
+        overall_quality_score: number;
+        completeness: number;
+        accuracy: number;
+        consistency: number;
+        validity: number;
+        total_rows: number;
+      };
+      improvement: {
+        overall_quality_score: number;
+        completeness: number;
+        accuracy: number;
+        consistency: number;
+        validity: number;
+      };
+      cleaning_summary: {
+        operations_performed: string[];
+        records_processed: number;
+        records_removed: number;
+        quality_improvement: number;
+      };
+    }>(`/data-quality/validation-results/${dataProfileId}`),
   },
   
   // Monitoring endpoints

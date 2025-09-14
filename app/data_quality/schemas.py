@@ -59,7 +59,7 @@ class DataAnalysisRequest(BaseModel):
 
 
 class DataCleaningRequest(BaseModel):
-    project_id: int
+    project_id: Optional[int] = None
     data_profile_id: int
     cleaning_operations: List[Dict[str, Any]]
     preview_only: bool = False
