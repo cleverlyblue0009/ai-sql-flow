@@ -46,12 +46,34 @@ except ImportError:
     from fastapi import APIRouter
     dashboard_router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-# Create placeholder routers for missing modules
-from fastapi import APIRouter
-migration_router = APIRouter(prefix="/migration", tags=["Migration"])
-monitoring_router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
-settings_router = APIRouter(prefix="/settings", tags=["Settings"])
-websocket_router = APIRouter(prefix="/ws", tags=["WebSocket"])
+# Import migration and other routers
+try:
+    from .migration.routes import router as migration_router
+except ImportError:
+    print("Migration router not found, creating placeholder")
+    from fastapi import APIRouter
+    migration_router = APIRouter(prefix="/migration", tags=["Migration"])
+
+try:
+    from .monitoring.routes import router as monitoring_router
+except ImportError:
+    print("Monitoring router not found, creating placeholder")
+    from fastapi import APIRouter
+    monitoring_router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
+
+try:
+    from .settings.routes import router as settings_router
+except ImportError:
+    print("Settings router not found, creating placeholder")
+    from fastapi import APIRouter
+    settings_router = APIRouter(prefix="/settings", tags=["Settings"])
+
+try:
+    from .websocket.migration_ws import router as websocket_router
+except ImportError:
+    print("WebSocket router not found, creating placeholder")
+    from fastapi import APIRouter
+    websocket_router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
 # Setup basic logging
 logging.basicConfig(
@@ -261,6 +283,63 @@ async def system_info():
         }
     }
 
+
+# Job status endpoint for polling
+@app.get("/jobs/{job_id}/status", tags=["Jobs"])
+async def get_job_status(job_id: str):
+    """Get job status for polling"""
+    # Mock job status - in production this would query the database
+    import random
+    import time
+    
+    # Simulate job progression
+    statuses = ["pending", "processing", "completed", "failed"]
+    
+    # Generate deterministic status based on job_id hash
+    hash_val = hash(job_id) % 100
+    current_time = int(time.time())
+    
+    if hash_val < 20:  # 20% chance of failure
+        status = "failed"
+        result = None
+        error = "Translation service temporarily unavailable"
+    elif (current_time % 10) < 8:  # 80% chance of completion after some time
+        status = "completed"
+        result = {
+            "translated_sql": f"""-- Translated SQL Query
+SELECT 
+  u.user_id,
+  u.username,
+  COUNT(o.order_id) as order_count,
+  SUM(o.total_amount) as total_spent,
+  TO_CHAR(u.created_at, 'YYYY-MM') as signup_month
+FROM users u
+LEFT JOIN orders o ON u.user_id = o.user_id
+WHERE u.created_at >= DATEADD(MONTH, -6, CURRENT_TIMESTAMP())
+GROUP BY u.user_id, TO_CHAR(u.created_at, 'YYYY-MM')
+HAVING COUNT(o.order_id) > 0
+ORDER BY total_spent DESC
+LIMIT 100;""",
+            "confidence_score": 0.95,
+            "optimization_suggestions": [
+                "Query optimized for target platform",
+                "Added proper date functions for Snowflake"
+            ]
+        }
+        error = None
+    else:
+        status = "processing"
+        result = None
+        error = None
+    
+    return {
+        "job_id": job_id,
+        "status": status,
+        "result": result,
+        "error": error,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+    }
 
 # Include routers
 app.include_router(auth_router)
