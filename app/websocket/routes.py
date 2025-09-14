@@ -2,11 +2,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 import logging
 import json
+import uuid
 from typing import Optional
 
 from ..database import get_db, User
 from ..auth import get_current_user_from_token
 from .manager import connection_manager
+from .migration_ws import migration_progress_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -214,3 +216,70 @@ async def send_new_activity(user_id: int, activity_data: dict):
 async def send_system_notification(notification_type: str, message: str, severity: str = "info"):
     """Send system-wide notification"""
     await connection_manager.send_system_alert(notification_type, message, severity)
+
+
+@router.websocket("/ws/migration")
+async def migration_websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """WebSocket endpoint for real-time migration progress tracking"""
+    
+    user = None
+    connection_id = str(uuid.uuid4())
+    
+    try:
+        # Authenticate user
+        if token:
+            try:
+                user = await get_current_user_from_token(token, db)
+            except Exception as e:
+                logger.error(f"Migration WebSocket authentication failed: {str(e)}")
+                await websocket.close(code=4001, reason="Authentication failed")
+                return
+        
+        if not user:
+            await websocket.close(code=4001, reason="Authentication required")
+            return
+        
+        # Connect to migration progress manager
+        await migration_progress_manager.connect_user(websocket, user.id, connection_id)
+        
+        logger.info(f"Migration WebSocket connected for user {user.id}")
+        
+        # Listen for messages
+        while True:
+            try:
+                # Receive message from client
+                message_text = await websocket.receive_text()
+                message_data = json.loads(message_text)
+                
+                # Handle the message through migration progress manager
+                await migration_progress_manager.handle_client_message(
+                    connection_id, message_data, user.id
+                )
+                
+            except WebSocketDisconnect:
+                logger.info(f"Migration WebSocket disconnected for user {user.id}")
+                break
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON received from user {user.id}")
+                await migration_progress_manager.send_to_connection(connection_id, {
+                    "type": "error",
+                    "message": "Invalid JSON format"
+                })
+            except Exception as e:
+                logger.error(f"Error handling migration WebSocket message: {str(e)}")
+                await migration_progress_manager.send_to_connection(connection_id, {
+                    "type": "error",
+                    "message": "Error processing message"
+                })
+                
+    except WebSocketDisconnect:
+        logger.info(f"Migration WebSocket disconnected for user {user.id if user else 'unknown'}")
+    except Exception as e:
+        logger.error(f"Migration WebSocket error: {str(e)}")
+    finally:
+        # Ensure cleanup
+        await migration_progress_manager.disconnect_user(connection_id, user.id if user else None)
