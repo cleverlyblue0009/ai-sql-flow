@@ -360,6 +360,61 @@ async def get_quality_summary(
         )
 
 
+@router.post("/clean", response_model=Dict[str, Any])
+async def start_data_cleaning(
+    request: DataCleaningRequest,
+    current_user: MockUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Start data cleaning process"""
+    
+    try:
+        # Validate data profile ownership
+        data_profile = db.query(DataProfile).join(Project).filter(
+            DataProfile.id == request.data_profile_id,
+            Project.owner_id == current_user.id
+        ).first()
+        
+        if not data_profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Data profile not found"
+            )
+        
+        # Create cleaning job
+        job_id = str(uuid.uuid4())
+        job = Job(
+            job_id=job_id,
+            job_type="data_cleaning",
+            name=f"Clean {data_profile.source_name}",
+            user_id=current_user.id,
+            project_id=data_profile.project_id,
+            parameters={
+                "data_profile_id": request.data_profile_id,
+                "cleaning_operations": request.cleaning_operations,
+                "preview_only": request.preview_only
+            }
+        )
+        
+        db.add(job)
+        db.commit()
+        
+        return {
+            "message": "Data cleaning started",
+            "job_id": job_id,
+            "preview_only": request.preview_only
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting data cleaning: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start data cleaning"
+        )
+
+
 @router.get("/status/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(
     job_id: str,

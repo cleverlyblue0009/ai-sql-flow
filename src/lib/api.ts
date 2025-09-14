@@ -71,6 +71,73 @@ export const api = {
         quality_score: number;
       }>;
     }>('/data-quality/recent-uploads'),
+    
+    uploadFile: async (formData: FormData) => {
+      const url = `${API_BASE_URL}/data-quality/upload`;
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
+    },
+    
+    analyzeData: (data: {
+      data_profile_id: number;
+      project_id?: number;
+      analysis_types: string[];
+      ai_enabled: boolean;
+      sample_size?: number;
+    }) => apiRequest('/data-quality/analyze', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    
+    getQualitySummary: (dataProfileId: number) => 
+      apiRequest<{
+        data_profile_id: number;
+        file_name: string;
+        overall_quality_score: number;
+        quality_metrics: {
+          completeness: { score: number; issues: number; status: string; description: string };
+          accuracy: { score: number; issues: number; status: string; description: string };
+          consistency: { score: number; issues: number; status: string; description: string };
+          validity: { score: number; issues: number; status: string; description: string };
+        };
+        issue_breakdown: Array<{
+          type: string;
+          count: number;
+          severity: string;
+        }>;
+        last_analyzed: string;
+      }>(`/data-quality/quality-summary/${dataProfileId}`),
+    
+    startCleaning: (data: {
+      data_profile_id: number;
+      cleaning_operations: Array<{
+        operation: string;
+        parameters: Record<string, any>;
+      }>;
+      preview_only: boolean;
+    }) => apiRequest('/data-quality/clean', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    
+    getJobStatus: (jobId: string) => apiRequest<{
+      job_id: string;
+      status: string;
+      progress_percentage: number;
+      current_step: string;
+      total_steps: number;
+      started_at: string;
+      result: any;
+      error_message: string;
+    }>(`/data-quality/status/${jobId}`),
   },
   
   // Monitoring endpoints

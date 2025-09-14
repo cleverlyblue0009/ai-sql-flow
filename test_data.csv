@@ -1,0 +1,21 @@
+name,email,age,salary,department,join_date
+John Smith,john.smith@company.com,28,75000,Engineering,2023-01-15
+Jane Doe,jane.doe@company.com,32,85000,Marketing,2022-08-20
+Bob Johnson,bob.johnson@invalid,45,95000,Sales,2021-03-10
+Alice Brown,alice.brown@company.com,29,78000,Engineering,2023-02-01
+Charlie Wilson,,35,82000,Marketing,2022-11-05
+David Lee,david.lee@company.com,41,92000,Sales,2021-07-18
+Eva Garcia,eva.garcia@company.com,27,73000,Engineering,2023-03-12
+Frank Miller,frank.miller@company.com,38,88000,Marketing,2022-05-30
+Grace Chen,grace.chen@invalid.email,33,86000,Sales,2021-12-08
+Henry Taylor,henry.taylor@company.com,,79000,Engineering,2023-01-22
+Isabel Rodriguez,isabel.rodriguez@company.com,31,84000,Marketing,2022-09-14
+Jack Anderson,jack.anderson@company.com,29,76000,Sales,2021-06-25
+Kelly White,kelly.white@company.com,34,87000,Engineering,2022-10-03
+Leo Brown,leo.brown@company.com,40,91000,Marketing,2021-04-17
+Maria Lopez,maria.lopez@invalid,36,83000,Sales,2022-07-11
+John Smith,john.smith@company.com,28,75000,Engineering,2023-01-15
+Nina Johnson,nina.johnson@company.com,26,72000,Engineering,2023-04-05
+Oscar Kim,oscar.kim@company.com,42,94000,Sales,2021-02-28
+Paula Davis,paula.davis@company.com,30,80000,Marketing,2022-12-01
+Quinn Wilson,quinn.wilson@invalid.domain,37,89000,Engineering,2021-08-13
