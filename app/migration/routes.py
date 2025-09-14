@@ -15,7 +15,7 @@ from .schemas import (
 )
 from .services import MigrationService, SQLTranslationService, ConnectionService
 from .enterprise_features import batch_migration_manager, export_manager, history_manager
-from ..tasks.migration_tasks import start_migration_task, translate_sql_task, analyze_sql_schema_task
+from ..tasks.migration_tasks import start_migration_task_wrapper, translate_sql_task_wrapper, analyze_sql_schema_task_wrapper
 from ..utils.audit import log_migration_action
 
 router = APIRouter(prefix="/migration", tags=["SQL Migration"])
@@ -217,7 +217,7 @@ async def translate_sql(
         db.commit()
         
         # Start background translation
-        translate_sql_task.delay(
+        translate_sql_task_wrapper(
             job_id=job_id,
             source_sql=request.source_sql,
             source_dialect=request.source_dialect,
@@ -232,10 +232,10 @@ async def translate_sql(
         )
         
     except Exception as e:
-        logger.error(f"Error starting SQL translation: {str(e)}")
+        logger.error(f"Error starting SQL translation: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to start SQL translation"
+            detail=f"Failed to start SQL translation: {str(e)}"
         )
 
 
@@ -296,7 +296,7 @@ async def start_migration(
         db.commit()
         
         # Start background migration
-        start_migration_task.delay(
+        start_migration_task_wrapper(
             migration_id=migration_id,
             job_id=job_id,
             config=config.dict()
@@ -325,10 +325,10 @@ async def start_migration(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error starting migration: {str(e)}")
+        logger.error(f"Error starting migration: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to start migration"
+            detail=f"Failed to start migration: {str(e)}"
         )
 
 
@@ -534,7 +534,7 @@ async def analyze_sql_schema(
         db.commit()
         
         # Start background analysis
-        analyze_sql_schema_task.delay(job_id, sql_content, source_dialect)
+        analyze_sql_schema_task_wrapper(job_id, sql_content, source_dialect)
         
         return {
             "job_id": job_id,

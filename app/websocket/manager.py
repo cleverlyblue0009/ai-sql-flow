@@ -12,101 +12,109 @@ class ConnectionManager:
     """Manages WebSocket connections and real-time updates"""
     
     def __init__(self):
-        # Store active connections by user ID
-        self.active_connections: Dict[int, List[WebSocket]] = {}
+        # Store active connections by connection ID
+        self.active_connections: Dict[str, WebSocket] = {}
         # Store connection metadata
-        self.connection_metadata: Dict[WebSocket, Dict[str, Any]] = {}
+        self.connection_metadata: Dict[str, Dict[str, Any]] = {}
+        # Store user connections
+        self.user_connections: Dict[int, List[str]] = {}
         
-    async def connect(self, websocket: WebSocket, user_id: int, client_info: Dict[str, Any] = None):
+    async def connect(self, websocket: WebSocket, connection_id: str, user_id: Optional[int] = None, client_info: Dict[str, Any] = None):
         """Accept WebSocket connection and add to active connections"""
         try:
             await websocket.accept()
             
-            # Initialize user connections list if not exists
-            if user_id not in self.active_connections:
-                self.active_connections[user_id] = []
-            
-            # Add connection
-            self.active_connections[user_id].append(websocket)
+            # Store connection
+            self.active_connections[connection_id] = websocket
             
             # Store metadata
-            self.connection_metadata[websocket] = {
+            self.connection_metadata[connection_id] = {
                 "user_id": user_id,
                 "connected_at": datetime.utcnow(),
                 "client_info": client_info or {},
                 "subscriptions": set()
             }
             
-            logger.info(f"WebSocket connected for user {user_id}")
+            # Track user connections
+            if user_id:
+                if user_id not in self.user_connections:
+                    self.user_connections[user_id] = []
+                self.user_connections[user_id].append(connection_id)
+            
+            logger.info(f"WebSocket connected: {connection_id} for user {user_id}")
             
             # Send welcome message
-            await self.send_personal_message({
+            await self.send_personal_message(json.dumps({
                 "type": "connection_established",
                 "message": "WebSocket connection established",
                 "timestamp": datetime.utcnow().isoformat(),
-                "user_id": user_id
-            }, websocket)
+                "connection_id": connection_id
+            }), connection_id)
             
         except Exception as e:
             logger.error(f"Error connecting WebSocket: {str(e)}")
             await websocket.close()
     
-    async def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, connection_id: str):
         """Remove WebSocket connection"""
         try:
-            # Get user ID from metadata
-            metadata = self.connection_metadata.get(websocket)
+            # Get metadata
+            metadata = self.connection_metadata.get(connection_id)
             if not metadata:
                 return
             
-            user_id = metadata["user_id"]
+            user_id = metadata.get("user_id")
             
             # Remove from active connections
-            if user_id in self.active_connections:
-                if websocket in self.active_connections[user_id]:
-                    self.active_connections[user_id].remove(websocket)
+            if connection_id in self.active_connections:
+                del self.active_connections[connection_id]
+            
+            # Remove from user connections
+            if user_id and user_id in self.user_connections:
+                if connection_id in self.user_connections[user_id]:
+                    self.user_connections[user_id].remove(connection_id)
                 
                 # Clean up empty user connection lists
-                if not self.active_connections[user_id]:
-                    del self.active_connections[user_id]
+                if not self.user_connections[user_id]:
+                    del self.user_connections[user_id]
             
             # Remove metadata
-            if websocket in self.connection_metadata:
-                del self.connection_metadata[websocket]
+            if connection_id in self.connection_metadata:
+                del self.connection_metadata[connection_id]
             
-            logger.info(f"WebSocket disconnected for user {user_id}")
+            logger.info(f"WebSocket disconnected: {connection_id} for user {user_id}")
             
         except Exception as e:
             logger.error(f"Error disconnecting WebSocket: {str(e)}")
     
-    async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket):
+    async def send_personal_message(self, message: str, connection_id: str):
         """Send message to specific WebSocket connection"""
         try:
-            message_str = json.dumps(message, default=str)
-            await websocket.send_text(message_str)
+            if connection_id in self.active_connections:
+                websocket = self.active_connections[connection_id]
+                await websocket.send_text(message)
         except Exception as e:
-            logger.error(f"Error sending personal message: {str(e)}")
-            await self.disconnect(websocket)
+            logger.error(f"Error sending personal message to {connection_id}: {str(e)}")
+            await self.disconnect(connection_id)
+
+    async def broadcast_to_connections(self, message: Dict[str, Any], connection_ids: List[str]):
+        """Send message to specific connections"""
+        message_str = json.dumps(message, default=str)
+        for connection_id in connection_ids:
+            await self.send_personal_message(message_str, connection_id)
     
     async def send_to_user(self, message: Dict[str, Any], user_id: int):
         """Send message to all connections of a specific user"""
-        if user_id not in self.active_connections:
+        if user_id not in self.user_connections:
             return
         
-        # Get all connections for the user
-        connections = self.active_connections[user_id].copy()
-        
-        # Send to all user connections
-        for connection in connections:
-            try:
-                await self.send_personal_message(message, connection)
-            except Exception as e:
-                logger.error(f"Error sending message to user {user_id}: {str(e)}")
-                await self.disconnect(connection)
+        # Get all connection IDs for the user
+        connection_ids = self.user_connections[user_id].copy()
+        await self.broadcast_to_connections(message, connection_ids)
     
     async def broadcast(self, message: Dict[str, Any], exclude_user: Optional[int] = None):
         """Broadcast message to all connected users"""
-        for user_id, connections in self.active_connections.items():
+        for user_id in self.user_connections:
             if exclude_user and user_id == exclude_user:
                 continue
             
@@ -114,23 +122,26 @@ class ConnectionManager:
     
     async def send_to_subscribers(self, message: Dict[str, Any], topic: str):
         """Send message to all connections subscribed to a specific topic"""
-        for websocket, metadata in self.connection_metadata.items():
+        subscriber_connections = []
+        for connection_id, metadata in self.connection_metadata.items():
             if topic in metadata.get("subscriptions", set()):
-                await self.send_personal_message(message, websocket)
+                subscriber_connections.append(connection_id)
+        
+        await self.broadcast_to_connections(message, subscriber_connections)
     
-    async def subscribe(self, websocket: WebSocket, topic: str):
+    async def subscribe(self, connection_id: str, topic: str):
         """Subscribe connection to a specific topic"""
-        if websocket in self.connection_metadata:
-            self.connection_metadata[websocket]["subscriptions"].add(topic)
-            logger.info(f"WebSocket subscribed to topic: {topic}")
+        if connection_id in self.connection_metadata:
+            self.connection_metadata[connection_id]["subscriptions"].add(topic)
+            logger.info(f"Connection {connection_id} subscribed to topic: {topic}")
     
-    async def unsubscribe(self, websocket: WebSocket, topic: str):
+    async def unsubscribe(self, connection_id: str, topic: str):
         """Unsubscribe connection from a specific topic"""
-        if websocket in self.connection_metadata:
-            self.connection_metadata[websocket]["subscriptions"].discard(topic)
-            logger.info(f"WebSocket unsubscribed from topic: {topic}")
+        if connection_id in self.connection_metadata:
+            self.connection_metadata[connection_id]["subscriptions"].discard(topic)
+            logger.info(f"Connection {connection_id} unsubscribed from topic: {topic}")
     
-    async def handle_message(self, websocket: WebSocket, message: str):
+    async def handle_message(self, connection_id: str, message: str):
         """Handle incoming WebSocket message"""
         try:
             data = json.loads(message)
@@ -139,53 +150,53 @@ class ConnectionManager:
             if message_type == "subscribe":
                 topic = data.get("topic")
                 if topic:
-                    await self.subscribe(websocket, topic)
-                    await self.send_personal_message({
+                    await self.subscribe(connection_id, topic)
+                    await self.send_personal_message(json.dumps({
                         "type": "subscription_confirmed",
                         "topic": topic,
                         "timestamp": datetime.utcnow().isoformat()
-                    }, websocket)
+                    }), connection_id)
             
             elif message_type == "unsubscribe":
                 topic = data.get("topic")
                 if topic:
-                    await self.unsubscribe(websocket, topic)
-                    await self.send_personal_message({
+                    await self.unsubscribe(connection_id, topic)
+                    await self.send_personal_message(json.dumps({
                         "type": "unsubscription_confirmed",
                         "topic": topic,
                         "timestamp": datetime.utcnow().isoformat()
-                    }, websocket)
+                    }), connection_id)
             
             elif message_type == "ping":
-                await self.send_personal_message({
+                await self.send_personal_message(json.dumps({
                     "type": "pong",
                     "timestamp": datetime.utcnow().isoformat()
-                }, websocket)
+                }), connection_id)
             
             else:
                 logger.warning(f"Unknown message type: {message_type}")
                 
         except json.JSONDecodeError:
             logger.error("Invalid JSON message received")
-            await self.send_personal_message({
+            await self.send_personal_message(json.dumps({
                 "type": "error",
                 "message": "Invalid JSON format",
                 "timestamp": datetime.utcnow().isoformat()
-            }, websocket)
+            }), connection_id)
         except Exception as e:
             logger.error(f"Error handling WebSocket message: {str(e)}")
     
     def get_connection_count(self) -> int:
         """Get total number of active connections"""
-        return sum(len(connections) for connections in self.active_connections.values())
+        return len(self.active_connections)
     
     def get_user_count(self) -> int:
         """Get number of connected users"""
-        return len(self.active_connections)
+        return len(self.user_connections)
     
-    def get_user_connections(self, user_id: int) -> List[WebSocket]:
-        """Get all connections for a specific user"""
-        return self.active_connections.get(user_id, [])
+    def get_user_connections(self, user_id: int) -> List[str]:
+        """Get all connection IDs for a specific user"""
+        return self.user_connections.get(user_id, [])
     
     async def send_job_update(self, job_id: str, user_id: int, status: str, progress: float, message: str):
         """Send job progress update to user"""

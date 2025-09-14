@@ -69,7 +69,7 @@ except ImportError:
     settings_router = APIRouter(prefix="/settings", tags=["Settings"])
 
 try:
-    from .websocket.migration_ws import router as websocket_router
+    from .websocket.routes import router as websocket_router
 except ImportError:
     print("WebSocket router not found, creating placeholder")
     from fastapi import APIRouter
@@ -285,7 +285,7 @@ async def system_info():
 
 
 # Job status endpoint for polling
-@app.get("/jobs/{job_id}/status", tags=["Jobs"])
+@app.get("/api/jobs/{job_id}/status", tags=["Jobs"])
 async def get_job_status(job_id: str):
     """Get job status for polling"""
     # Mock job status - in production this would query the database
@@ -341,14 +341,14 @@ LIMIT 100;""",
         "updated_at": "2024-01-01T00:00:00Z"
     }
 
-# Include routers
-app.include_router(auth_router)
-app.include_router(data_quality_router)
-app.include_router(dashboard_router)
-app.include_router(migration_router)
-app.include_router(monitoring_router)
-app.include_router(settings_router)
-app.include_router(websocket_router)
+# Include routers with API prefix
+app.include_router(auth_router, prefix="/api")
+app.include_router(data_quality_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
+app.include_router(migration_router, prefix="/api")
+app.include_router(monitoring_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
+app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers
 @app.exception_handler(404)

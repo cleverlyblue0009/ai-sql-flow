@@ -38,14 +38,17 @@ async def websocket_endpoint(
             await websocket.close(code=4001, reason="Authentication required")
             return
         
+        # Generate connection ID
+        connection_id = str(uuid.uuid4())
+        
         # Connect to WebSocket manager
-        await connection_manager.connect(websocket, user.id, {
+        await connection_manager.connect(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
             "ip_address": websocket.client.host if websocket.client else None
         })
         
         # Send initial user data
-        await connection_manager.send_personal_message({
+        await connection_manager.send_personal_message(json.dumps({
             "type": "user_connected",
             "user": {
                 "id": user.id,
@@ -54,7 +57,7 @@ async def websocket_endpoint(
                 "role": user.role.value
             },
             "message": f"Welcome back, {user.full_name}!"
-        }, websocket)
+        }), connection_id)
         
         # Listen for messages
         while True:
@@ -63,18 +66,18 @@ async def websocket_endpoint(
                 message = await websocket.receive_text()
                 
                 # Handle the message
-                await connection_manager.handle_message(websocket, message)
+                await connection_manager.handle_message(connection_id, message)
                 
             except WebSocketDisconnect:
                 logger.info(f"WebSocket disconnected for user {user.id}")
                 break
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {str(e)}")
-                await connection_manager.send_personal_message({
+                await connection_manager.send_personal_message(json.dumps({
                     "type": "error",
                     "message": "An error occurred while processing your message",
                     "details": str(e)
-                }, websocket)
+                }), connection_id)
                 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user {user.id if user else 'unknown'}")
@@ -82,7 +85,7 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error: {str(e)}")
     finally:
         # Ensure cleanup
-        await connection_manager.disconnect(websocket)
+        await connection_manager.disconnect(connection_id)
 
 
 @router.websocket("/ws/admin")
@@ -112,27 +115,30 @@ async def admin_websocket_endpoint(
             await websocket.close(code=4001, reason="Authentication required")
             return
         
+        # Generate connection ID
+        connection_id = str(uuid.uuid4())
+        
         # Connect to WebSocket manager
-        await connection_manager.connect(websocket, user.id, {
+        await connection_manager.connect(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
             "ip_address": websocket.client.host if websocket.client else None,
             "admin_connection": True
         })
         
         # Subscribe to admin topics
-        await connection_manager.subscribe(websocket, "system_metrics")
-        await connection_manager.subscribe(websocket, "system_alerts")
-        await connection_manager.subscribe(websocket, "user_activity")
+        await connection_manager.subscribe(connection_id, "system_metrics")
+        await connection_manager.subscribe(connection_id, "system_alerts")
+        await connection_manager.subscribe(connection_id, "user_activity")
         
         # Send admin welcome message
-        await connection_manager.send_personal_message({
+        await connection_manager.send_personal_message(json.dumps({
             "type": "admin_connected",
             "message": "Admin WebSocket connected",
             "system_info": {
                 "active_connections": connection_manager.get_connection_count(),
                 "active_users": connection_manager.get_user_count()
             }
-        }, websocket)
+        }), connection_id)
         
         # Listen for admin messages
         while True:
@@ -142,7 +148,7 @@ async def admin_websocket_endpoint(
                 
                 # Handle admin-specific commands
                 if data.get("type") == "get_system_status":
-                    await connection_manager.send_personal_message({
+                    await connection_manager.send_personal_message(json.dumps({
                         "type": "system_status",
                         "data": {
                             "active_connections": connection_manager.get_connection_count(),
@@ -156,7 +162,7 @@ async def admin_websocket_endpoint(
                                 for metadata in connection_manager.connection_metadata.values()
                             ]
                         }
-                    }, websocket)
+                    }), connection_id)
                 
                 elif data.get("type") == "broadcast_message":
                     message_content = data.get("message")
@@ -169,7 +175,7 @@ async def admin_websocket_endpoint(
                 
                 else:
                     # Handle regular message
-                    await connection_manager.handle_message(websocket, message)
+                    await connection_manager.handle_message(connection_id, message)
                 
             except WebSocketDisconnect:
                 logger.info(f"Admin WebSocket disconnected for user {user.id}")
@@ -182,7 +188,7 @@ async def admin_websocket_endpoint(
     except Exception as e:
         logger.error(f"Admin WebSocket error: {str(e)}")
     finally:
-        await connection_manager.disconnect(websocket)
+        await connection_manager.disconnect(connection_id)
 
 
 # Helper function to send updates from background tasks
