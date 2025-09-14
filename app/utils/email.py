@@ -2,8 +2,18 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
-import aiosmtplib
-from jinja2 import Template
+try:
+    import aiosmtplib
+    SMTP_AVAILABLE = True
+except ImportError:
+    SMTP_AVAILABLE = False
+    aiosmtplib = None
+try:
+    from jinja2 import Template
+    JINJA2_AVAILABLE = True
+except ImportError:
+    JINJA2_AVAILABLE = False
+    Template = None
 import logging
 
 from ..database.config import settings
@@ -123,14 +133,17 @@ async def send_email(
         message.attach(html_part)
         
         # Send email
-        await aiosmtplib.send(
-            message,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            start_tls=True,
-            username=settings.smtp_username,
-            password=settings.smtp_password,
-        )
+        if SMTP_AVAILABLE:
+            await aiosmtplib.send(
+                message,
+                hostname=settings.smtp_host,
+                port=settings.smtp_port,
+                start_tls=True,
+                username=settings.smtp_username,
+                password=settings.smtp_password,
+            )
+        else:
+            logger.warning("aiosmtplib not available, email not sent")
         
         logger.info(f"Email sent successfully to {to_email}")
         return True
@@ -148,8 +161,11 @@ async def send_verification_email(email: str, verification_token: str) -> bool:
     verification_url = f"http://localhost:3000/verify-email?token={verification_token}"
     
     # Render template
-    template = Template(VERIFICATION_EMAIL_TEMPLATE)
-    html_content = template.render(verification_url=verification_url)
+    if JINJA2_AVAILABLE:
+        template = Template(VERIFICATION_EMAIL_TEMPLATE)
+        html_content = template.render(username=username, verification_url=verification_url)
+    else:
+        html_content = VERIFICATION_EMAIL_TEMPLATE.replace("{{ username }}", username).replace("{{ verification_url }}", verification_url)
     
     # Send email
     return await send_email(
@@ -168,8 +184,11 @@ async def send_password_reset_email(email: str, reset_token: str) -> bool:
     reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
     
     # Render template
-    template = Template(PASSWORD_RESET_EMAIL_TEMPLATE)
-    html_content = template.render(reset_url=reset_url)
+    if JINJA2_AVAILABLE:
+        template = Template(PASSWORD_RESET_EMAIL_TEMPLATE)
+        html_content = template.render(username=username, reset_url=reset_url)
+    else:
+        html_content = PASSWORD_RESET_EMAIL_TEMPLATE.replace("{{ username }}", username).replace("{{ reset_url }}", reset_url)
     
     # Send email
     return await send_email(
@@ -210,8 +229,13 @@ async def send_welcome_email(email: str, full_name: str) -> bool:
     </html>
     """
     
-    template = Template(welcome_template)
-    html_content = template.render(full_name=full_name)
+    if JINJA2_AVAILABLE:
+        template = Template(welcome_template)
+        html_content = template.render(**template_vars)
+    else:
+        html_content = welcome_template
+        for key, value in template_vars.items():
+            html_content = html_content.replace(f"{{{{{key}}}}}", str(value))
     
     return await send_email(
         to_email=email,

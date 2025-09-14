@@ -127,7 +127,11 @@ export default function SQLMigration() {
     },
     onError: (error) => {
       console.error('Migration error:', error);
-      toast.error('Migration Error', { description: error.error });
+      const errorMessage = error?.error || error?.message || 'An unknown error occurred';
+      toast.error('Migration Error', { 
+        description: errorMessage,
+        duration: 5000
+      });
     }
   });
 
@@ -176,7 +180,8 @@ export default function SQLMigration() {
       });
 
       if (!translationResponse.ok) {
-        throw new Error('Translation failed');
+        const errorData = await translationResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Translation failed with status ${translationResponse.status}`);
       }
 
       const translationResult = await translationResponse.json();
@@ -216,7 +221,8 @@ export default function SQLMigration() {
               
               toast.success('SQL translation completed!');
             } else if (statusData.status === 'failed') {
-              throw new Error(statusData.error || 'Translation failed');
+              const errorMsg = statusData.error || statusData.error_message || 'Translation failed';
+              throw new Error(errorMsg);
             }
           }
         } catch (pollError) {
@@ -274,6 +280,10 @@ export default function SQLMigration() {
         // Subscribe to migration progress
         if (isConnected) {
           subscribeToMigration(migrationId);
+        } else {
+          toast.warning('WebSocket not connected', {
+            description: 'Real-time updates may not be available'
+          });
         }
         
         // Start the actual migration
@@ -321,12 +331,21 @@ export default function SQLMigration() {
               }
             });
           }, 10000);
+        } else {
+          const startErrorData = await startResponse.json().catch(() => ({}));
+          throw new Error(startErrorData.detail || `Failed to start migration with status ${startResponse.status}`);
         }
+      } else {
+        const migrationErrorData = await migrationResponse.json().catch(() => ({}));
+        throw new Error(migrationErrorData.detail || `Failed to setup migration with status ${migrationResponse.status}`);
       }
       
     } catch (error) {
-      toast.error('Failed to start migration analysis');
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start migration analysis';
+      toast.error('Migration Analysis Failed', {
+        description: errorMessage
+      });
+      console.error('Migration analysis error:', error);
     } finally {
       setTranslationInProgress(false);
     }
