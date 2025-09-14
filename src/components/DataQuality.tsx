@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Upload, 
@@ -74,6 +75,8 @@ export default function DataQuality() {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("upload");
   const [validationResults, setValidationResults] = useState<any>(null);
+  const [selectedIssueDetails, setSelectedIssueDetails] = useState<any>(null);
+  const [isIssueDetailsOpen, setIsIssueDetailsOpen] = useState(false);
   const [cleaningConfig, setCleaningConfig] = useState({
     similarityThreshold: 85,
     duplicateMethod: "semantic",
@@ -360,6 +363,23 @@ export default function DataQuality() {
     });
   }, [currentDataProfile, cleaningConfig, cleaningMutation]);
 
+  // Handle viewing issue details
+  const handleViewDetails = useCallback(async (issueType: string) => {
+    if (!currentDataProfile) return;
+    
+    try {
+      const details = await api.dataQuality.getIssueDetails(currentDataProfile, issueType);
+      setSelectedIssueDetails(details);
+      setIsIssueDetailsOpen(true);
+    } catch (error) {
+      toast({
+        title: "Failed to load issue details",
+        description: "Unable to fetch detailed information for this issue type.",
+        variant: "destructive",
+      });
+    }
+  }, [currentDataProfile, toast]);
+
   // Use API data if available, only show mock data if no API data and no uploads
   const recentUploads = uploadsData?.data || (currentDataProfile ? [] : [
     { name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
@@ -501,38 +521,88 @@ export default function DataQuality() {
               )}
               <div className="space-y-4">
                 {recentUploads.map((file) => (
-                  <div 
-                    key={file.name} 
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => {
-                      if (file.id) {
-                        setCurrentDataProfile(file.id);
-                        setActiveTab("assessment");
-                      }
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {file.size} • {file.date}
-                          {file.rows && file.columns && (
-                            <> • {file.rows.toLocaleString()} rows, {file.columns} columns</>
-                          )}
-                        </p>
+                  <div key={file.name} className="space-y-2">
+                    {/* Original File */}
+                    <div 
+                      className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        if (file.id) {
+                          setCurrentDataProfile(file.id);
+                          setActiveTab("assessment");
+                        }
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {file.size} • {file.date}
+                            {file.rows && file.columns && (
+                              <> • {file.rows.toLocaleString()} rows, {file.columns} columns</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {file.quality_score && (
+                          <span className="text-sm text-muted-foreground">
+                            {file.quality_score}% quality
+                          </span>
+                        )}
+                        <Badge variant={file.status === 'analyzed' ? 'default' : file.status === 'cleaned' ? 'secondary' : 'outline'}>
+                          {file.status}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {file.quality_score && (
-                        <span className="text-sm text-muted-foreground">
-                          {file.quality_score}% quality
-                        </span>
-                      )}
-                      <Badge variant={file.status === 'analyzed' ? 'default' : file.status === 'cleaned' ? 'secondary' : 'outline'}>
-                        {file.status}
-                      </Badge>
-                    </div>
+                    
+                    {/* Cleaned File (if available) */}
+                    {file.has_cleaned_data && (
+                      <div className="flex items-center justify-between p-3 rounded-lg border border-success/30 bg-success/5 hover:bg-success/10 cursor-pointer transition-colors ml-6">
+                        <div className="flex items-center space-x-3">
+                          <Download className="h-5 w-5 text-success" />
+                          <div>
+                            <p className="font-medium text-success">
+                              {file.name.replace(/\.[^/.]+$/, '')}_cleaned.csv
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Cleaned version • Ready for download
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-success text-success hover:bg-success hover:text-success-foreground"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!file.id) return;
+                              
+                              try {
+                                const result = await api.dataQuality.exportCleanedData(file.id);
+                                toast({
+                                  title: "Download started",
+                                  description: `Downloading ${result.filename}`,
+                                });
+                              } catch (error) {
+                                toast({
+                                  title: "Download failed",
+                                  description: "Failed to download cleaned data.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </Button>
+                          <Badge variant="secondary" className="bg-success/20 text-success">
+                            cleaned
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -569,7 +639,7 @@ export default function DataQuality() {
                     {metric.status === 'warning' && <AlertTriangle className="h-5 w-5 text-warning" />}
                   </div>
                   <div className="space-y-3">
-                    <div className="text-2xl font-bold">{metric.score}%</div>
+                    <div className="text-2xl font-bold">{typeof metric.score === 'number' ? metric.score.toFixed(1) : metric.score}%</div>
                     <Progress value={metric.score} />
                     <div>
                       <div className="text-sm font-medium text-danger">{metric.issues} issues</div>
@@ -653,7 +723,11 @@ export default function DataQuality() {
                       }>
                         {issue.severity} priority
                       </Badge>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(issue.type)}
+                      >
                         View Details
                       </Button>
                     </div>
@@ -832,12 +906,28 @@ export default function DataQuality() {
                 </div>
                 <Button 
                   variant="outline"
-                  onClick={() => {
-                    // Export functionality would go here
-                    toast({
-                      title: "Export started",
-                      description: "Your data quality report is being generated.",
-                    });
+                  onClick={async () => {
+                    if (!currentDataProfile) return;
+                    
+                    try {
+                      toast({
+                        title: "Export started",
+                        description: "Your cleaned data is being prepared for download.",
+                      });
+                      
+                      const result = await api.dataQuality.exportCleanedData(currentDataProfile);
+                      
+                      toast({
+                        title: "Export completed",
+                        description: `Successfully downloaded ${result.filename}`,
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Export failed",
+                        description: error instanceof Error ? error.message : "Failed to export cleaned data. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -858,24 +948,24 @@ export default function DataQuality() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                           <span>Overall Quality Score</span>
-                          <span className="font-bold text-lg">{validationData.before_cleaning.overall_quality_score}%</span>
+                          <span className="font-bold text-lg">{typeof validationData.before_cleaning.overall_quality_score === 'number' ? validationData.before_cleaning.overall_quality_score.toFixed(1) : validationData.before_cleaning.overall_quality_score}%</span>
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Completeness</span>
-                            <span className="text-warning">{validationData.before_cleaning.completeness}%</span>
+                            <span className="text-warning">{typeof validationData.before_cleaning.completeness === 'number' ? validationData.before_cleaning.completeness.toFixed(1) : validationData.before_cleaning.completeness}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Accuracy</span>
-                            <span className="text-danger">{validationData.before_cleaning.accuracy}%</span>
+                            <span className="text-danger">{typeof validationData.before_cleaning.accuracy === 'number' ? validationData.before_cleaning.accuracy.toFixed(1) : validationData.before_cleaning.accuracy}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Consistency</span>
-                            <span className="text-warning">{validationData.before_cleaning.consistency}%</span>
+                            <span className="text-warning">{typeof validationData.before_cleaning.consistency === 'number' ? validationData.before_cleaning.consistency.toFixed(1) : validationData.before_cleaning.consistency}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Validity</span>
-                            <span className="text-warning">{validationData.before_cleaning.validity}%</span>
+                            <span className="text-warning">{typeof validationData.before_cleaning.validity === 'number' ? validationData.before_cleaning.validity.toFixed(1) : validationData.before_cleaning.validity}%</span>
                           </div>
                         </div>
                       </div>
@@ -886,24 +976,24 @@ export default function DataQuality() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
                           <span>Overall Quality Score</span>
-                          <span className="font-bold text-lg text-success">{validationData.after_cleaning.overall_quality_score}%</span>
+                          <span className="font-bold text-lg text-success">{typeof validationData.after_cleaning.overall_quality_score === 'number' ? validationData.after_cleaning.overall_quality_score.toFixed(1) : validationData.after_cleaning.overall_quality_score}%</span>
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Completeness</span>
-                            <span className="text-success">{validationData.after_cleaning.completeness}%</span>
+                            <span className="text-success">{typeof validationData.after_cleaning.completeness === 'number' ? validationData.after_cleaning.completeness.toFixed(1) : validationData.after_cleaning.completeness}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Accuracy</span>
-                            <span className="text-success">{validationData.after_cleaning.accuracy}%</span>
+                            <span className="text-success">{typeof validationData.after_cleaning.accuracy === 'number' ? validationData.after_cleaning.accuracy.toFixed(1) : validationData.after_cleaning.accuracy}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Consistency</span>
-                            <span className="text-success">{validationData.after_cleaning.consistency}%</span>
+                            <span className="text-success">{typeof validationData.after_cleaning.consistency === 'number' ? validationData.after_cleaning.consistency.toFixed(1) : validationData.after_cleaning.consistency}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Validity</span>
-                            <span className="text-success">{validationData.after_cleaning.validity}%</span>
+                            <span className="text-success">{typeof validationData.after_cleaning.validity === 'number' ? validationData.after_cleaning.validity.toFixed(1) : validationData.after_cleaning.validity}%</span>
                           </div>
                         </div>
                       </div>
@@ -938,6 +1028,109 @@ export default function DataQuality() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Issue Details Dialog */}
+      <Dialog open={isIssueDetailsOpen} onOpenChange={setIsIssueDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              {selectedIssueDetails?.issue_type} Details
+            </DialogTitle>
+            <DialogDescription>
+              Detailed analysis for {selectedIssueDetails?.file_name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedIssueDetails && (
+            <div className="space-y-6">
+              {/* Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Issue Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="text-center p-3 rounded-lg bg-muted/50">
+                      <div className="text-2xl font-bold">{selectedIssueDetails.total_count.toLocaleString()}</div>
+                      <div className="text-sm text-muted-foreground">Total Issues</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted/50">
+                      <Badge variant={
+                        selectedIssueDetails.severity === 'high' ? 'destructive' :
+                        selectedIssueDetails.severity === 'medium' ? 'secondary' : 'outline'
+                      } className="text-lg px-3 py-1">
+                        {selectedIssueDetails.severity} Priority
+                      </Badge>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted/50">
+                      <div className="text-sm font-medium">{selectedIssueDetails.issue_type}</div>
+                      <div className="text-xs text-muted-foreground">Issue Type</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">{selectedIssueDetails.description}</p>
+                </CardContent>
+              </Card>
+
+              {/* Examples */}
+              {selectedIssueDetails.examples && selectedIssueDetails.examples.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Examples</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {selectedIssueDetails.examples.map((example: string, index: number) => (
+                        <div key={index} className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <code className="text-sm">{example}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recommendations */}
+              {selectedIssueDetails.recommendations && selectedIssueDetails.recommendations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Recommended Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {selectedIssueDetails.recommendations.map((recommendation: string, index: number) => (
+                        <div key={index} className="flex items-start space-x-3">
+                          <CheckCircle className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                          <p className="text-sm">{recommendation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsIssueDetailsOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="enterprise-button-primary"
+                  onClick={() => {
+                    setIsIssueDetailsOpen(false);
+                    setActiveTab("cleaning");
+                  }}
+                >
+                  Configure Cleaning
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
