@@ -73,6 +73,7 @@ export default function DataQuality() {
   const [currentDataProfile, setCurrentDataProfile] = useState<number | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("upload");
+  const [validationResults, setValidationResults] = useState<any>(null);
   const [cleaningConfig, setCleaningConfig] = useState({
     similarityThreshold: 85,
     duplicateMethod: "semantic",
@@ -98,6 +99,14 @@ export default function DataQuality() {
     queryFn: () => currentDataProfile ? api.dataQuality.getQualitySummary(currentDataProfile) : null,
     enabled: !!currentDataProfile,
     refetchInterval: 5000, // Refresh every 5 seconds when analyzing
+  });
+
+  // Fetch validation results for current data profile
+  const { data: validationData, isLoading: isLoadingValidation } = useQuery({
+    queryKey: ['validation-results', currentDataProfile],
+    queryFn: () => currentDataProfile ? api.dataQuality.getValidationResults(currentDataProfile) : null,
+    enabled: !!currentDataProfile,
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   // File upload mutation
@@ -162,6 +171,8 @@ export default function DataQuality() {
         setCurrentJobId(data.job_id);
         startAnalysisPolling(data.job_id);
         setActiveTab("validation");
+        // Invalidate validation results to refresh data
+        queryClient.invalidateQueries({ queryKey: ['validation-results', currentDataProfile] });
       }
     },
     onError: (error) => {
@@ -186,6 +197,7 @@ export default function DataQuality() {
           clearInterval(pollInterval);
           setUploadProgress(100);
           queryClient.invalidateQueries({ queryKey: ['quality-summary', currentDataProfile] });
+          queryClient.invalidateQueries({ queryKey: ['validation-results', currentDataProfile] });
           queryClient.invalidateQueries({ queryKey: ['recent-uploads'] });
           toast({
             title: "Analysis completed",
@@ -834,67 +846,94 @@ export default function DataQuality() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-4 text-muted-foreground">Before Cleaning</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                      <span>Overall Quality Score</span>
-                      <span className="font-bold text-lg">76.3%</span>
+              {isLoadingValidation ? (
+                <div className="text-center py-8">
+                  <div className="text-sm text-muted-foreground">Loading validation results...</div>
+                </div>
+              ) : validationData ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-medium mb-4 text-muted-foreground">Before Cleaning</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                          <span>Overall Quality Score</span>
+                          <span className="font-bold text-lg">{validationData.before_cleaning.overall_quality_score}%</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Completeness</span>
+                            <span className="text-warning">{validationData.before_cleaning.completeness}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Accuracy</span>
+                            <span className="text-danger">{validationData.before_cleaning.accuracy}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Consistency</span>
+                            <span className="text-warning">{validationData.before_cleaning.consistency}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Validity</span>
+                            <span className="text-warning">{validationData.before_cleaning.validity}%</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Completeness</span>
-                        <span className="text-warning">72%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Accuracy</span>
-                        <span className="text-danger">68%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Consistency</span>
-                        <span className="text-warning">81%</span>
+                    
+                    <div>
+                      <h4 className="font-medium mb-4 text-success">After Cleaning</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
+                          <span>Overall Quality Score</span>
+                          <span className="font-bold text-lg text-success">{validationData.after_cleaning.overall_quality_score}%</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Completeness</span>
+                            <span className="text-success">{validationData.after_cleaning.completeness}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Accuracy</span>
+                            <span className="text-success">{validationData.after_cleaning.accuracy}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Consistency</span>
+                            <span className="text-success">{validationData.after_cleaning.consistency}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Validity</span>
+                            <span className="text-success">{validationData.after_cleaning.validity}%</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-4 text-success">After Cleaning</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
-                      <span>Overall Quality Score</span>
-                      <span className="font-bold text-lg text-success">94.2%</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Completeness</span>
-                        <span className="text-success">92%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Accuracy</span>
-                        <span className="text-success">96%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Consistency</span>
-                        <span className="text-success">95%</span>
+                  
+                  <div className="mt-6 p-4 bg-success/10 border border-success/30 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="h-5 w-5 text-success mr-3" />
+                      <div>
+                        <p className="font-medium text-success">Cleaning Complete</p>
+                        <p className="text-sm text-muted-foreground">
+                          Processed {validationData.cleaning_summary.records_processed.toLocaleString()} records 
+                          {validationData.cleaning_summary.records_removed > 0 && 
+                            `, removed ${validationData.cleaning_summary.records_removed.toLocaleString()} records`
+                          }
+                          {validationData.cleaning_summary.operations_performed.length > 0 && 
+                            ` using ${validationData.cleaning_summary.operations_performed.join(', ')}`
+                          }
+                          {` with ${validationData.improvement.overall_quality_score.toFixed(1)}% quality improvement`}
+                        </p>
                       </div>
                     </div>
                   </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-sm text-muted-foreground">No cleaning results available yet. Run a cleaning process to see validation results.</div>
                 </div>
-              </div>
-              
-              <div className="mt-6 p-4 bg-success/10 border border-success/30 rounded-lg">
-                <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-success mr-3" />
-                  <div>
-                    <p className="font-medium text-success">Cleaning Complete</p>
-                    <p className="text-sm text-muted-foreground">
-                      Processed 1,247,832 records with 94.2% quality improvement
-                    </p>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

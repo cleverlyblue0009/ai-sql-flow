@@ -196,6 +196,9 @@ class DataProfile(Base):
     ai_recommendations = Column(JSON)
     cleaning_suggestions = Column(JSON)
     
+    # Cleaning history
+    cleaning_history = Column(JSON)
+    
     # Relationships
     project = relationship("Project", back_populates="data_profiles")
 
