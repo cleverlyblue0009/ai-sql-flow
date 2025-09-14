@@ -113,13 +113,18 @@ export default function DataQuality() {
       setActiveTab("assessment");
       queryClient.invalidateQueries({ queryKey: ['recent-uploads'] });
       
+      // Clear any previous upload progress
+      setUploadProgress(0);
+      
       // Start polling for analysis results
       startAnalysisPolling(data.job_id);
     },
     onError: (error) => {
+      console.error('Upload error:', error);
+      setUploadProgress(0);
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message || "An error occurred during file upload. Please try again.",
         variant: "destructive",
       });
     },
@@ -343,12 +348,12 @@ export default function DataQuality() {
     });
   }, [currentDataProfile, cleaningConfig, cleaningMutation]);
 
-  // Use API data if available, otherwise fall back to static data
-  const recentUploads = uploadsData?.data || [
+  // Use API data if available, only show mock data if no API data and no uploads
+  const recentUploads = uploadsData?.data || (currentDataProfile ? [] : [
     { name: "customer_data.csv", size: "15.2 MB", date: "2 hours ago", status: "analyzed" },
     { name: "transactions.xlsx", size: "8.7 MB", date: "1 day ago", status: "cleaned" }, 
     { name: "user_profiles.json", size: "3.1 MB", date: "3 days ago", status: "pending" }
-  ];
+  ]);
 
   // Use real quality metrics if available
   const displayQualityMetrics = qualitySummary ? [

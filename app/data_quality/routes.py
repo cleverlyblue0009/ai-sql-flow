@@ -96,10 +96,12 @@ async def upload_data_file(
         # Read and analyze file
         try:
             df = await _read_file(file_content, file_format, delimiter, encoding, has_header)
+            logger.info(f"Successfully read file: {len(df)} rows, {len(df.columns)} columns")
         except Exception as e:
+            logger.error(f"Failed to read file {file.filename}: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to read file: {str(e)}"
+                detail=f"Failed to read {file_format} file '{file.filename}': {str(e)}. Please ensure the file is not corrupted and in the correct format."
             )
         
         # Create data profile
@@ -477,8 +479,16 @@ async def _read_file(
                 encoding=encoding,
                 header=0 if has_header else None
             )
-        elif file_format.lower() in ["xlsx", "excel"]:
-            df = pd.read_excel(file_stream, header=0 if has_header else None)
+        elif file_format.lower() in ["xlsx", "excel", "xls"]:
+            try:
+                df = pd.read_excel(file_stream, header=0 if has_header else None, engine='openpyxl')
+            except Exception as e:
+                # Try with different engines if openpyxl fails
+                file_stream.seek(0)  # Reset stream position
+                try:
+                    df = pd.read_excel(file_stream, header=0 if has_header else None)
+                except Exception as e2:
+                    raise ValueError(f"Failed to read Excel file with both openpyxl and default engines: {str(e)}, {str(e2)}")
         elif file_format.lower() == "json":
             df = pd.read_json(file_stream, encoding=encoding)
         elif file_format.lower() == "parquet":
@@ -506,8 +516,8 @@ def _detect_file_format(filename: str) -> str:
     
     format_mapping = {
         'csv': 'csv',
-        'xlsx': 'excel',
-        'xls': 'excel',
+        'xlsx': 'xlsx',  # Use xlsx specifically for pandas
+        'xls': 'xlsx',   # Treat xls as xlsx for pandas
         'json': 'json',
         'parquet': 'parquet',
         'tsv': 'tsv',
