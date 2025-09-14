@@ -117,17 +117,16 @@ class Connection(Base):
     last_tested = Column(DateTime(timezone=True))
     test_result = Column(JSON)
     
-    # Relationships
+    # Relationships - FIXED: Properly specify foreign_keys to avoid ambiguity
     user = relationship("User", back_populates="connections")
-    migration_logs = relationship("MigrationLog", back_populates="source_connection")
 
 
 class Job(Base):
     __tablename__ = "jobs"
     
     id = Column(Integer, primary_key=True, index=True)
-    job_id = Column(String(255), unique=True, index=True, nullable=False)  # Celery task ID
-    job_type = Column(String(100), nullable=False)  # data_quality, migration, etc.
+    job_id = Column(String(255), unique=True, index=True, nullable=False)
+    job_type = Column(String(100), nullable=False)
     status = Column(SQLEnum(JobStatus), default=JobStatus.PENDING, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"))
@@ -168,7 +167,7 @@ class DataProfile(Base):
     
     # Data source info
     source_name = Column(String(255), nullable=False)
-    source_type = Column(String(100), nullable=False)  # file, database, api
+    source_type = Column(String(100), nullable=False)
     file_path = Column(String(500))
     file_size = Column(Integer)
     
@@ -244,10 +243,18 @@ class MigrationLog(Base):
     progress_percentage = Column(Float, default=0.0)
     current_phase = Column(String(100))
     
-    # Relationships
+    # Relationships - FIXED: Properly specify foreign_keys to resolve ambiguity
     project = relationship("Project", back_populates="migration_logs")
-    source_connection = relationship("Connection", foreign_keys=[source_connection_id])
-    target_connection = relationship("Connection", foreign_keys=[target_connection_id])
+    source_connection = relationship(
+        "Connection", 
+        foreign_keys=[source_connection_id],
+        backref="source_migrations"
+    )
+    target_connection = relationship(
+        "Connection", 
+        foreign_keys=[target_connection_id],
+        backref="target_migrations"
+    )
 
 
 class AuditLog(Base):
