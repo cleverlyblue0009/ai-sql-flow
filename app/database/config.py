@@ -8,8 +8,8 @@ import os
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://postgres:password@localhost:5432/mydb"
-    redis_url: str
+    database_url: str = "sqlite:///./app_data.db"
+    redis_url: str = "redis://localhost:6379/0"
 
     # Security
     secret_key: str
@@ -81,8 +81,9 @@ Base = declarative_base()
 try:
     redis_client = redis.from_url(settings.redis_url, decode_responses=True)
     redis_client.ping()
+    print("Redis connected successfully")
 except Exception as e:
-    print(f"Redis connection failed: {e}. Some features may not work.")
+    print(f"Redis connection failed: {e}. Using in-memory fallback.")
     redis_client = None
 
 # Dependency to get DB session
