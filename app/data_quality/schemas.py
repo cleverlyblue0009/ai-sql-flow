@@ -138,7 +138,7 @@ class MissingValueAnalysis(BaseModel):
     missing_percentage: float
     missing_by_column: Dict[str, Dict[str, Any]]
     missing_patterns: List[Dict[str, Any]]
-    imputation_suggestions: Dict[str, str]
+    imputation_suggestions: Dict[str, Union[str, Dict[str, Any]]]
 
 
 class PatternAnalysis(BaseModel):

@@ -250,7 +250,7 @@ class DataQualityAnalyzer:
         )
     
     def _analyze_duplicates(self, df: pd.DataFrame) -> DuplicateAnalysis:
-        """AI-powered duplicate detection"""
+        """AI-powered duplicate detection including semantic inconsistencies"""
         
         try:
             # Exact duplicates
@@ -259,9 +259,15 @@ class DataQualityAnalyzer:
             # Fuzzy duplicates using text similarity for string columns
             fuzzy_duplicates = 0
             duplicate_groups = []
+            semantic_issues = []
             
             # Identify text columns for fuzzy matching
             text_columns = df.select_dtypes(include=['object']).columns
+            
+            # Check for semantic inconsistencies (email/name mismatches)
+            if 'email' in df.columns and 'name' in df.columns:
+                email_name_issues = self._detect_email_name_mismatches(df)
+                semantic_issues.extend(email_name_issues)
             
             if len(text_columns) > 0:
                 # Create text features for similarity analysis
@@ -314,10 +320,23 @@ class DataQualityAnalyzer:
                                 for i in range(len(indices))
                                 for j in range(i + 1, len(indices))
                             ])),
-                            'records': group_data[:5]  # Limit to first 5 records
+                            'records': group_data[:5],  # Limit to first 5 records
+                            'type': 'fuzzy_duplicate'
                         })
                     
                     fuzzy_duplicates = sum(len(group) - 1 for group in groups.values())
+            
+            # Add semantic issues as special duplicate groups
+            for issue in semantic_issues:
+                duplicate_groups.append({
+                    'group_id': f"semantic_{len(duplicate_groups)}",
+                    'similarity_score': 0.0,  # Not based on similarity
+                    'records': issue['records'],
+                    'type': 'semantic_inconsistency',
+                    'issue_description': issue['description'],
+                    'severity': 'high',
+                    'requires_review': True
+                })
             
             total_duplicates = exact_duplicates + fuzzy_duplicates
             duplicate_percentage = (total_duplicates / len(df)) * 100
@@ -325,7 +344,7 @@ class DataQualityAnalyzer:
             return DuplicateAnalysis(
                 total_duplicates=int(total_duplicates),
                 duplicate_percentage=round(duplicate_percentage, 2),
-                duplicate_groups=duplicate_groups[:10],  # Limit to top 10 groups
+                duplicate_groups=duplicate_groups[:15],  # Limit to top 15 groups (including semantic issues)
                 similarity_threshold=self.similarity_threshold,
                 ai_confidence=0.85 if len(text_columns) > 0 else 0.95
             )
@@ -339,6 +358,87 @@ class DataQualityAnalyzer:
                 similarity_threshold=self.similarity_threshold,
                 ai_confidence=0.0
             )
+    
+    def _detect_email_name_mismatches(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Detect semantic inconsistencies between email and name fields"""
+        
+        issues = []
+        
+        try:
+            if 'email' not in df.columns or 'name' not in df.columns:
+                return issues
+            
+            for idx, row in df.iterrows():
+                email = str(row.get('email', '')).lower().strip()
+                name = str(row.get('name', '')).lower().strip()
+                
+                if not email or not name or email == 'nan' or name == 'nan':
+                    continue
+                
+                # Extract name parts from email (before @)
+                email_local = email.split('@')[0] if '@' in email else email
+                email_parts = email_local.replace('.', ' ').replace('_', ' ').replace('-', ' ').split()
+                
+                # Extract name parts
+                name_parts = name.replace('.', ' ').replace(',', ' ').split()
+                
+                # Check if any name part matches any email part
+                name_in_email = any(
+                    any(name_part in email_part or email_part in name_part 
+                        for email_part in email_parts if len(email_part) > 2)
+                    for name_part in name_parts if len(name_part) > 2
+                )
+                
+                # Flag as potential mismatch if no overlap found
+                if not name_in_email and len(name_parts) > 0 and len(email_parts) > 0:
+                    # Look for similar records that might be the correct match
+                    potential_matches = []
+                    for other_idx, other_row in df.iterrows():
+                        if other_idx == idx:
+                            continue
+                        
+                        other_email = str(other_row.get('email', '')).lower().strip()
+                        other_name = str(other_row.get('name', '')).lower().strip()
+                        
+                        # Check if this person's email matches the other person's name pattern
+                        if other_email and other_name:
+                            other_email_local = other_email.split('@')[0] if '@' in other_email else other_email
+                            other_email_parts = other_email_local.replace('.', ' ').replace('_', ' ').replace('-', ' ').split()
+                            
+                            # Check if current name matches other email or vice versa
+                            current_name_in_other_email = any(
+                                any(name_part in other_email_part or other_email_part in name_part
+                                    for other_email_part in other_email_parts if len(other_email_part) > 2)
+                                for name_part in name_parts if len(name_part) > 2
+                            )
+                            
+                            if current_name_in_other_email:
+                                potential_matches.append({
+                                    'row_index': other_idx,
+                                    'name': other_row.get('name'),
+                                    'email': other_row.get('email'),
+                                    'match_reason': 'name_matches_email_pattern'
+                                })
+                    
+                    if len(potential_matches) > 0:  # Only flag if we found potential correct matches
+                        issues.append({
+                            'description': f"Email/name mismatch detected - '{name}' doesn't match email pattern '{email}'",
+                            'records': [
+                                {
+                                    'row_index': idx,
+                                    'name': row.get('name'),
+                                    'email': row.get('email'),
+                                    'issue_type': 'email_name_mismatch'
+                                }
+                            ] + potential_matches[:2],  # Include up to 2 potential matches
+                            'severity': 'high',
+                            'requires_manual_review': True
+                        })
+            
+        except Exception as e:
+            logger.error(f"Error detecting email/name mismatches: {str(e)}")
+        
+        return issues
     
     def _analyze_outliers(self, df: pd.DataFrame) -> OutlierAnalysis:
         """AI-powered outlier detection"""
@@ -422,14 +522,48 @@ class DataQualityAnalyzer:
             missing_percentage = (total_missing / df.size) * 100
             
             missing_by_column = {}
+            imputed_values_detected = {}
+            
             for col in df.columns:
                 missing_count = df[col].isnull().sum()
-                if missing_count > 0:
+                
+                # Also detect potentially imputed values (common patterns that suggest imputation)
+                potentially_imputed = 0
+                imputed_examples = []
+                
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    # Look for suspicious patterns that might indicate imputed values
+                    col_values = df[col].dropna()
+                    if len(col_values) > 0:
+                        mean_val = col_values.mean()
+                        # Check for values that are exactly the mean (common imputation)
+                        exact_mean_matches = (col_values == mean_val).sum()
+                        if exact_mean_matches > 1:  # More than one exact match suggests imputation
+                            potentially_imputed += exact_mean_matches
+                            imputed_examples.append(f"Mean imputation detected: {exact_mean_matches} values equal to mean ({mean_val:.4f})")
+                        
+                        # Check for median imputation
+                        median_val = col_values.median()
+                        exact_median_matches = (col_values == median_val).sum()
+                        if exact_median_matches > len(col_values) * 0.1:  # More than 10% exact median matches
+                            potentially_imputed += exact_median_matches
+                            imputed_examples.append(f"Median imputation detected: {exact_median_matches} values equal to median ({median_val})")
+                
+                # Record missing values info if there are any missing or potentially imputed values
+                if missing_count > 0 or potentially_imputed > 0:
                     missing_by_column[col] = {
                         'count': int(missing_count),
                         'percentage': round((missing_count / len(df)) * 100, 2),
-                        'missing_indices': df[df[col].isnull()].index.tolist()[:10]  # First 10
+                        'missing_indices': df[df[col].isnull()].index.tolist()[:10],  # First 10
+                        'potentially_imputed_count': int(potentially_imputed),
+                        'imputation_evidence': imputed_examples[:3]  # Limit to top 3 examples
                     }
+                    
+                    if potentially_imputed > 0:
+                        imputed_values_detected[col] = {
+                            'count': int(potentially_imputed),
+                            'evidence': imputed_examples[:3]
+                        }
             
             # Analyze missing patterns
             missing_patterns = []
@@ -438,23 +572,42 @@ class DataQualityAnalyzer:
             
             for pattern, count in pattern_counts.head(5).items():
                 missing_cols = [col for col, is_missing in zip(df.columns, pattern) if is_missing]
-                missing_patterns.append({
-                    'pattern': missing_cols,
-                    'count': int(count),
-                    'percentage': round((count / len(df)) * 100, 2)
-                })
+                if missing_cols:  # Only include patterns with actual missing columns
+                    missing_patterns.append({
+                        'pattern': missing_cols,
+                        'count': int(count),
+                        'percentage': round((count / len(df)) * 100, 2)
+                    })
             
-            # Suggest imputation methods
+            # Suggest imputation methods with priority based on data importance
             imputation_suggestions = {}
             for col in df.columns:
-                if df[col].isnull().sum() > 0:
+                if df[col].isnull().sum() > 0 or col in imputed_values_detected:
+                    # Determine priority based on column name and missing percentage
+                    missing_pct = (df[col].isnull().sum() / len(df)) * 100
+                    
+                    # High priority for key demographic/business fields
+                    priority = "low"
+                    if any(keyword in col.lower() for keyword in ['age', 'salary', 'income', 'price', 'cost', 'revenue']):
+                        priority = "high" if missing_pct > 10 else "medium"
+                    elif any(keyword in col.lower() for keyword in ['name', 'email', 'id', 'key']):
+                        priority = "high"
+                    elif missing_pct > 20:
+                        priority = "medium"
+                    
                     if pd.api.types.is_numeric_dtype(df[col]):
                         if df[col].nunique() < 10:
-                            imputation_suggestions[col] = "mode"
+                            method = "mode"
                         else:
-                            imputation_suggestions[col] = "median"
+                            method = "median"
                     else:
-                        imputation_suggestions[col] = "mode"
+                        method = "mode"
+                    
+                    imputation_suggestions[col] = {
+                        'method': method,
+                        'priority': priority,
+                        'missing_percentage': round(missing_pct, 2)
+                    }
             
             return MissingValueAnalysis(
                 total_missing=int(total_missing),
@@ -577,13 +730,33 @@ class DataQualityAnalyzer:
                     data_type_corrections[col_name] = inferred_type
                     confidence_scores[f"type_correction_{col_name}"] = 0.8
             
-            # Cleaning priority based on impact
-            if quality_metrics.completeness_score < 90:
+            # Cleaning priority based on impact and data criticality
+            if quality_metrics.completeness_score < 95:
+                # Determine priority based on which columns have missing data
+                missing_priority = 'medium'
+                critical_columns = []
+                
+                for profile in column_profiles:
+                    col_name = profile['name']
+                    null_pct = profile.get('null_percentage', 0)
+                    
+                    if null_pct > 0:
+                        # High priority for critical business/demographic fields
+                        if any(keyword in col_name.lower() for keyword in ['age', 'salary', 'income', 'revenue', 'price', 'cost']):
+                            missing_priority = 'high'
+                            critical_columns.append(col_name)
+                        elif any(keyword in col_name.lower() for keyword in ['name', 'email', 'id', 'key']):
+                            if missing_priority != 'high':
+                                missing_priority = 'medium'
+                            critical_columns.append(col_name)
+                
                 cleaning_priority.append({
                     'issue': 'missing_values',
-                    'priority': 'high',
+                    'priority': missing_priority,
                     'impact': 'completeness',
-                    'estimated_improvement': 90 - quality_metrics.completeness_score
+                    'estimated_improvement': 90 - quality_metrics.completeness_score,
+                    'critical_columns': critical_columns,
+                    'description': f"Missing values detected in {len(critical_columns)} critical columns" if critical_columns else "Missing values detected"
                 })
             
             if quality_metrics.uniqueness_score < 95:
@@ -591,7 +764,8 @@ class DataQualityAnalyzer:
                     'issue': 'duplicates',
                     'priority': 'medium',
                     'impact': 'uniqueness',
-                    'estimated_improvement': 95 - quality_metrics.uniqueness_score
+                    'estimated_improvement': 95 - quality_metrics.uniqueness_score,
+                    'description': 'Duplicate records found that may skew analysis results'
                 })
             
             if quality_metrics.consistency_score < 85:
@@ -599,7 +773,21 @@ class DataQualityAnalyzer:
                     'issue': 'format_inconsistency',
                     'priority': 'medium',
                     'impact': 'consistency',
-                    'estimated_improvement': 85 - quality_metrics.consistency_score
+                    'estimated_improvement': 85 - quality_metrics.consistency_score,
+                    'description': 'Inconsistent data formats detected across columns'
+                })
+            
+            # Add semantic inconsistency priority
+            semantic_issues_found = any(
+                'semantic_inconsistency' in str(profile) for profile in column_profiles
+            )
+            if semantic_issues_found:
+                cleaning_priority.append({
+                    'issue': 'semantic_inconsistencies',
+                    'priority': 'high',
+                    'impact': 'accuracy',
+                    'estimated_improvement': 10,
+                    'description': 'Email/name mismatches and other semantic inconsistencies require manual review'
                 })
             
             # Quality improvements
