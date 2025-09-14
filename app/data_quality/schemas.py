@@ -43,7 +43,7 @@ class DataUploadRequest(BaseModel):
 
 
 class DataAnalysisRequest(BaseModel):
-    project_id: int
+    project_id: Optional[int] = None
     data_profile_id: int
     analysis_types: List[str] = ["completeness", "accuracy", "consistency", "validity", "uniqueness"]
     ai_enabled: bool = True
