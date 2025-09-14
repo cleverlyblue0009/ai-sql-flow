@@ -14,7 +14,8 @@ from .schemas import (
     MigrationConfigRequest, MigrationStatusResponse
 )
 from .services import MigrationService, SQLTranslationService, ConnectionService
-from ..tasks.migration_tasks import start_migration_task, translate_sql_task
+from .enterprise_features import batch_migration_manager, export_manager, history_manager
+from ..tasks.migration_tasks import start_migration_task, translate_sql_task, analyze_sql_schema_task
 from ..utils.audit import log_migration_action
 
 router = APIRouter(prefix="/migration", tags=["SQL Migration"])
@@ -501,4 +502,271 @@ async def list_migrations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list migrations"
+        )
+
+
+# Enterprise Features Endpoints
+
+@router.post("/analyze-sql")
+async def analyze_sql_schema(
+    sql_content: str,
+    source_dialect: str = "mysql",
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Analyze SQL schema and structure"""
+    
+    try:
+        # Create analysis job
+        job_id = str(uuid.uuid4())
+        job = Job(
+            job_id=job_id,
+            job_type="sql_analysis",
+            name="SQL Schema Analysis",
+            user_id=current_user.id,
+            parameters={
+                "sql_content": sql_content[:1000] + "..." if len(sql_content) > 1000 else sql_content,
+                "source_dialect": source_dialect
+            }
+        )
+        
+        db.add(job)
+        db.commit()
+        
+        # Start background analysis
+        analyze_sql_schema_task.delay(job_id, sql_content, source_dialect)
+        
+        return {
+            "job_id": job_id,
+            "status": "processing",
+            "message": "SQL analysis started"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting SQL analysis: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start SQL analysis"
+        )
+
+
+@router.post("/batch/create")
+async def create_batch_migration(
+    batch_name: str,
+    sql_files: List[Dict[str, Any]],
+    source_config: Dict[str, Any],
+    target_config: Dict[str, Any],
+    migration_options: Dict[str, Any] = {},
+    project_id: int = 1,  # Default project for demo
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Create a batch migration from multiple SQL files"""
+    
+    try:
+        result = await batch_migration_manager.create_batch_migration(
+            db=db,
+            user_id=current_user.id,
+            project_id=project_id,
+            batch_name=batch_name,
+            sql_files=sql_files,
+            source_config=source_config,
+            target_config=target_config,
+            migration_options=migration_options
+        )
+        
+        # Log action
+        await log_migration_action(
+            db=db,
+            user_id=current_user.id,
+            action="batch_migration_created",
+            project_id=project_id,
+            details={
+                "batch_id": result["batch_id"],
+                "file_count": len(sql_files)
+            },
+            success=True
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error creating batch migration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create batch migration"
+        )
+
+
+@router.post("/batch/{batch_id}/start")
+async def start_batch_migration(
+    batch_id: str,
+    migration_ids: List[str],
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Start a batch migration process"""
+    
+    try:
+        config["user_id"] = current_user.id
+        
+        result = await batch_migration_manager.start_batch_migration(
+            db=db,
+            batch_id=batch_id,
+            migration_ids=migration_ids,
+            config=config
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error starting batch migration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start batch migration"
+        )
+
+
+@router.get("/batch/{batch_id}/progress")
+async def get_batch_progress(
+    batch_id: str,
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get progress of batch migration"""
+    
+    try:
+        progress = await batch_migration_manager.get_batch_progress(db, batch_id)
+        return progress
+        
+    except Exception as e:
+        logger.error(f"Error getting batch progress: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get batch progress"
+        )
+
+
+@router.post("/export")
+async def export_migration_results(
+    migration_ids: List[str],
+    export_format: str = "zip",
+    include_original: bool = True,
+    include_translated: bool = True,
+    include_reports: bool = True,
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Export migration results to various formats"""
+    
+    try:
+        export_path = await export_manager.export_migration_results(
+            db=db,
+            migration_ids=migration_ids,
+            export_format=export_format,
+            include_original=include_original,
+            include_translated=include_translated,
+            include_reports=include_reports
+        )
+        
+        return {
+            "export_path": export_path,
+            "export_format": export_format,
+            "migration_count": len(migration_ids),
+            "message": "Export created successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error exporting migration results: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export migration results"
+        )
+
+
+@router.get("/history/{project_id}")
+async def get_migration_history(
+    project_id: int,
+    limit: int = 50,
+    offset: int = 0,
+    status_filter: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Get migration history with filtering options"""
+    
+    try:
+        # Verify project access
+        project = db.query(Project).filter(
+            Project.id == project_id,
+            Project.owner_id == current_user.id
+        ).first()
+        
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        history = await history_manager.get_migration_history(
+            db=db,
+            project_id=project_id,
+            user_id=current_user.id,
+            limit=limit,
+            offset=offset,
+            status_filter=status_filter,
+            date_from=date_from,
+            date_to=date_to
+        )
+        
+        return history
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting migration history: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get migration history"
+        )
+
+
+@router.post("/rollback/{migration_id}")
+async def rollback_migration(
+    migration_id: str,
+    rollback_reason: str,
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db)
+):
+    """Perform rollback for a migration"""
+    
+    try:
+        result = await history_manager.perform_rollback(
+            db=db,
+            migration_id=migration_id,
+            rollback_reason=rollback_reason
+        )
+        
+        # Log action
+        await log_migration_action(
+            db=db,
+            user_id=current_user.id,
+            action="migration_rollback",
+            details={
+                "migration_id": migration_id,
+                "reason": rollback_reason
+            },
+            success=True
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error performing rollback: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to perform rollback"
         )

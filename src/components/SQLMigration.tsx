@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import SQLInput from "./SQLInput";
+import { useMigrationProgress } from "@/hooks/useMigrationProgress";
 import { 
   Database, 
   ArrowRight, 
@@ -16,7 +20,10 @@ import {
   GitBranch,
   Settings,
   Zap,
-  FileText
+  FileText,
+  Upload,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 
 const migrationSteps = [
@@ -70,16 +77,131 @@ LIMIT 100;`;
 export default function SQLMigration() {
   const [sourceDB, setSourceDB] = useState("mysql");
   const [targetDB, setTargetDB] = useState("snowflake");
-  const [migrationProgress] = useState(45);
+  const [migrationProgress, setMigrationProgress] = useState(45);
+  const [sqlContent, setSQLContent] = useState("");
+  const [sqlAnalysis, setSQLAnalysis] = useState(null);
+  const [activeMigrationId, setActiveMigrationId] = useState<string | null>(null);
+  const [realTimeSteps, setRealTimeSteps] = useState(migrationSteps);
+
+  // WebSocket integration for real-time progress
+  const {
+    isConnected,
+    connectionState,
+    progressData,
+    errors,
+    subscribeToMigration,
+    unsubscribeFromMigration
+  } = useMigrationProgress({
+    token: localStorage.getItem('token') || undefined,
+    onProgress: (progress) => {
+      console.log('Migration progress:', progress);
+      setMigrationProgress(progress.progress_percentage);
+      
+      // Update steps based on current phase
+      setRealTimeSteps(prev => prev.map(step => {
+        if (progress.current_phase === step.title) {
+          return { ...step, status: "running" };
+        } else if (progress.progress_percentage > ((step.id - 1) / prev.length) * 100) {
+          return { ...step, status: "completed" };
+        } else {
+          return { ...step, status: "pending" };
+        }
+      }));
+      
+      toast.info(`Migration Progress: ${Math.round(progress.progress_percentage)}%`, {
+        description: progress.current_step || progress.current_phase
+      });
+    },
+    onStatusChange: (migrationId, status, message) => {
+      console.log('Migration status change:', { migrationId, status, message });
+      toast.success(`Migration ${status}`, { description: message });
+    },
+    onError: (error) => {
+      console.error('Migration error:', error);
+      toast.error('Migration Error', { description: error.error });
+    }
+  });
+
+  const handleSQLChange = (sql: string, metadata?: any) => {
+    setSQLContent(sql);
+    console.log('SQL content updated:', { sql: sql.substring(0, 100) + '...', metadata });
+  };
+
+  const handleAnalysisComplete = (analysis: any) => {
+    setSQLAnalysis(analysis);
+    console.log('Analysis completed:', analysis);
+  };
+
+  const startMigrationAnalysis = async () => {
+    if (!sqlContent.trim()) {
+      toast.error('Please provide SQL content to analyze');
+      return;
+    }
+
+    try {
+      // Here you would typically call your API to start the migration
+      const migrationId = `migration_${Date.now()}`;
+      setActiveMigrationId(migrationId);
+      
+      // Subscribe to migration progress
+      if (isConnected) {
+        subscribeToMigration(migrationId);
+      }
+      
+      toast.success('Migration analysis started', {
+        description: 'You will receive real-time updates on the progress'
+      });
+      
+    } catch (error) {
+      toast.error('Failed to start migration analysis');
+      console.error(error);
+    }
+  };
+
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (activeMigrationId) {
+        unsubscribeFromMigration(activeMigrationId);
+      }
+    };
+  }, [activeMigrationId, unsubscribeFromMigration]);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">SQL Migration Workspace</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold">SQL Migration Workspace</h1>
+          
+          {/* WebSocket Connection Status */}
+          <div className="flex items-center space-x-2">
+            {isConnected ? (
+              <Badge variant="default" className="bg-success">
+                <Wifi className="h-3 w-3 mr-1" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-warning/20 text-warning">
+                <WifiOff className="h-3 w-3 mr-1" />
+                {connectionState === 'connecting' ? 'Connecting...' : 'Disconnected'}
+              </Badge>
+            )}
+          </div>
+        </div>
         <p className="text-muted-foreground">
           Seamlessly migrate and translate SQL across different database platforms
         </p>
+        
+        {/* Show active migration info */}
+        {activeMigrationId && (
+          <Alert className="mt-4">
+            <Clock className="h-4 w-4" />
+            <AlertDescription>
+              Active migration: {activeMigrationId} - Progress: {Math.round(migrationProgress)}%
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <Tabs defaultValue="setup" className="space-y-6">
@@ -91,6 +213,13 @@ export default function SQLMigration() {
         </TabsList>
 
         <TabsContent value="setup" className="space-y-6">
+          {/* SQL Input Section */}
+          <SQLInput 
+            onSQLChange={handleSQLChange}
+            onAnalysisComplete={handleAnalysisComplete}
+            selectedDatabase={sourceDB}
+          />
+
           {/* Database Selection */}
           <Card className="enterprise-card">
             <CardHeader>
@@ -208,7 +337,11 @@ export default function SQLMigration() {
               </div>
 
               <div className="flex justify-end mt-6">
-                <Button className="enterprise-button-primary">
+                <Button 
+                  className="enterprise-button-primary"
+                  onClick={startMigrationAnalysis}
+                  disabled={!sqlContent.trim() || !isConnected}
+                >
                   <GitBranch className="h-4 w-4 mr-2" />
                   Start Migration Analysis
                 </Button>
@@ -307,7 +440,7 @@ export default function SQLMigration() {
                 <Progress value={migrationProgress} className="h-3" />
                 
                 <div className="space-y-4">
-                  {migrationSteps.map((step) => (
+                  {realTimeSteps.map((step) => (
                     <div key={step.id} className="flex items-center space-x-4 p-3 rounded-lg border border-border/50">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                         step.status === 'completed' ? 'bg-success text-white' :

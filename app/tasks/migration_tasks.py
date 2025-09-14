@@ -4,10 +4,13 @@ from sqlalchemy import create_engine
 from typing import Dict, Any
 import time
 import logging
+import asyncio
 from datetime import datetime
 
 from ..database import settings, MigrationLog, Job, JobStatus, MigrationStatus
 from ..migration.services import SQLTranslationService
+from ..migration.sql_parser import SQLParser
+from ..websocket.migration_ws import update_migration_progress, notify_migration_status_change, notify_migration_error
 
 # Create Celery app
 celery_app = Celery(
@@ -22,6 +25,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 logger = logging.getLogger(__name__)
 translation_service = SQLTranslationService()
+sql_parser = SQLParser()
+
+# Helper function to run async functions in sync context
+def run_async(coro):
+    """Run async function in sync context"""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is already running, create a new task
+            return asyncio.create_task(coro)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No event loop, create new one
+        return asyncio.run(coro)
 
 
 @celery_app.task(bind=True)
@@ -205,6 +223,149 @@ def start_migration_task(self, migration_id: str, job_id: str, config: Dict[str,
 
 
 @celery_app.task(bind=True)
+def analyze_sql_schema_task(
+    self,
+    job_id: str,
+    sql_content: str,
+    source_dialect: str = "mysql"
+):
+    """Background task for SQL schema analysis"""
+    
+    db = SessionLocal()
+    
+    try:
+        # Get job record
+        job = db.query(Job).filter(Job.job_id == job_id).first()
+        
+        if not job:
+            logger.error(f"Job not found: {job_id}")
+            return
+        
+        # Update job status
+        job.status = JobStatus.RUNNING
+        job.started_at = datetime.utcnow()
+        job.current_step = "Analyzing SQL schema"
+        job.progress_percentage = 10.0
+        db.commit()
+        
+        self.update_state(
+            state='PROGRESS',
+            meta={'current': 1, 'total': 5, 'status': 'Parsing SQL content'}
+        )
+        
+        # Step 1: Parse SQL content
+        job.progress_percentage = 20.0
+        job.current_step = "Parsing SQL statements"
+        db.commit()
+        
+        time.sleep(1)  # Simulate parsing time
+        
+        # Step 2: Analyze schema structure
+        self.update_state(
+            state='PROGRESS',
+            meta={'current': 2, 'total': 5, 'status': 'Analyzing schema structure'}
+        )
+        
+        job.progress_percentage = 40.0
+        job.current_step = "Extracting schema information"
+        db.commit()
+        
+        # Perform SQL analysis
+        analysis_result = sql_parser.analyze_sql(sql_content, source_dialect)
+        
+        time.sleep(2)  # Simulate analysis time
+        
+        # Step 3: Extract dependencies
+        self.update_state(
+            state='PROGRESS',
+            meta={'current': 3, 'total': 5, 'status': 'Extracting dependencies'}
+        )
+        
+        job.progress_percentage = 60.0
+        job.current_step = "Analyzing dependencies"
+        db.commit()
+        
+        time.sleep(1)
+        
+        # Step 4: Generate compatibility report
+        self.update_state(
+            state='PROGRESS',
+            meta={'current': 4, 'total': 5, 'status': 'Generating compatibility report'}
+        )
+        
+        job.progress_percentage = 80.0
+        job.current_step = "Checking compatibility"
+        db.commit()
+        
+        time.sleep(1)
+        
+        # Step 5: Finalize analysis
+        self.update_state(
+            state='PROGRESS',
+            meta={'current': 5, 'total': 5, 'status': 'Finalizing analysis'}
+        )
+        
+        job.progress_percentage = 100.0
+        job.current_step = "Analysis completed"
+        
+        # Prepare result
+        analysis_data = {
+            "tables": [
+                {
+                    "name": table.name,
+                    "schema": table.schema,
+                    "columns": len(table.columns),
+                    "indexes": table.indexes,
+                    "constraints": table.constraints,
+                    "type": table.table_type
+                }
+                for table in analysis_result.tables
+            ],
+            "operations": [op.value for op in analysis_result.operations],
+            "schemas": list(analysis_result.schemas),
+            "complexity_score": analysis_result.complexity_score,
+            "line_count": analysis_result.line_count,
+            "statement_count": analysis_result.statement_count,
+            "warnings": analysis_result.warnings,
+            "suggestions": analysis_result.suggestions,
+            "estimated_execution_time": analysis_result.estimated_execution_time,
+            "compatibility_issues": analysis_result.compatibility_issues,
+            "dependencies": analysis_result.dependencies
+        }
+        
+        # Complete analysis
+        job.status = JobStatus.COMPLETED
+        job.completed_at = datetime.utcnow()
+        job.execution_time = (job.completed_at - job.started_at).total_seconds()
+        job.result = {
+            "status": "success",
+            "message": "SQL schema analysis completed successfully",
+            "analysis": analysis_data
+        }
+        
+        db.commit()
+        
+        logger.info(f"SQL schema analysis {job_id} completed successfully")
+        
+        return job.result
+        
+    except Exception as e:
+        logger.error(f"SQL schema analysis {job_id} failed: {str(e)}")
+        
+        # Update job status
+        if 'job' in locals():
+            job.status = JobStatus.FAILED
+            job.error_message = str(e)
+            job.completed_at = datetime.utcnow()
+            db.commit()
+        
+        raise
+        
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True)
 def translate_sql_task(
     self, 
     job_id: str, 
@@ -237,13 +398,13 @@ def translate_sql_task(
             meta={'current': 1, 'total': 4, 'status': 'Analyzing source SQL'}
         )
         
-        # Perform SQL translation
-        translation_result = translation_service.translate_sql(
+        # Perform SQL translation using async service
+        translation_result = run_async(translation_service.translate_sql(
             source_sql=source_sql,
             source_dialect=source_dialect,
             target_dialect=target_dialect,
             optimization_level=optimization_level
-        )
+        ))
         
         # Update progress
         job.progress_percentage = 50.0
