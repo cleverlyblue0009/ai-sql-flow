@@ -28,7 +28,8 @@ class MigrationProgressManager:
     async def connect_user(self, websocket: WebSocket, user_id: int, connection_id: str):
         """Connect a user to the migration progress service"""
         try:
-            await self.connection_manager.connect(websocket, connection_id)
+            # Register the already accepted WebSocket connection
+            await self.connection_manager.register_connection(websocket, connection_id, user_id)
             
             # Track user connection
             if user_id not in self.user_connections:
