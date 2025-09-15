@@ -25,24 +25,37 @@ async def websocket_endpoint(
     user = None
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate user from token
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
             except Exception as e:
                 logger.error(f"WebSocket authentication failed: {str(e)}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Authentication failed",
+                    "error_code": "AUTH_FAILED"
+                })
                 await websocket.close(code=4001, reason="Authentication failed")
                 return
         
         if not user:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Authentication required", 
+                "error_code": "AUTH_REQUIRED"
+            })
             await websocket.close(code=4001, reason="Authentication required")
             return
         
         # Generate connection ID
         connection_id = str(uuid.uuid4())
         
-        # Connect to WebSocket manager
-        await connection_manager.connect(websocket, connection_id, user.id, {
+        # Register with WebSocket manager (connection already accepted)
+        await connection_manager.register_connection(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
             "ip_address": websocket.client.host if websocket.client else None
         })
@@ -99,27 +112,45 @@ async def admin_websocket_endpoint(
     user = None
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate admin user
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
                 if user.role.value != "admin":
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Admin access required",
+                        "error_code": "ADMIN_REQUIRED"
+                    })
                     await websocket.close(code=4003, reason="Admin access required")
                     return
             except Exception as e:
                 logger.error(f"Admin WebSocket authentication failed: {str(e)}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Authentication failed",
+                    "error_code": "AUTH_FAILED"
+                })
                 await websocket.close(code=4001, reason="Authentication failed")
                 return
         
         if not user:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Authentication required",
+                "error_code": "AUTH_REQUIRED"
+            })
             await websocket.close(code=4001, reason="Authentication required")
             return
         
         # Generate connection ID
         connection_id = str(uuid.uuid4())
         
-        # Connect to WebSocket manager
-        await connection_manager.connect(websocket, connection_id, user.id, {
+        # Register with WebSocket manager (connection already accepted)
+        await connection_manager.register_connection(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
             "ip_address": websocket.client.host if websocket.client else None,
             "admin_connection": True
@@ -236,16 +267,29 @@ async def migration_websocket_endpoint(
     connection_id = str(uuid.uuid4())
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate user
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
             except Exception as e:
                 logger.error(f"Migration WebSocket authentication failed: {str(e)}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Authentication failed",
+                    "error_code": "AUTH_FAILED"
+                })
                 await websocket.close(code=4001, reason="Authentication failed")
                 return
         
         if not user:
+            await websocket.send_json({
+                "type": "error", 
+                "message": "Authentication required",
+                "error_code": "AUTH_REQUIRED"
+            })
             await websocket.close(code=4001, reason="Authentication required")
             return
         

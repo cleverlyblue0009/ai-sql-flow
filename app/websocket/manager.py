@@ -55,6 +55,40 @@ class ConnectionManager:
             logger.error(f"Error connecting WebSocket: {str(e)}")
             await websocket.close()
     
+    async def register_connection(self, websocket: WebSocket, connection_id: str, user_id: Optional[int] = None, client_info: Dict[str, Any] = None):
+        """Register an already accepted WebSocket connection"""
+        try:
+            # Store connection (WebSocket is already accepted)
+            self.active_connections[connection_id] = websocket
+            
+            # Store metadata
+            self.connection_metadata[connection_id] = {
+                "user_id": user_id,
+                "connected_at": datetime.utcnow(),
+                "client_info": client_info or {},
+                "subscriptions": set()
+            }
+            
+            # Track user connections
+            if user_id:
+                if user_id not in self.user_connections:
+                    self.user_connections[user_id] = []
+                self.user_connections[user_id].append(connection_id)
+            
+            logger.info(f"WebSocket registered: {connection_id} for user {user_id}")
+            
+            # Send welcome message
+            await self.send_personal_message(json.dumps({
+                "type": "connection_established",
+                "message": "WebSocket connection established",
+                "timestamp": datetime.utcnow().isoformat(),
+                "connection_id": connection_id
+            }), connection_id)
+            
+        except Exception as e:
+            logger.error(f"Error registering WebSocket: {str(e)}")
+            await websocket.close()
+    
     async def disconnect(self, connection_id: str):
         """Remove WebSocket connection"""
         try:
