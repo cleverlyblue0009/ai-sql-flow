@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
-from typing import Optional, Union
-from jose import JWTError, jwt
+from typing import Optional, Dict, Any
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 import secrets
 import base64
+import firebase_admin
+from firebase_admin import credentials, auth
 from ..database.config import settings
 
 
@@ -47,37 +47,55 @@ def decrypt_data(encrypted_data: bytes) -> str:
     return cipher_suite.decrypt(encrypted_data).decode()
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-    
-    to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
-    return encoded_jwt
+# Initialize Firebase Admin SDK
+def initialize_firebase():
+    """Initialize Firebase Admin SDK"""
+    if not firebase_admin._apps:
+        try:
+            if settings.firebase_credentials_path:
+                cred = credentials.Certificate(settings.firebase_credentials_path)
+            else:
+                # Use default credentials (for Cloud Run or local development)
+                cred = credentials.ApplicationDefault()
+            
+            firebase_admin.initialize_app(cred, {
+                'projectId': settings.firebase_project_id,
+            })
+        except Exception as e:
+            print(f"Failed to initialize Firebase: {e}")
+            # Initialize with mock credentials for development
+            cred = credentials.Certificate({
+                "type": "service_account",
+                "project_id": settings.firebase_project_id or "mock-project",
+                "private_key_id": "mock",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----\n",
+                "client_email": "mock@mock-project.iam.gserviceaccount.com",
+                "client_id": "mock",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token"
+            })
+            firebase_admin.initialize_app(cred)
 
 
-def create_refresh_token(data: dict) -> str:
-    """Create JWT refresh token"""
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
-    return encoded_jwt
-
-
-def verify_token(token: str, token_type: str = "access") -> Optional[dict]:
-    """Verify JWT token and return payload"""
+def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify Firebase ID token and return decoded token"""
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.algorithm])
-        if payload.get("type") != token_type:
-            return None
-        return payload
-    except JWTError:
+        initialize_firebase()
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        print(f"Token verification failed: {e}")
         return None
+
+
+def create_custom_token(uid: str, additional_claims: Optional[Dict[str, Any]] = None) -> str:
+    """Create a custom Firebase token for a user"""
+    try:
+        initialize_firebase()
+        return auth.create_custom_token(uid, additional_claims)
+    except Exception as e:
+        print(f"Failed to create custom token: {e}")
+        return ""
 
 
 def generate_reset_token() -> str:

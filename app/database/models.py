@@ -58,6 +58,7 @@ class User(Base):
     # OAuth fields
     google_id = Column(String(100), unique=True)
     github_id = Column(String(100), unique=True)
+    firebase_uid = Column(String(255), unique=True)
     
     # Profile fields
     avatar_url = Column(String(500))

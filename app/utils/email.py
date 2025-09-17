@@ -163,9 +163,9 @@ async def send_verification_email(email: str, verification_token: str) -> bool:
     # Render template
     if JINJA2_AVAILABLE:
         template = Template(VERIFICATION_EMAIL_TEMPLATE)
-        html_content = template.render(username=username, verification_url=verification_url)
+        html_content = template.render(verification_url=verification_url)
     else:
-        html_content = VERIFICATION_EMAIL_TEMPLATE.replace("{{ username }}", username).replace("{{ verification_url }}", verification_url)
+        html_content = VERIFICATION_EMAIL_TEMPLATE.replace("{{ verification_url }}", verification_url)
     
     # Send email
     return await send_email(
@@ -186,9 +186,9 @@ async def send_password_reset_email(email: str, reset_token: str) -> bool:
     # Render template
     if JINJA2_AVAILABLE:
         template = Template(PASSWORD_RESET_EMAIL_TEMPLATE)
-        html_content = template.render(username=username, reset_url=reset_url)
+        html_content = template.render(reset_url=reset_url)
     else:
-        html_content = PASSWORD_RESET_EMAIL_TEMPLATE.replace("{{ username }}", username).replace("{{ reset_url }}", reset_url)
+        html_content = PASSWORD_RESET_EMAIL_TEMPLATE.replace("{{ reset_url }}", reset_url)
     
     # Send email
     return await send_email(
@@ -231,11 +231,9 @@ async def send_welcome_email(email: str, full_name: str) -> bool:
     
     if JINJA2_AVAILABLE:
         template = Template(welcome_template)
-        html_content = template.render(**template_vars)
+        html_content = template.render(full_name=full_name)
     else:
-        html_content = welcome_template
-        for key, value in template_vars.items():
-            html_content = html_content.replace(f"{{{{{key}}}}}", str(value))
+        html_content = welcome_template.replace("{{ full_name }}", full_name)
     
     return await send_email(
         to_email=email,

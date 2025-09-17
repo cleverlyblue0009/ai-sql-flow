@@ -41,6 +41,10 @@ class UserLogin(BaseModel):
     password: str
 
 
+class FirebaseAuthRequest(BaseModel):
+    token: str
+
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
@@ -60,20 +64,9 @@ class UserUpdate(BaseModel):
     preferences: Optional[dict] = None
 
 
-class Token(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
-
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
-    user_id: Optional[int] = None
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+class FirebaseAuthResponse(BaseModel):
+    user: UserResponse
+    message: str
 
 
 class PasswordReset(BaseModel):

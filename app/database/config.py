@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     # Security
     secret_key: str
     encryption_key: str
-    jwt_secret_key: str = "your_secret_key_here"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
+    
+    # Firebase
+    firebase_credentials_path: str = ""
+    firebase_project_id: str = ""
 
     # OAuth2
     google_client_id: str = ""
