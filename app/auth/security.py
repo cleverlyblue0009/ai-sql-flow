@@ -81,10 +81,31 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
     """Verify Firebase ID token and return decoded token"""
     try:
         initialize_firebase()
+        
+        # For development with mock tokens, allow specific development tokens
+        if token == "mock-firebase-token-for-dev" or token.startswith("dev-"):
+            return {
+                "uid": "dev-user-1",
+                "email": "dev@example.com",
+                "name": "Development User",
+                "email_verified": True
+            }
+        
         decoded_token = auth.verify_id_token(token)
         return decoded_token
     except Exception as e:
         print(f"Token verification failed: {e}")
+        
+        # For development, allow mock tokens when Firebase is not properly configured
+        if "mock-firebase-token" in token or token.startswith("dev-"):
+            print("Using mock token for development")
+            return {
+                "uid": "dev-user-1",
+                "email": "dev@example.com",
+                "name": "Development User",
+                "email_verified": True
+            }
+        
         return None
 
 

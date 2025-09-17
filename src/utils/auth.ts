@@ -15,7 +15,7 @@ const MOCK_USER: User = {
   id: '1',
   email: 'dev@example.com',
   name: 'Development User',
-  token: 'mock-firebase-token-for-dev'
+  token: 'dev-mock-firebase-token-for-development'
 };
 
 /**
