@@ -135,6 +135,11 @@ export const useMigrationProgress = ({
     },
     onError: (error) => {
       console.error('Migration WebSocket error:', error);
+      // Handle authentication errors specifically
+      if (error.type === 'error' && error.target?.readyState === WebSocket.CLOSED) {
+        console.error('WebSocket connection failed - this may be due to authentication issues');
+        console.error('Please ensure you are logged in and have a valid Firebase token');
+      }
     }
   });
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { debugWebSocketConnection, logWebSocketError, getWebSocketStateString } from '../utils/websocket-debug';
 
 interface WebSocketMessage {
   type: string;
@@ -42,6 +43,9 @@ export const useWebSocket = ({
 
     const wsUrl = token ? `${url}?token=${token}` : url;
     
+    // Debug connection attempt
+    debugWebSocketConnection(wsUrl, token);
+    
     setConnectionState('connecting');
     ws.current = new WebSocket(wsUrl);
 
@@ -77,6 +81,18 @@ export const useWebSocket = ({
 
     ws.current.onerror = (error) => {
       setConnectionState('error');
+      logWebSocketError(error, 'Connection Error');
+      
+      // Check if this is a 403 authentication error
+      if (ws.current?.readyState === WebSocket.CLOSED) {
+        console.error('WebSocket connection closed. This might be due to:');
+        console.error('1. Invalid or expired authentication token');
+        console.error('2. Server not running or not accessible');
+        console.error('3. Network connectivity issues');
+        console.error('Current token:', token ? 'Present' : 'Missing');
+        console.error('Current WebSocket state:', getWebSocketStateString(ws.current.readyState));
+      }
+      
       onError?.(error);
     };
   }, [url, token, onMessage, onConnect, onDisconnect, onError, reconnectAttempts, reconnectDelay]);
