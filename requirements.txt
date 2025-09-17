@@ -12,10 +12,9 @@ redis
 asyncpg
 
 # Authentication and Security
-python-jose[cryptography]
+firebase-admin
 passlib[bcrypt]
 cryptography
-authlib
 
 # Background Tasks
 celery[redis]

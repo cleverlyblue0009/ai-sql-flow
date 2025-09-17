@@ -6,13 +6,13 @@ from typing import Any
 
 from ..database import get_db, User, AuditLog, redis_client
 from .schemas import (
-    UserCreate, UserLogin, UserResponse, UserUpdate, Token, RefreshTokenRequest,
+    UserCreate, UserLogin, UserResponse, UserUpdate, FirebaseAuthRequest, FirebaseAuthResponse,
     PasswordReset, PasswordResetConfirm, PasswordChange, EmailVerification,
     OAuth2AuthRequest
 )
 from .security import (
-    verify_password, get_password_hash, create_access_token, create_refresh_token,
-    verify_token, generate_reset_token, generate_verification_token
+    verify_password, get_password_hash, verify_firebase_token, create_custom_token,
+    generate_reset_token, generate_verification_token
 )
 from .dependencies import (
     get_current_user, get_current_active_user, get_current_verified_user,
@@ -96,138 +96,116 @@ async def register(
     return db_user
 
 
-@router.post("/login", response_model=Token)
-async def login(
-    user_credentials: UserLogin,
+@router.post("/firebase-auth")
+async def firebase_auth(
     request: Request,
-    response: Response,
-    db: Session = Depends(get_db),
-    _: Any = Depends(login_limiter)
+    db: Session = Depends(get_db)
 ):
-    """Authenticate user and return tokens"""
-    
-    # Get user
-    user = db.query(User).filter(User.email == user_credentials.email).first()
-    
-    if not user or not verify_password(user_credentials.password, user.hashed_password):
+    """Authenticate user with Firebase token"""
+    try:
+        body = await request.json()
+        firebase_token = body.get("token")
+        
+        if not firebase_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Firebase token is required"
+            )
+        
+        # Verify Firebase token
+        decoded_token = verify_firebase_token(firebase_token)
+        if not decoded_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Firebase token"
+            )
+        
+        firebase_uid = decoded_token.get("uid")
+        email = decoded_token.get("email")
+        name = decoded_token.get("name", "")
+        email_verified = decoded_token.get("email_verified", False)
+        
+        if not firebase_uid or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid token data"
+            )
+        
+        # Get or create user
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            # Create new user
+            user = User(
+                email=email,
+                username=name or email.split("@")[0],
+                full_name=name,
+                hashed_password="firebase_auth",
+                firebase_uid=firebase_uid,
+                is_active=True,
+                is_verified=email_verified,
+                role=UserRole.ANALYST
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            # Update Firebase UID if not set
+            if not user.firebase_uid:
+                user.firebase_uid = firebase_uid
+                user.is_verified = email_verified
+                db.commit()
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        
+        # Log successful authentication
         await log_user_action(
             db=db,
-            user_id=user.id if user else None,
-            action="login_failed",
+            user_id=user.id,
+            action="firebase_auth",
             resource_type="user",
+            resource_id=str(user.id),
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            success=False,
-            error_message="Invalid credentials"
+            success=True
         )
         
+        return {
+            "user": user,
+            "message": "Authentication successful"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication failed: {str(e)}"
         )
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Logout user - Firebase tokens are handled client-side"""
     
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account"
-        )
-    
-    # Create tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
-    # Store refresh token in Redis
-    redis_client.setex(
-        f"refresh_token:{user.id}",
-        timedelta(days=7),
-        refresh_token
-    )
-    
-    # Update last login
-    user.last_login = datetime.utcnow()
-    db.commit()
-    
-    # Log successful login
+    # Log logout action
     await log_user_action(
         db=db,
-        user_id=user.id,
-        action="login",
+        user_id=current_user.id,
+        action="logout",
         resource_type="user",
-        resource_id=str(user.id),
+        resource_id=str(current_user.id),
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent"),
         success=True
     )
     
-    # Set secure cookie (optional)
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        max_age=7 * 24 * 60 * 60,  # 7 days
-        httponly=True,
-        secure=True,
-        samesite="lax"
-    )
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": 30 * 60  # 30 minutes
-    }
-
-
-@router.post("/refresh", response_model=Token)
-async def refresh_token(
-    token_data: RefreshTokenRequest,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """Refresh access token using refresh token"""
-    
-    # Verify refresh token
-    payload = verify_token(token_data.refresh_token, token_type="refresh")
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
-        )
-    
-    user_id = int(payload.get("sub"))
-    
-    # Check if refresh token exists in Redis
-    stored_token = redis_client.get(f"refresh_token:{user_id}")
-    if not stored_token or stored_token != token_data.refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token not found or expired"
-        )
-    
-    # Get user
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive"
-        )
-    
-    # Create new tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
-    # Update refresh token in Redis
-    redis_client.setex(
-        f"refresh_token:{user.id}",
-        timedelta(days=7),
-        new_refresh_token
-    )
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer",
-        "expires_in": 30 * 60
-    }
+    return {"message": "Successfully logged out"}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -254,30 +232,6 @@ async def update_current_user(
     return current_user
 
 
-@router.post("/logout")
-async def logout(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Logout user and invalidate tokens"""
-    
-    # Remove refresh token from Redis
-    redis_client.delete(f"refresh_token:{current_user.id}")
-    
-    # Log logout action
-    await log_user_action(
-        db=db,
-        user_id=current_user.id,
-        action="logout",
-        resource_type="user",
-        resource_id=str(current_user.id),
-        ip_address=request.client.host,
-        user_agent=request.headers.get("user-agent"),
-        success=True
-    )
-    
-    return {"message": "Successfully logged out"}
 
 
 @router.post("/verify-email")

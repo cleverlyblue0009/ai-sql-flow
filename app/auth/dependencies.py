@@ -5,8 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 from ..database import get_db, User, UserRole
-from .security import verify_token
-from .schemas import TokenData
+from .security import verify_firebase_token
 
 
 # Security scheme
@@ -17,7 +16,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get current authenticated user"""
+    """Get current authenticated user from Firebase token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -25,19 +24,38 @@ async def get_current_user(
     )
     
     try:
-        # Verify token
-        payload = verify_token(credentials.credentials)
-        if payload is None:
+        # Verify Firebase token
+        decoded_token = verify_firebase_token(credentials.credentials)
+        if decoded_token is None:
             raise credentials_exception
         
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        firebase_uid = decoded_token.get("uid")
+        email = decoded_token.get("email")
+        
+        if not firebase_uid or not email:
             raise credentials_exception
         
-        # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        # Get user from database by email or create if doesn't exist
+        user = db.query(User).filter(User.email == email).first()
         if user is None:
-            raise credentials_exception
+            # Create user from Firebase token info
+            user = User(
+                email=email,
+                username=decoded_token.get("name", email.split("@")[0]),
+                full_name=decoded_token.get("name", ""),
+                hashed_password="firebase_auth",  # Placeholder since Firebase handles auth
+                firebase_uid=firebase_uid,
+                is_active=True,
+                is_verified=decoded_token.get("email_verified", False)
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            # Update Firebase UID if not set
+            if not user.firebase_uid:
+                user.firebase_uid = firebase_uid
+                db.commit()
         
         # Update last login
         user.last_login = datetime.utcnow()
@@ -45,7 +63,8 @@ async def get_current_user(
         
         return user
     
-    except Exception:
+    except Exception as e:
+        print(f"Authentication error: {e}")
         raise credentials_exception
 
 
@@ -111,15 +130,15 @@ async def get_optional_user(
             return None
         
         token = authorization.split(" ")[1]
-        payload = verify_token(token)
-        if payload is None:
+        decoded_token = verify_firebase_token(token)
+        if decoded_token is None:
             return None
         
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        email = decoded_token.get("email")
+        if email is None:
             return None
         
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.email == email).first()
         return user
     
     except Exception:
@@ -127,24 +146,24 @@ async def get_optional_user(
 
 
 async def get_current_user_from_token(token: str, db: Session) -> User:
-    """Get current user from token (for WebSocket authentication)"""
+    """Get current user from Firebase token (for WebSocket authentication)"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
     )
     
     try:
-        # Verify token
-        payload = verify_token(token)
-        if payload is None:
+        # Verify Firebase token
+        decoded_token = verify_firebase_token(token)
+        if decoded_token is None:
             raise credentials_exception
         
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        email = decoded_token.get("email")
+        if email is None:
             raise credentials_exception
         
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.email == email).first()
         if user is None:
             raise credentials_exception
         

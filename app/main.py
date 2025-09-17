@@ -92,9 +92,9 @@ A comprehensive, enterprise-grade backend API for AI-powered data quality analys
 ### Key Features
 
 #### 🔐 Authentication & Authorization
-- JWT token-based authentication with refresh tokens
+- Firebase Authentication integration
 - Role-based access control (Admin, Engineer, Analyst)
-- OAuth2 integration (Google, GitHub)
+- OAuth2 integration via Firebase (Google, GitHub, etc.)
 - Comprehensive audit logging
 
 #### 📊 Data Quality Analysis
@@ -258,7 +258,7 @@ async def system_info():
         "description": "AI-Powered Data Cleaning and SQL Migration Platform",
         "capabilities": {
             "authentication": {
-                "jwt_auth": True,
+                "firebase_auth": True,
                 "oauth2": True,
                 "role_based_access": True
             },
