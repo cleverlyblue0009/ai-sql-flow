@@ -117,7 +117,7 @@ export const useMigrationProgress = ({
     connectionState,
     sendMessage
   } = useWebSocket({
-    url: 'ws://localhost:8001/ws/migration',
+    url: 'ws://localhost:8002/ws/migration',
     token,
     onMessage: handleWebSocketMessage,
     onConnect: () => {
