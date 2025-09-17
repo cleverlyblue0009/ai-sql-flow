@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import SQLInput from "./SQLInput";
 import { useMigrationProgress } from "@/hooks/useMigrationProgress";
+import { getCurrentToken, initializeAuth } from "@/utils/auth";
 import { 
   Database, 
   ArrowRight, 
@@ -92,6 +93,11 @@ export default function SQLMigration() {
   const sourceTargetRef = useRef<HTMLDivElement>(null);
   const translationRef = useRef<HTMLDivElement>(null);
 
+  // Initialize authentication on component mount
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
   // WebSocket integration for real-time progress
   const {
     isConnected,
@@ -101,7 +107,7 @@ export default function SQLMigration() {
     subscribeToMigration,
     unsubscribeFromMigration
   } = useMigrationProgress({
-    token: localStorage.getItem('token') || undefined,
+    token: getCurrentToken() || undefined,
     onProgress: (progress) => {
       console.log('Migration progress:', progress);
       setMigrationProgress(progress.progress_percentage);
@@ -169,7 +175,7 @@ export default function SQLMigration() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getCurrentToken()}`
         },
         body: JSON.stringify({
           source_sql: sqlContent,
@@ -200,7 +206,7 @@ export default function SQLMigration() {
         try {
           const statusResponse = await fetch(`/api/jobs/${jobId}/status`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              'Authorization': `Bearer ${getCurrentToken()}`
             }
           });
 
@@ -241,7 +247,7 @@ export default function SQLMigration() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getCurrentToken()}`
         },
         body: JSON.stringify({
           project_id: 1, // Default project
@@ -291,7 +297,7 @@ export default function SQLMigration() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${getCurrentToken()}`
           },
           body: JSON.stringify({
             migration_id: migrationId,
