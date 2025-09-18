@@ -241,3 +241,52 @@ async def send_welcome_email(email: str, full_name: str) -> bool:
         html_content=html_content,
         text_content=f"Welcome to AI Data Platform, {full_name}! Your account is now ready to use."
     )
+
+
+class EmailService:
+    """Email service class for sending various types of emails"""
+    
+    def __init__(self):
+        self.smtp_host = settings.smtp_host
+        self.smtp_port = settings.smtp_port
+        self.smtp_username = settings.smtp_username
+        self.smtp_password = settings.smtp_password
+    
+    async def send_verification_email(self, email: str, token: str) -> bool:
+        """Send verification email"""
+        return await send_verification_email(email, token)
+    
+    async def send_password_reset_email(self, email: str, token: str) -> bool:
+        """Send password reset email"""
+        return await send_password_reset_email(email, token)
+    
+    async def send_welcome_email(self, email: str, full_name: str) -> bool:
+        """Send welcome email"""
+        return await send_welcome_email(email, full_name)
+    
+    async def send_notification_email(self, email: str, subject: str, message: str) -> bool:
+        """Send a general notification email"""
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{subject}</title>
+        </head>
+        <body>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2>{subject}</h2>
+                <div>{message}</div>
+                <br>
+                <p>Best regards,<br>The AI Data Platform Team</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return await send_email(
+            to_email=email,
+            subject=subject,
+            html_content=html_content,
+            text_content=message
+        )
