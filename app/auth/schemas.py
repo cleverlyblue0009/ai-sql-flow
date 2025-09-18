@@ -125,7 +125,7 @@ class OAuth2AuthRequest(BaseModel):
     state: Optional[str] = None
 
 
-# JWT Token schemas
+# Simple Token schemas (non-JWT)
 class Token(BaseModel):
     access_token: str
     refresh_token: str
@@ -133,6 +133,4 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
     user_id: Optional[int] = None
-    scopes: list[str] = []

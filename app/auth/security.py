@@ -1,10 +1,8 @@
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 import secrets
 import base64
-import jwt
 import firebase_admin
 from firebase_admin import credentials, auth
 from ..database.config import settings
@@ -110,39 +108,21 @@ def generate_verification_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-# JWT Token functions
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token"""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(hours=24)
-    
-    to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
-    return encoded_jwt
+# Simple token functions for basic auth (non-JWT)
+def create_access_token(user_id: int) -> str:
+    """Create a simple access token (just a secure random string)"""
+    return secrets.token_urlsafe(32)
 
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT refresh token"""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(days=7)
-    
-    to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
-    return encoded_jwt
+def create_refresh_token(user_id: int) -> str:
+    """Create a simple refresh token (just a secure random string)"""
+    return secrets.token_urlsafe(32)
 
 
-def verify_token(token: str, token_type: str = "access") -> Optional[Dict[str, Any]]:
-    """Verify and decode a JWT token"""
+def verify_token(token: str) -> bool:
+    """Simple token verification - just check if it's a valid format"""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-        if payload.get("type") != token_type:
-            return None
-        return payload
-    except jwt.PyJWTError:
-        return None
+        # Simple validation - token should be 32+ characters
+        return len(token) >= 32 and token.replace('-', '').replace('_', '').isalnum()
+    except:
+        return False
