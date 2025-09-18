@@ -47,6 +47,57 @@ def decrypt_data(encrypted_data: bytes) -> str:
     return cipher_suite.decrypt(encrypted_data).decode()
 
 
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[int] = None) -> str:
+    """Create a JWT access token"""
+    # For now, return a simple token based on user data
+    # In production, implement proper JWT token generation
+    import json
+    import time
+    
+    payload = data.copy()
+    if expires_delta:
+        payload['exp'] = time.time() + expires_delta
+    else:
+        payload['exp'] = time.time() + (15 * 60)  # 15 minutes default
+    
+    # Simple token encoding (replace with proper JWT in production)
+    token_data = json.dumps(payload)
+    return base64.urlsafe_b64encode(token_data.encode()).decode()
+
+
+def create_refresh_token(data: Dict[str, Any]) -> str:
+    """Create a JWT refresh token"""
+    import json
+    import time
+    
+    payload = data.copy()
+    payload['exp'] = time.time() + (7 * 24 * 60 * 60)  # 7 days
+    payload['type'] = 'refresh'
+    
+    # Simple token encoding (replace with proper JWT in production)
+    token_data = json.dumps(payload)
+    return base64.urlsafe_b64encode(token_data.encode()).decode()
+
+
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify and decode a token"""
+    try:
+        import json
+        import time
+        
+        # Simple token decoding (replace with proper JWT in production)
+        token_data = base64.urlsafe_b64decode(token.encode()).decode()
+        payload = json.loads(token_data)
+        
+        # Check if token is expired
+        if 'exp' in payload and time.time() > payload['exp']:
+            return None
+            
+        return payload
+    except Exception:
+        return None
+
+
 # Initialize Firebase Admin SDK
 def initialize_firebase():
     """Initialize Firebase Admin SDK"""
