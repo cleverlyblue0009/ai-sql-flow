@@ -25,55 +25,70 @@ except ImportError as e:
         pass
 
 # Import routers with error handling
+def create_placeholder_router(name: str, prefix: str, tags: list) -> "APIRouter":
+    """Create a placeholder router when the real one can't be imported"""
+    from fastapi import APIRouter
+    router = APIRouter(prefix=prefix, tags=tags)
+    
+    @router.get("/status")
+    async def router_status():
+        return {
+            "status": "placeholder", 
+            "message": f"{name} router is not available due to missing dependencies or configuration",
+            "available": False
+        }
+    
+    return router
+
+# Try to import routers, with better error handling
 try:
     from .auth.routes import router as auth_router
-except ImportError:
-    print("Auth router not found, creating placeholder")
-    from fastapi import APIRouter
-    auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
+    print("✓ Auth router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Auth router failed to load: {str(e)[:100]}...")
+    auth_router = create_placeholder_router("Authentication", "/auth", ["Authentication"])
 
 try:
     from .data_quality.routes import router as data_quality_router
-except ImportError:
-    print("Data quality router not found, creating placeholder")
-    from fastapi import APIRouter
-    data_quality_router = APIRouter(prefix="/data-quality", tags=["Data Quality"])
+    print("✓ Data Quality router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Data Quality router failed to load: {str(e)[:100]}...")
+    data_quality_router = create_placeholder_router("Data Quality", "/data-quality", ["Data Quality"])
 
 try:
     from .dashboard.routes import router as dashboard_router
-except ImportError:
-    print("Dashboard router not found, creating placeholder")
-    from fastapi import APIRouter
-    dashboard_router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+    print("✓ Dashboard router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Dashboard router failed to load: {str(e)[:100]}...")
+    dashboard_router = create_placeholder_router("Dashboard", "/dashboard", ["Dashboard"])
 
-# Import migration and other routers
 try:
     from .migration.routes import router as migration_router
-except ImportError:
-    print("Migration router not found, creating placeholder")
-    from fastapi import APIRouter
-    migration_router = APIRouter(prefix="/migration", tags=["Migration"])
+    print("✓ Migration router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Migration router failed to load: {str(e)[:100]}...")
+    migration_router = create_placeholder_router("Migration", "/migration", ["Migration"])
 
 try:
     from .monitoring.routes import router as monitoring_router
-except ImportError:
-    print("Monitoring router not found, creating placeholder")
-    from fastapi import APIRouter
-    monitoring_router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
+    print("✓ Monitoring router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Monitoring router failed to load: {str(e)[:100]}...")
+    monitoring_router = create_placeholder_router("Monitoring", "/monitoring", ["Monitoring"])
 
 try:
     from .settings.routes import router as settings_router
-except ImportError:
-    print("Settings router not found, creating placeholder")
-    from fastapi import APIRouter
-    settings_router = APIRouter(prefix="/settings", tags=["Settings"])
+    print("✓ Settings router loaded successfully")
+except ImportError as e:
+    print(f"⚠ Settings router failed to load: {str(e)[:100]}...")
+    settings_router = create_placeholder_router("Settings", "/settings", ["Settings"])
 
 try:
     from .websocket.routes import router as websocket_router
-except ImportError:
-    print("WebSocket router not found, creating placeholder")
-    from fastapi import APIRouter
-    websocket_router = APIRouter(prefix="/ws", tags=["WebSocket"])
+    print("✓ WebSocket router loaded successfully")
+except ImportError as e:
+    print(f"⚠ WebSocket router failed to load: {str(e)[:100]}...")
+    websocket_router = create_placeholder_router("WebSocket", "/ws", ["WebSocket"])
 
 # Setup basic logging
 logging.basicConfig(
