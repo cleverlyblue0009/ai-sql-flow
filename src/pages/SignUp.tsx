@@ -258,7 +258,7 @@ export default function SignUp() {
               </Label>
             </div>
             
-            <Button type="submit" className="w-full" disabled={isLoading || !acceptTerms}>
+            <Button type="button" className="w-full" disabled={isLoading || !acceptTerms}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>

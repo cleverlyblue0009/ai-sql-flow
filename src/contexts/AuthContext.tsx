@@ -63,10 +63,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setError(null);
       setLoading(true);
+      console.log('Attempting to register user with Firebase...');
+      
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('User created successfully:', user.uid);
+      
       await updateProfile(user, { displayName });
+      console.log('Profile updated successfully');
     } catch (error: any) {
-      setError(error.message);
+      console.error('Registration error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      let userFriendlyMessage = error.message;
+      
+      // Provide more specific error messages
+      switch (error.code) {
+        case 'auth/network-request-failed':
+          userFriendlyMessage = 'Network error. Please check your internet connection and try again.';
+          break;
+        case 'auth/email-already-in-use':
+          userFriendlyMessage = 'This email is already registered. Please use a different email or try logging in.';
+          break;
+        case 'auth/weak-password':
+          userFriendlyMessage = 'Password is too weak. Please use at least 6 characters.';
+          break;
+        case 'auth/invalid-email':
+          userFriendlyMessage = 'Please enter a valid email address.';
+          break;
+        default:
+          userFriendlyMessage = `Registration failed: ${error.message}`;
+      }
+      
+      setError(userFriendlyMessage);
       throw error;
     } finally {
       setLoading(false);

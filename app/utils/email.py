@@ -241,3 +241,50 @@ async def send_welcome_email(email: str, full_name: str) -> bool:
         html_content=html_content,
         text_content=f"Welcome to AI Data Platform, {full_name}! Your account is now ready to use."
     )
+
+
+class EmailService:
+    """Email service class for sending various types of emails"""
+    
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+    
+    async def send_verification_email(self, email: str, verification_token: str) -> bool:
+        """Send email verification email"""
+        return await send_verification_email(email, verification_token)
+    
+    async def send_password_reset_email(self, email: str, reset_token: str) -> bool:
+        """Send password reset email"""
+        return await send_password_reset_email(email, reset_token)
+    
+    async def send_welcome_email(self, email: str, full_name: str) -> bool:
+        """Send welcome email"""
+        return await send_welcome_email(email, full_name)
+    
+    async def send_alert_email(self, email: str, subject: str, message: str) -> bool:
+        """Send alert email"""
+        alert_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{subject} - AI Data Platform</title>
+        </head>
+        <body>
+            <h2>Alert: {subject}</h2>
+            <p>{message}</p>
+            <p>Best regards,<br>The AI Data Platform Team</p>
+        </body>
+        </html>
+        """
+        
+        return await send_email(
+            to_email=email,
+            subject=f"Alert: {subject}",
+            html_content=alert_template,
+            text_content=f"Alert: {subject}\n\n{message}"
+        )
+    
+    async def send_notification_email(self, email: str, subject: str, message: str) -> bool:
+        """Send notification email"""
+        return await self.send_alert_email(email, subject, message)
