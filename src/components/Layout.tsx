@@ -8,10 +8,22 @@ import {
   Menu, 
   X,
   Shield,
-  Activity
+  Activity,
+  LogOut,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
@@ -76,6 +88,15 @@ export default function Layout() {
 
 function SidebarContent() {
   const location = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -108,6 +129,47 @@ function SidebarContent() {
           );
         })}
       </nav>
+      
+      {/* User profile section at bottom */}
+      <div className="flex-shrink-0 px-4 py-4 border-t border-border">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+              <Avatar className="h-8 w-8 mr-3">
+                <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || user?.email || ''} />
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium text-sidebar-foreground">
+                  {user?.displayName || 'User'}
+                </p>
+                <p className="text-xs text-sidebar-foreground/70 truncate">
+                  {user?.email}
+                </p>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user?.displayName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
