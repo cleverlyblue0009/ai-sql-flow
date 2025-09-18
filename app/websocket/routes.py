@@ -6,7 +6,7 @@ import uuid
 from typing import Optional
 
 from ..database import get_db, User
-from ..auth import get_current_user_from_token
+from ..auth.dependencies import get_current_user_from_token
 from .manager import connection_manager
 from .migration_ws import migration_progress_manager
 

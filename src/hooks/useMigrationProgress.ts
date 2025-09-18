@@ -114,11 +114,9 @@ export const useMigrationProgress = ({
 
   const {
     isConnected,
-    connectionState,
     sendMessage
   } = useWebSocket({
-    url: 'ws://localhost:8000/ws/migration',
-    token,
+    url: '/migration',
     onMessage: handleWebSocketMessage,
     onConnect: () => {
       console.log('Connected to migration WebSocket');
@@ -200,7 +198,6 @@ export const useMigrationProgress = ({
 
   return {
     isConnected,
-    connectionState,
     progressData,
     errors,
     subscribedMigrations: Array.from(subscribedMigrations),
