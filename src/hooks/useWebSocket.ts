@@ -1,121 +1,149 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
 
 interface WebSocketMessage {
   type: string;
-  migration_id?: string;
-  data?: any;
-  message?: string;
-  timestamp?: string;
+  [key: string]: any;
 }
 
 interface UseWebSocketOptions {
   url: string;
-  token?: string;
   onMessage?: (message: WebSocketMessage) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
-  reconnectAttempts?: number;
-  reconnectDelay?: number;
+  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
 }
 
-export const useWebSocket = ({
+export function useWebSocket({
   url,
-  token,
   onMessage,
   onConnect,
   onDisconnect,
   onError,
-  reconnectAttempts = 5,
-  reconnectDelay = 3000
-}: UseWebSocketOptions) => {
+  reconnectInterval = 3000,
+  maxReconnectAttempts = 5
+}: UseWebSocketOptions) {
+  const { currentUser } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  const ws = useRef<WebSocket | null>(null);
-  const reconnectCount = useRef(0);
-  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    const wsUrl = token ? `${url}?token=${token}` : url;
+  const getWebSocketUrl = useCallback(async () => {
+    if (!currentUser) return null;
     
-    setConnectionState('connecting');
-    ws.current = new WebSocket(wsUrl);
+    try {
+      return await apiClient.getWebSocketUrl(url);
+    } catch (error) {
+      console.error('Failed to get WebSocket URL:', error);
+      return null;
+    }
+  }, [currentUser, url]);
 
-    ws.current.onopen = () => {
-      setIsConnected(true);
-      setConnectionState('connected');
-      reconnectCount.current = 0;
-      onConnect?.();
-    };
+  const connect = useCallback(async () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    ws.current.onmessage = (event) => {
-      try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-        onMessage?.(message);
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+    try {
+      const wsUrl = await getWebSocketUrl();
+      if (!wsUrl) {
+        console.log('Cannot connect to WebSocket: no auth token');
+        return;
       }
-    };
 
-    ws.current.onclose = () => {
-      setIsConnected(false);
-      setConnectionState('disconnected');
-      onDisconnect?.();
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-      // Attempt reconnection
-      if (reconnectCount.current < reconnectAttempts) {
-        reconnectCount.current++;
-        reconnectTimeout.current = setTimeout(() => {
-          connect();
-        }, reconnectDelay);
-      }
-    };
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        setReconnectAttempts(0);
+        onConnect?.();
+      };
 
-    ws.current.onerror = (error) => {
-      setConnectionState('error');
-      onError?.(error);
-    };
-  }, [url, token, onMessage, onConnect, onDisconnect, onError, reconnectAttempts, reconnectDelay]);
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          onMessage?.(message);
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected', event.code, event.reason);
+        setIsConnected(false);
+        wsRef.current = null;
+        onDisconnect?.();
+
+        // Attempt to reconnect if not a manual close
+        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+          console.log(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
+          setReconnectAttempts(prev => prev + 1);
+          reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        onError?.(error);
+      };
+
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+    }
+  }, [getWebSocketUrl, onMessage, onConnect, onDisconnect, onError, reconnectAttempts, maxReconnectAttempts, reconnectInterval]);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
     }
     
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'Manual disconnect');
+      wsRef.current = null;
     }
     
     setIsConnected(false);
-    setConnectionState('disconnected');
+    setReconnectAttempts(0);
   }, []);
 
-  const sendMessage = useCallback((message: any) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message));
+  const sendMessage = useCallback((message: WebSocketMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
       return true;
     }
+    console.warn('WebSocket is not connected. Message not sent:', message);
     return false;
   }, []);
 
+  // Connect when user is authenticated
   useEffect(() => {
-    connect();
+    if (currentUser) {
+      connect();
+    } else {
+      disconnect();
+    }
 
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [currentUser, connect, disconnect]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
 
   return {
     isConnected,
-    connectionState,
     sendMessage,
     connect,
-    disconnect
+    disconnect,
+    reconnectAttempts
   };
-};
+}

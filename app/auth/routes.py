@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from ..database import get_db, User, AuditLog, redis_client
+from ..database.models import UserRole
 from .schemas import (
     UserCreate, UserLogin, UserResponse, UserUpdate, FirebaseAuthRequest, FirebaseAuthResponse,
     PasswordReset, PasswordResetConfirm, PasswordChange, EmailVerification,

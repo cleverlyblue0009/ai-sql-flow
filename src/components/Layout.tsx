@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet, useLocation, NavLink } from "react-router-dom";
+import { useAuthSync } from "@/hooks/useAuthSync";
 import { 
   BarChart3, 
   Database, 
@@ -8,9 +9,21 @@ import {
   Menu, 
   X,
   Shield,
-  Activity
+  Activity,
+  LogOut,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -24,6 +37,9 @@ const navigation = [
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  
+  // Sync Firebase auth with backend
+  useAuthSync();
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,6 +92,15 @@ export default function Layout() {
 
 function SidebarContent() {
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -88,6 +113,7 @@ function SidebarContent() {
           </div>
         </div>
       </div>
+      
       <nav className="mt-8 flex-1 px-2 space-y-1">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
@@ -108,6 +134,49 @@ function SidebarContent() {
           );
         })}
       </nav>
+
+      {/* User section at bottom */}
+      <div className="flex-shrink-0 px-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="w-full justify-start px-2 py-2 h-auto">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={currentUser?.photoURL || undefined} />
+                  <AvatarFallback>
+                    {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start text-left">
+                  <p className="text-sm font-medium text-sidebar-foreground">
+                    {currentUser?.displayName || 'User'}
+                  </p>
+                  <p className="text-xs text-sidebar-foreground/70">
+                    {currentUser?.email}
+                  </p>
+                </div>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
