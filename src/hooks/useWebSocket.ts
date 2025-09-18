@@ -41,7 +41,10 @@ export const useWebSocket = ({
     }
 
     const wsUrl = token ? `${url}?token=${token}` : url;
-    
+    console.log('=== WebSocket Connection Debug ===');
+    console.log('Base URL:', url);
+    console.log('Token exists:', !!token);
+    console.log('Final WebSocket URL:', wsUrl.replace(/token=([^&]+)/, 'token=[REDACTED]'));
     setConnectionState('connecting');
     ws.current = new WebSocket(wsUrl);
 
