@@ -11,6 +11,16 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:abcdef123456"
 };
 
+// Debug: Log configuration (remove in production)
+console.log('Firebase Config:', {
+  apiKey: firebaseConfig.apiKey ? 'Set' : 'Missing',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId ? 'Set' : 'Missing',
+  appId: firebaseConfig.appId ? 'Set' : 'Missing'
+});
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 

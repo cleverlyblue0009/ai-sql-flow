@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Database, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FirebaseDebug } from '@/components/FirebaseDebug';
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -105,6 +106,11 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+      {/* Temporary Debug Component - Remove in production */}
+      <div className="fixed top-4 right-4 z-50">
+        <FirebaseDebug />
+      </div>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
@@ -258,7 +264,7 @@ export default function SignUp() {
               </Label>
             </div>
             
-            <Button type="submit" className="w-full" disabled={isLoading || !acceptTerms}>
+            <Button type="button" className="w-full" disabled={isLoading || !acceptTerms}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>
