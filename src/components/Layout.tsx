@@ -8,10 +8,13 @@ import {
   Menu, 
   X,
   Shield,
-  Activity
+  Activity,
+  LogOut,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
@@ -76,6 +79,15 @@ export default function Layout() {
 
 function SidebarContent() {
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -88,7 +100,37 @@ function SidebarContent() {
           </div>
         </div>
       </div>
-      <nav className="mt-8 flex-1 px-2 space-y-1">
+      
+      {/* User info */}
+      {currentUser && (
+        <div className="px-4 mt-4 pb-4 border-b border-border">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              {currentUser.photoURL ? (
+                <img
+                  className="h-8 w-8 rounded-full"
+                  src={currentUser.photoURL}
+                  alt={currentUser.displayName || 'User'}
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {currentUser.displayName || currentUser.email}
+              </p>
+              <p className="text-xs text-sidebar-foreground/70 truncate">
+                {currentUser.email}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <nav className="mt-4 flex-1 px-2 space-y-1">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
@@ -108,6 +150,18 @@ function SidebarContent() {
           );
         })}
       </nav>
+      
+      {/* Logout button */}
+      <div className="px-2 mt-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Sign out
+        </Button>
+      </div>
     </div>
   );
 }
