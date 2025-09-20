@@ -123,3 +123,16 @@ class OAuth2UserInfo(BaseModel):
 class OAuth2AuthRequest(BaseModel):
     code: str
     state: Optional[str] = None
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+
+
+class TokenData(BaseModel):
+    user_id: Optional[int] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
