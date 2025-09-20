@@ -342,12 +342,12 @@ LIMIT 100;""",
     }
 
 # Include routers with API prefix
-app.include_router(auth_router, prefix="/api")
-app.include_router(data_quality_router, prefix="/api")
-app.include_router(dashboard_router, prefix="/api")
-app.include_router(migration_router, prefix="/api")
-app.include_router(monitoring_router, prefix="/api")
-app.include_router(settings_router, prefix="/api")
+app.include_router(auth_router)
+app.include_router(data_quality_router)
+app.include_router(dashboard_router)
+app.include_router(migration_router)
+app.include_router(monitoring_router)
+app.include_router(settings_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers
