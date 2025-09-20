@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import SQLInput from "./SQLInput";
 import { useMigrationProgress } from "@/hooks/useMigrationProgress";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Database, 
   ArrowRight, 
@@ -87,10 +88,33 @@ export default function SQLMigration() {
   const [translatedSQL, setTranslatedSQL] = useState("");
   const [translationInProgress, setTranslationInProgress] = useState(false);
   const [performanceData, setPerformanceData] = useState(null);
+  const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
   
   // Refs for auto-scrolling
   const sourceTargetRef = useRef<HTMLDivElement>(null);
   const translationRef = useRef<HTMLDivElement>(null);
+  
+  // Auth context
+  const { currentUser } = useAuth();
+
+  // Get Firebase token for WebSocket authentication
+  useEffect(() => {
+    const getFirebaseToken = async () => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          setFirebaseToken(token);
+        } catch (error) {
+          console.error('Error getting Firebase token:', error);
+          setFirebaseToken(null);
+        }
+      } else {
+        setFirebaseToken(null);
+      }
+    };
+
+    getFirebaseToken();
+  }, [currentUser]);
 
   // WebSocket integration for real-time progress
   const {
@@ -101,7 +125,7 @@ export default function SQLMigration() {
     subscribeToMigration,
     unsubscribeFromMigration
   } = useMigrationProgress({
-    token: localStorage.getItem('token') || undefined,
+    token: firebaseToken || undefined,
     onProgress: (progress) => {
       console.log('Migration progress:', progress);
       setMigrationProgress(progress.progress_percentage);

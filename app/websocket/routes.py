@@ -236,11 +236,10 @@ async def migration_websocket_endpoint(
     connection_id = str(uuid.uuid4())
     
     try:
-        # Authenticate user
+        # Authenticate user from token
         if token:
             try:
-                await websocket.accept()
-                await websocket.send_text('{"type":"test","message":"Connection works without auth"}')
+                user = await get_current_user_from_token(token, db)
             except Exception as e:
                 logger.error(f"Migration WebSocket authentication failed: {str(e)}")
                 await websocket.close(code=4001, reason="Authentication failed")
@@ -249,6 +248,8 @@ async def migration_websocket_endpoint(
         if not user:
             await websocket.close(code=4001, reason="Authentication required")
             return
+        
+        await websocket.accept()
         
         # Connect to migration progress manager
         await migration_progress_manager.connect_user(websocket, user.id, connection_id)
