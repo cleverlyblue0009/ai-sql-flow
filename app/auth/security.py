@@ -47,6 +47,64 @@ def decrypt_data(encrypted_data: bytes) -> str:
     return cipher_suite.decrypt(encrypted_data).decode()
 
 
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[int] = None) -> str:
+    """Create JWT access token"""
+    # Mock implementation for development
+    import json
+    import time
+    
+    payload = {
+        "sub": str(data.get("user_id", "unknown")),
+        "email": data.get("email", ""),
+        "exp": time.time() + (expires_delta or 3600),  # 1 hour default
+        "type": "access"
+    }
+    
+    # In production, use proper JWT signing
+    token = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    return f"mock_access_token_{token}"
+
+
+def create_refresh_token(data: Dict[str, Any]) -> str:
+    """Create JWT refresh token"""
+    # Mock implementation for development
+    import json
+    import time
+    
+    payload = {
+        "sub": str(data.get("user_id", "unknown")),
+        "email": data.get("email", ""),
+        "exp": time.time() + (7 * 24 * 3600),  # 7 days
+        "type": "refresh"
+    }
+    
+    # In production, use proper JWT signing
+    token = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    return f"mock_refresh_token_{token}"
+
+
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify and decode JWT token"""
+    # Mock implementation for development
+    try:
+        if token.startswith("mock_"):
+            import json
+            import time
+            
+            # Extract the payload part
+            token_part = token.split("_", 2)[-1]
+            payload = json.loads(base64.urlsafe_b64decode(token_part.encode()).decode())
+            
+            # Check expiration
+            if payload.get("exp", 0) < time.time():
+                return None
+            
+            return payload
+        return None
+    except Exception:
+        return None
+
+
 # Initialize Firebase Admin SDK
 def initialize_firebase():
     """Initialize Firebase Admin SDK"""
