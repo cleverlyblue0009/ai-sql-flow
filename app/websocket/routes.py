@@ -25,6 +25,9 @@ async def websocket_endpoint(
     user = None
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate user from token
         if token:
             try:
@@ -99,6 +102,9 @@ async def admin_websocket_endpoint(
     user = None
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate admin user
         if token:
             try:
@@ -236,6 +242,9 @@ async def migration_websocket_endpoint(
     connection_id = str(uuid.uuid4())
     
     try:
+        # Accept the WebSocket connection first
+        await websocket.accept()
+        
         # Authenticate user from token
         if token:
             try:
@@ -248,8 +257,6 @@ async def migration_websocket_endpoint(
         if not user:
             await websocket.close(code=4001, reason="Authentication required")
             return
-        
-        await websocket.accept()
         
         # Connect to migration progress manager
         await migration_progress_manager.connect_user(websocket, user.id, connection_id)
