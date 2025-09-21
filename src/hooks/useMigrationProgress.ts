@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWebSocket } from './useWebSocket';
 
 interface MigrationProgress {
@@ -115,7 +115,8 @@ export const useMigrationProgress = ({
   const {
     isConnected,
     connectionState,
-    sendMessage
+    sendMessage,
+    reconnect
   } = useWebSocket({
     url: 'ws://localhost:8000/ws/migration',
     token,
@@ -137,6 +138,16 @@ export const useMigrationProgress = ({
       console.error('Migration WebSocket error:', error);
     }
   });
+
+  // Reconnect when token changes (for token refresh)
+  const prevToken = useRef<string | undefined>();
+  useEffect(() => {
+    if (token && prevToken.current && token !== prevToken.current) {
+      console.log('Token changed, reconnecting WebSocket...');
+      reconnect();
+    }
+    prevToken.current = token;
+  }, [token, reconnect]);
 
   const subscribeToMigration = useCallback((migrationId: string) => {
     if (isConnected && !subscribedMigrations.has(migrationId)) {
