@@ -97,13 +97,14 @@ export default function SQLMigration() {
   // Auth context
   const { currentUser } = useAuth();
 
-  // Get Firebase token for WebSocket authentication
+  // Get Firebase token for WebSocket authentication with automatic refresh
   useEffect(() => {
-    const getFirebaseToken = async () => {
+    const getFirebaseToken = async (forceRefresh = false) => {
       if (currentUser) {
         try {
-          const token = await currentUser.getIdToken();
+          const token = await currentUser.getIdToken(forceRefresh);
           setFirebaseToken(token);
+          console.log('Firebase token updated:', forceRefresh ? '(forced refresh)' : '(cached)');
         } catch (error) {
           console.error('Error getting Firebase token:', error);
           setFirebaseToken(null);
@@ -113,7 +114,20 @@ export default function SQLMigration() {
       }
     };
 
+    // Get initial token
     getFirebaseToken();
+
+    // Set up automatic token refresh every 50 minutes (tokens expire in 1 hour)
+    const tokenRefreshInterval = setInterval(() => {
+      if (currentUser) {
+        console.log('Refreshing Firebase token automatically...');
+        getFirebaseToken(true); // Force refresh
+      }
+    }, 50 * 60 * 1000); // 50 minutes
+
+    return () => {
+      clearInterval(tokenRefreshInterval);
+    };
   }, [currentUser]);
 
   // WebSocket integration for real-time progress
@@ -152,10 +166,34 @@ export default function SQLMigration() {
     onError: (error) => {
       console.error('Migration error:', error);
       const errorMessage = error?.error || error?.message || 'An unknown error occurred';
-      toast.error('Migration Error', { 
-        description: errorMessage,
-        duration: 5000
-      });
+      
+      // Handle authentication errors specifically
+      if (errorMessage.includes('Authentication') || errorMessage.includes('401') || errorMessage.includes('403')) {
+        toast.error('Authentication Error', { 
+          description: 'Session expired. Refreshing connection...',
+          duration: 3000
+        });
+        
+        // Force token refresh
+        if (currentUser) {
+          currentUser.getIdToken(true).then((newToken) => {
+            setFirebaseToken(newToken);
+            toast.success('Authentication refreshed', {
+              description: 'WebSocket connection will reconnect automatically'
+            });
+          }).catch((refreshError) => {
+            console.error('Token refresh failed:', refreshError);
+            toast.error('Token Refresh Failed', {
+              description: 'Please try logging out and back in'
+            });
+          });
+        }
+      } else {
+        toast.error('Migration Error', { 
+          description: errorMessage,
+          duration: 5000
+        });
+      }
     }
   });
 
