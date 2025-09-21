@@ -70,6 +70,11 @@ class User(Base):
     connections = relationship("Connection", back_populates="user")
     jobs = relationship("Job", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
+    
+    @property
+    def is_admin(self) -> bool:
+        """Check if user has admin role"""
+        return self.role == UserRole.ADMIN
 
 
 class Project(Base):
