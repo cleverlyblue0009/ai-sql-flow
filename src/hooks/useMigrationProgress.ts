@@ -119,7 +119,7 @@ export const useMigrationProgress = ({
     reconnect
   } = useWebSocket({
     url: 'ws://localhost:8000/ws/migration',
-    token,
+    token: token || 'test-token-for-development',
     onMessage: handleWebSocketMessage,
     onConnect: () => {
       console.log('Connected to migration WebSocket');

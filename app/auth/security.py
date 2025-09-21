@@ -85,6 +85,14 @@ def verify_firebase_token(token: str) -> Optional[Dict[str, Any]]:
         return decoded_token
     except Exception as e:
         print(f"Token verification failed: {e}")
+        # For development/testing, return a mock token if Firebase is not properly configured
+        if settings.debug and "mock" in str(e).lower():
+            return {
+                "uid": "mock-user-123",
+                "email": "test@example.com",
+                "name": "Test User",
+                "email_verified": True
+            }
         return None
 
 
