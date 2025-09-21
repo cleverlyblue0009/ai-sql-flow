@@ -1,19 +1,40 @@
 /**
  * API configuration and utility functions
  */
+import { auth } from './firebase';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
- * Generic API fetch wrapper with error handling
+ * Get Firebase ID token for authenticated requests
+ */
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      return await currentUser.getIdToken();
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get Firebase token:', error);
+    return null;
+  }
+}
+
+/**
+ * Generic API fetch wrapper with error handling and Firebase authentication
  */
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
   try {
+    // Get Firebase token for authentication
+    const token = await getAuthToken();
+    
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options?.headers,
       },
       ...options,
@@ -75,8 +96,12 @@ export const api = {
     
     uploadFile: async (formData: FormData) => {
       const url = `${API_BASE_URL}/data-quality/upload`;
+      const token = await getAuthToken();
       const response = await fetch(url, {
         method: 'POST',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
         body: formData,
       });
       
@@ -187,10 +212,12 @@ export const api = {
     
     exportCleanedData: async (dataProfileId: number) => {
       const url = `${API_BASE_URL}/data-quality/export-cleaned-data/${dataProfileId}`;
+      const token = await getAuthToken();
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
       });
       
