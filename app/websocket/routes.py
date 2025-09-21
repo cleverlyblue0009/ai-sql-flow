@@ -20,31 +20,34 @@ async def websocket_endpoint(
     token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """WebSocket endpoint for real-time updates"""
+    """WebSocket endpoint for real-time updates with Firebase authentication"""
     
     user = None
     
     try:
-        # Authenticate user from token
+        # Authenticate user from Firebase token
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
             except Exception as e:
-                logger.error(f"WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
+                logger.error(f"WebSocket Firebase authentication failed: {str(e)}")
+                await websocket.close(code=4001, reason="Firebase authentication failed")
                 return
         
         if not user:
-            await websocket.close(code=4001, reason="Authentication required")
+            await websocket.close(code=4001, reason="Firebase authentication required")
             return
+        
+        await websocket.accept()
         
         # Generate connection ID
         connection_id = str(uuid.uuid4())
         
-        # Connect to WebSocket manager
+        # Connect to WebSocket manager with Firebase user
         await connection_manager.connect(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
-            "ip_address": websocket.client.host if websocket.client else None
+            "ip_address": websocket.client.host if websocket.client else None,
+            "firebase_uid": user.firebase_uid
         })
         
         # Send initial user data
@@ -54,7 +57,8 @@ async def websocket_endpoint(
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "role": user.role.value
+                "role": user.role.value,
+                "firebase_uid": user.firebase_uid
             },
             "message": f"Welcome back, {user.full_name}!"
         }), connection_id)
@@ -69,7 +73,7 @@ async def websocket_endpoint(
                 await connection_manager.handle_message(connection_id, message)
                 
             except WebSocketDisconnect:
-                logger.info(f"WebSocket disconnected for user {user.id}")
+                logger.info(f"WebSocket disconnected for user {user.id} (Firebase UID: {user.firebase_uid})")
                 break
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {str(e)}")
@@ -94,12 +98,12 @@ async def admin_websocket_endpoint(
     token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Admin WebSocket endpoint for system monitoring"""
+    """Admin WebSocket endpoint for system monitoring with Firebase authentication"""
     
     user = None
     
     try:
-        # Authenticate admin user
+        # Authenticate admin user with Firebase
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
@@ -107,22 +111,25 @@ async def admin_websocket_endpoint(
                     await websocket.close(code=4003, reason="Admin access required")
                     return
             except Exception as e:
-                logger.error(f"Admin WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
+                logger.error(f"Admin WebSocket Firebase authentication failed: {str(e)}")
+                await websocket.close(code=4001, reason="Firebase authentication failed")
                 return
         
         if not user:
-            await websocket.close(code=4001, reason="Authentication required")
+            await websocket.close(code=4001, reason="Firebase authentication required")
             return
+        
+        await websocket.accept()
         
         # Generate connection ID
         connection_id = str(uuid.uuid4())
         
-        # Connect to WebSocket manager
+        # Connect to WebSocket manager with Firebase admin user
         await connection_manager.connect(websocket, connection_id, user.id, {
             "user_agent": websocket.headers.get("user-agent"),
             "ip_address": websocket.client.host if websocket.client else None,
-            "admin_connection": True
+            "admin_connection": True,
+            "firebase_uid": user.firebase_uid
         })
         
         # Subscribe to admin topics
@@ -134,6 +141,12 @@ async def admin_websocket_endpoint(
         await connection_manager.send_personal_message(json.dumps({
             "type": "admin_connected",
             "message": "Admin WebSocket connected",
+            "admin": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "firebase_uid": user.firebase_uid
+            },
             "system_info": {
                 "active_connections": connection_manager.get_connection_count(),
                 "active_users": connection_manager.get_user_count()
@@ -170,7 +183,8 @@ async def admin_websocket_endpoint(
                         await connection_manager.broadcast({
                             "type": "admin_broadcast",
                             "message": message_content,
-                            "from_admin": user.username
+                            "from_admin": user.username,
+                            "admin_firebase_uid": user.firebase_uid
                         }, exclude_user=user.id)
                 
                 else:
@@ -178,7 +192,7 @@ async def admin_websocket_endpoint(
                     await connection_manager.handle_message(connection_id, message)
                 
             except WebSocketDisconnect:
-                logger.info(f"Admin WebSocket disconnected for user {user.id}")
+                logger.info(f"Admin WebSocket disconnected for user {user.id} (Firebase UID: {user.firebase_uid})")
                 break
             except Exception as e:
                 logger.error(f"Error handling admin WebSocket message: {str(e)}")
@@ -193,7 +207,7 @@ async def admin_websocket_endpoint(
 
 # Helper function to send updates from background tasks
 async def send_job_progress_update(job_id: str, user_id: int, progress_data: dict):
-    """Send job progress update via WebSocket"""
+    """Send job progress update via WebSocket to specific user"""
     await connection_manager.send_job_update(
         job_id=job_id,
         user_id=user_id,
@@ -204,7 +218,7 @@ async def send_job_progress_update(job_id: str, user_id: int, progress_data: dic
 
 
 async def send_migration_progress_update(migration_id: str, user_id: int, progress_data: dict):
-    """Send migration progress update via WebSocket"""
+    """Send migration progress update via WebSocket to specific user"""
     await connection_manager.send_migration_update(
         migration_id=migration_id,
         user_id=user_id,
@@ -230,31 +244,31 @@ async def migration_websocket_endpoint(
     token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """WebSocket endpoint for real-time migration progress tracking"""
+    """WebSocket endpoint for real-time migration progress tracking with Firebase authentication"""
     
     user = None
     connection_id = str(uuid.uuid4())
     
     try:
-        # Authenticate user from token
+        # Authenticate user from Firebase token
         if token:
             try:
                 user = await get_current_user_from_token(token, db)
             except Exception as e:
-                logger.error(f"Migration WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
+                logger.error(f"Migration WebSocket Firebase authentication failed: {str(e)}")
+                await websocket.close(code=4001, reason="Firebase authentication failed")
                 return
         
         if not user:
-            await websocket.close(code=4001, reason="Authentication required")
+            await websocket.close(code=4001, reason="Firebase authentication required")
             return
         
         await websocket.accept()
         
-        # Connect to migration progress manager
+        # Connect to migration progress manager with Firebase user
         await migration_progress_manager.connect_user(websocket, user.id, connection_id)
         
-        logger.info(f"Migration WebSocket connected for user {user.id}")
+        logger.info(f"Migration WebSocket connected for user {user.id} (Firebase UID: {user.firebase_uid})")
         
         # Listen for messages
         while True:
@@ -269,10 +283,10 @@ async def migration_websocket_endpoint(
                 )
                 
             except WebSocketDisconnect:
-                logger.info(f"Migration WebSocket disconnected for user {user.id}")
+                logger.info(f"Migration WebSocket disconnected for user {user.id} (Firebase UID: {user.firebase_uid})")
                 break
             except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON received from user {user.id}")
+                logger.warning(f"Invalid JSON received from user {user.id} (Firebase UID: {user.firebase_uid})")
                 await migration_progress_manager.send_to_connection(connection_id, {
                     "type": "error",
                     "message": "Invalid JSON format"
