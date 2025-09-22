@@ -22,10 +22,10 @@ class MigrationProgressManager:
     def __init__(self):
         self.connection_manager = ConnectionManager()
         self.migration_subscriptions: Dict[str, Set[str]] = {}  # migration_id -> set of connection_ids
-        self.user_connections: Dict[int, Set[str]] = {}  # user_id -> set of connection_ids
+        self.user_connections: Dict[str, Set[str]] = {}  # user_id -> set of connection_ids
         self.active_migrations: Dict[str, Dict[str, Any]] = {}  # migration_id -> progress data
         
-    async def connect_user(self, websocket: WebSocket, user_id: int, connection_id: str):
+    async def connect_user(self, websocket: WebSocket, user_id: str, connection_id: str):
         """Connect a user to the migration progress service"""
         try:
             await self.connection_manager.connect(websocket, connection_id)
@@ -48,7 +48,7 @@ class MigrationProgressManager:
             logger.error(f"Error connecting user {user_id}: {str(e)}")
             raise
     
-    async def disconnect_user(self, connection_id: str, user_id: Optional[int] = None):
+    async def disconnect_user(self, connection_id: str, user_id: Optional[str] = None):
         """Disconnect a user from the migration progress service"""
         try:
             await self.connection_manager.disconnect(connection_id)
@@ -70,7 +70,7 @@ class MigrationProgressManager:
         except Exception as e:
             logger.error(f"Error disconnecting user {connection_id}: {str(e)}")
     
-    async def subscribe_to_migration(self, connection_id: str, migration_id: str, user_id: int):
+    async def subscribe_to_migration(self, connection_id: str, migration_id: str, user_id: str):
         """Subscribe a connection to migration progress updates"""
         try:
             # Verify user has access to this migration (basic check)
@@ -207,7 +207,7 @@ class MigrationProgressManager:
         except Exception as e:
             logger.error(f"Error sending message to connection {connection_id}: {str(e)}")
     
-    async def send_to_user(self, user_id: int, message: Dict[str, Any]):
+    async def send_to_user(self, user_id: str, message: Dict[str, Any]):
         """Send message to all connections for a specific user"""
         try:
             if user_id in self.user_connections:
@@ -216,7 +216,7 @@ class MigrationProgressManager:
         except Exception as e:
             logger.error(f"Error sending message to user {user_id}: {str(e)}")
     
-    async def handle_client_message(self, connection_id: str, message: Dict[str, Any], user_id: int):
+    async def handle_client_message(self, connection_id: str, message: Dict[str, Any], user_id: str):
         """Handle incoming WebSocket messages from clients"""
         try:
             message_type = message.get("type")
