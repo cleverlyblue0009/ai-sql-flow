@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -6,10 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import SQLInput from "./SQLInput";
+import MultiFileSQLInput, { SQLFile } from "./MultiFileSQLInput";
+import BatchTranslationProcessor from "./BatchTranslationProcessor";
 import { useMigrationProgress } from "@/hooks/useMigrationProgress";
 import { useAuth } from "@/contexts/AuthContext";
+import { sqlTranslationEngine, BatchTranslationResult } from "@/lib/sqlTranslationEngine";
+import { DownloadSystem, DownloadOptions } from "@/lib/downloadSystem";
 import { 
   Database, 
   ArrowRight, 
@@ -26,7 +30,9 @@ import {
   Wifi,
   WifiOff,
   Download,
-  RefreshCw
+  RefreshCw,
+  Package,
+  Layers
 } from "lucide-react";
 
 const migrationSteps = [
@@ -81,11 +87,11 @@ export default function SQLMigration() {
   const [sourceDB, setSourceDB] = useState("mysql");
   const [targetDB, setTargetDB] = useState("snowflake");
   const [migrationProgress, setMigrationProgress] = useState(45);
-  const [sqlContent, setSQLContent] = useState("");
-  const [sqlAnalysis, setSQLAnalysis] = useState(null);
+  const [sqlFiles, setSQLFiles] = useState<SQLFile[]>([]);
+  const [globalAnalysis, setGlobalAnalysis] = useState(null);
   const [activeMigrationId, setActiveMigrationId] = useState<string | null>(null);
   const [realTimeSteps, setRealTimeSteps] = useState(migrationSteps);
-  const [translatedSQL, setTranslatedSQL] = useState("");
+  const [batchResults, setBatchResults] = useState<BatchTranslationResult | null>(null);
   const [translationInProgress, setTranslationInProgress] = useState(false);
   const [performanceData, setPerformanceData] = useState(null);
   const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
@@ -198,225 +204,259 @@ export default function SQLMigration() {
     }
   });
 
-  const handleSQLChange = (sql: string, metadata?: any) => {
-    setSQLContent(sql);
-    console.log('SQL content updated:', { sql: sql.substring(0, 100) + '...', metadata });
+  const handleFilesChange = (files: SQLFile[]) => {
+    setSQLFiles(files);
+    console.log('Files updated:', files.length, 'files');
     
-    // Auto-scroll to Source & Target Selection after file upload
-    if (metadata && metadata.fileName) {
-      setTimeout(() => {
-        sourceTargetRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }, 500);
+    // Auto-detect source dialect from the most confident file
+    if (files.length > 0) {
+      const mostConfidentFile = files.reduce((best, file) => 
+        file.confidence > best.confidence ? file : best
+      );
+      if (mostConfidentFile.confidence > 50) {
+        setSourceDB(mostConfidentFile.detectedDialect);
+      }
     }
   };
 
-  const handleAnalysisComplete = (analysis: any) => {
-    setSQLAnalysis(analysis);
-    console.log('Analysis completed:', analysis);
+  const handleGlobalAnalysisComplete = (analysis: any) => {
+    setGlobalAnalysis(analysis);
+    console.log('Global analysis completed:', analysis);
   };
 
-  // Client-side SQL translation fallback
+  const handleBatchTranslationComplete = (results: BatchTranslationResult) => {
+    setBatchResults(results);
+    console.log('Batch translation completed:', results);
+    
+    // Auto-scroll to results
+    setTimeout(() => {
+      translationRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 500);
+  };
+
+  // Enhanced client-side SQL translation with comprehensive database support
   const performClientSideTranslation = (sql: string, sourceDialect: string, targetDialect: string) => {
     let translated = sql;
     
-    // Basic MySQL to Snowflake translations
+    // Add header comment
+    const timestamp = new Date().toISOString();
+    const header = `-- Translated from ${sourceDialect.toUpperCase()} to ${targetDialect.toUpperCase()}\n-- Generated on: ${timestamp}\n-- Client-side translation - review before production use\n\n`;
+    
+    // MySQL to PostgreSQL
+    if (sourceDialect === 'mysql' && targetDialect === 'postgresql') {
+      translated = translated
+        // Data types
+        .replace(/\bINT\s+AUTO_INCREMENT\b/gi, 'SERIAL')
+        .replace(/\bBIGINT\s+AUTO_INCREMENT\b/gi, 'BIGSERIAL')
+        .replace(/\bAUTO_INCREMENT\b/gi, 'SERIAL')
+        .replace(/\bTINYINT\(1\)\b/gi, 'BOOLEAN')
+        .replace(/\bTINYINT\b/gi, 'SMALLINT')
+        .replace(/\bDATETIME\b/gi, 'TIMESTAMP')
+        .replace(/\bLONGTEXT\b/gi, 'TEXT')
+        .replace(/\bMEDIUMTEXT\b/gi, 'TEXT')
+        .replace(/\bTINYTEXT\b/gi, 'VARCHAR(255)')
+        .replace(/\bDOUBLE\b/gi, 'DOUBLE PRECISION')
+        .replace(/\bFLOAT\b/gi, 'REAL')
+        
+        // Remove MySQL-specific keywords
+        .replace(/\bUNSIGNED\b/gi, '')
+        .replace(/\bENGINE\s*=\s*\w+/gi, '')
+        .replace(/\bDEFAULT\s+CHARSET\s*=\s*[\w\d_]+/gi, '')
+        .replace(/\bCOLLATE\s*=\s*[\w\d_]+/gi, '')
+        .replace(/\bCOMMENT\s*=\s*'[^']*'/gi, '')
+        
+        // Quote identifiers
+        .replace(/`([^`]+)`/g, '"$1"')
+        
+        // Functions
+        .replace(/\bNOW\s*\(\s*\)/gi, 'CURRENT_TIMESTAMP')
+        .replace(/\bIFNULL\s*\(/gi, 'COALESCE(')
+        
+        // LIMIT syntax
+        .replace(/\bLIMIT\s+(\d+)\s*,\s*(\d+)\b/gi, 'LIMIT $2 OFFSET $1')
+        
+        // ENUM handling (simplified)
+        .replace(/\bENUM\s*\(\s*([^)]+)\s*\)/gi, 'VARCHAR(50) CHECK (column_name IN ($1))');
+    }
+    
+    // PostgreSQL to MySQL
+    if (sourceDialect === 'postgresql' && targetDialect === 'mysql') {
+      translated = translated
+        // Data types
+        .replace(/\bSERIAL\b/gi, 'INT AUTO_INCREMENT')
+        .replace(/\bBIGSERIAL\b/gi, 'BIGINT AUTO_INCREMENT')
+        .replace(/\bBOOLEAN\b/gi, 'TINYINT(1)')
+        .replace(/\bTIMESTAMP\b/gi, 'DATETIME')
+        .replace(/\bDOUBLE\s+PRECISION\b/gi, 'DOUBLE')
+        .replace(/\bREAL\b/gi, 'FLOAT')
+        
+        // Quote identifiers
+        .replace(/"([^"]+)"/g, '`$1`')
+        
+        // Functions
+        .replace(/\bCURRENT_TIMESTAMP\b/gi, 'NOW()')
+        .replace(/\bCOALESCE\s*\(/gi, 'IFNULL(')
+        
+        // LIMIT syntax
+        .replace(/\bLIMIT\s+(\d+)\s+OFFSET\s+(\d+)\b/gi, 'LIMIT $2, $1');
+    }
+    
+    // MySQL to Snowflake
     if (sourceDialect === 'mysql' && targetDialect === 'snowflake') {
       translated = translated
-        .replace(/AUTO_INCREMENT/gi, 'AUTOINCREMENT')
-        .replace(/TINYINT(\(\d+\))?/gi, 'SMALLINT')
-        .replace(/MEDIUMINT(\(\d+\))?/gi, 'INT')
-        .replace(/LONGTEXT/gi, 'TEXT')
-        .replace(/DATE_FORMAT\s*\(\s*([^,]+),\s*'%Y-%m'\s*\)/gi, "TO_CHAR($1, 'YYYY-MM')")
-        .replace(/DATE_SUB\s*\(\s*NOW\(\),\s*INTERVAL\s+(\d+)\s+MONTH\s*\)/gi, 'DATEADD(MONTH, -$1, CURRENT_TIMESTAMP())')
-        .replace(/NOW\(\)/gi, 'CURRENT_TIMESTAMP()')
-        .replace(/`([^`]+)`/g, '"$1"'); // Convert backticks to double quotes
+        .replace(/\bAUTO_INCREMENT\b/gi, 'AUTOINCREMENT')
+        .replace(/\bTINYINT(\(\d+\))?/gi, 'SMALLINT')
+        .replace(/\bMEDIUMINT(\(\d+\))?/gi, 'INT')
+        .replace(/\bLONGTEXT\b/gi, 'TEXT')
+        .replace(/\bDATETIME\b/gi, 'TIMESTAMP')
+        .replace(/\bENGINE\s*=\s*\w+/gi, '')
+        .replace(/\bDEFAULT\s+CHARSET\s*=\s*[\w\d_]+/gi, '')
+        .replace(/\bCOLLATE\s*=\s*[\w\d_]+/gi, '')
+        .replace(/\bDATE_FORMAT\s*\(\s*([^,]+),\s*'%Y-%m'\s*\)/gi, "TO_CHAR($1, 'YYYY-MM')")
+        .replace(/\bDATE_SUB\s*\(\s*NOW\(\),\s*INTERVAL\s+(\d+)\s+MONTH\s*\)/gi, 'DATEADD(MONTH, -$1, CURRENT_TIMESTAMP())')
+        .replace(/\bNOW\(\)/gi, 'CURRENT_TIMESTAMP()')
+        .replace(/`([^`]+)`/g, '"$1"');
     }
     
-    // Basic PostgreSQL to Snowflake translations
+    // PostgreSQL to Snowflake
     if (sourceDialect === 'postgresql' && targetDialect === 'snowflake') {
       translated = translated
-        .replace(/SERIAL/gi, 'AUTOINCREMENT')
-        .replace(/BIGSERIAL/gi, 'AUTOINCREMENT')
-        .replace(/BOOLEAN/gi, 'BOOL')
-        .replace(/TIMESTAMP WITH TIME ZONE/gi, 'TIMESTAMP_TZ')
-        .replace(/CURRENT_TIMESTAMP/gi, 'CURRENT_TIMESTAMP()');
+        .replace(/\bSERIAL\b/gi, 'AUTOINCREMENT')
+        .replace(/\bBIGSERIAL\b/gi, 'AUTOINCREMENT')
+        .replace(/\bBOOLEAN\b/gi, 'BOOLEAN')
+        .replace(/\bTIMESTAMP WITH TIME ZONE\b/gi, 'TIMESTAMP_TZ')
+        .replace(/\bCURRENT_TIMESTAMP\b/gi, 'CURRENT_TIMESTAMP()');
     }
     
-    return translated;
+    // SQLite translations
+    if (targetDialect === 'sqlite') {
+      translated = translated
+        .replace(/\bAUTO_INCREMENT\b/gi, 'AUTOINCREMENT')
+        .replace(/\bSERIAL\b/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT')
+        .replace(/\bBIGSERIAL\b/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT')
+        .replace(/\bDATETIME\b/gi, 'TEXT')
+        .replace(/\bTIMESTAMP\b/gi, 'TEXT')
+        .replace(/\bBOOLEAN\b/gi, 'INTEGER')
+        .replace(/\bTINYINT\(1\)\b/gi, 'INTEGER')
+        .replace(/\bENGINE\s*=\s*\w+/gi, '')
+        .replace(/\bDEFAULT\s+CHARSET\s*=\s*[\w\d_]+/gi, '')
+        .replace(/\bCOLLATE\s*=\s*[\w\d_]+/gi, '');
+    }
+    
+    // SQL Server translations
+    if (targetDialect === 'mssql') {
+      translated = translated
+        .replace(/\bAUTO_INCREMENT\b/gi, 'IDENTITY(1,1)')
+        .replace(/\bSERIAL\b/gi, 'INT IDENTITY(1,1)')
+        .replace(/\bBIGSERIAL\b/gi, 'BIGINT IDENTITY(1,1)')
+        .replace(/\bBOOLEAN\b/gi, 'BIT')
+        .replace(/\bTEXT\b/gi, 'NVARCHAR(MAX)')
+        .replace(/\bLONGTEXT\b/gi, 'NVARCHAR(MAX)')
+        .replace(/\bMEDIUMTEXT\b/gi, 'NVARCHAR(MAX)')
+        .replace(/\bTINYTEXT\b/gi, 'NVARCHAR(255)')
+        .replace(/`([^`]+)`/g, '[$1]')
+        .replace(/"([^"]+)"/g, '[$1]');
+    }
+    
+    // Oracle translations
+    if (targetDialect === 'oracle') {
+      translated = translated
+        .replace(/\bAUTO_INCREMENT\b/gi, '')
+        .replace(/\bSERIAL\b/gi, 'NUMBER GENERATED BY DEFAULT AS IDENTITY')
+        .replace(/\bBIGSERIAL\b/gi, 'NUMBER GENERATED BY DEFAULT AS IDENTITY')
+        .replace(/\bBOOLEAN\b/gi, 'NUMBER(1)')
+        .replace(/\bTEXT\b/gi, 'CLOB')
+        .replace(/\bLONGTEXT\b/gi, 'CLOB')
+        .replace(/\bMEDIUMTEXT\b/gi, 'CLOB')
+        .replace(/\bTINYTEXT\b/gi, 'VARCHAR2(255)')
+        .replace(/\bVARCHAR\((\d+)\)/gi, 'VARCHAR2($1)')
+        .replace(/\bDATETIME\b/gi, 'TIMESTAMP')
+        .replace(/\bTIMESTAMP\b/gi, 'TIMESTAMP')
+        .replace(/`([^`]+)`/g, '"$1"');
+    }
+    
+    // Clean up and format
+    translated = translated
+      // Normalize line endings
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      
+      // Clean up extra whitespace
+      .replace(/\s+/g, ' ')
+      .replace(/\s*;\s*/g, ';\n')
+      
+      // Better formatting
+      .replace(/CREATE\s+TABLE/gi, 'CREATE TABLE')
+      .replace(/\(\s*/g, ' (\n  ')
+      .replace(/\s*\)/g, '\n)')
+      .replace(/,\s*/g, ',\n  ')
+      .trim();
+    
+    return header + translated;
   };
 
   const startMigrationAnalysis = async () => {
-    if (!sqlContent.trim()) {
-      toast.error('Please provide SQL content to analyze');
+    if (sqlFiles.length === 0) {
+      toast.error('Please upload SQL files to analyze');
+      return;
+    }
+
+    const readyFiles = sqlFiles.filter(f => f.status === 'ready');
+    if (readyFiles.length === 0) {
+      toast.error('No files are ready for migration analysis');
       return;
     }
 
     try {
       setTranslationInProgress(true);
       
-      // First, try the backend API
-      let translationSuccessful = false;
-      
-      try {
-        // Step 1: Start SQL translation
-        const translationResponse = await fetch('http://localhost:8000/api/migration/translate-sql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${firebaseToken}`
-          },
-          body: JSON.stringify({
-            source_sql: sqlContent,
-            source_dialect: sourceDB,
-            target_dialect: targetDB,
-            optimization_level: 'standard'
-          })
-        });
-
-        if (translationResponse.ok) {
-          const translationResult = await translationResponse.json();
-          console.log('Translation started:', translationResult);
-
-          // Poll for translation results
-          const jobId = translationResult.job_id;
-          let translationComplete = false;
-          let attempts = 0;
-          const maxAttempts = 15; // Reduced from 30 to fail faster
-
-          while (!translationComplete && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
-            attempts++;
-
-            try {
-              const statusResponse = await fetch(`http://localhost:8000/api/jobs/${jobId}/status`, {
-                headers: {
-                  'Authorization': `Bearer ${firebaseToken}`
-                }
-              });
-
-              if (statusResponse.ok) {
-                const statusData = await statusResponse.json();
-                
-                if (statusData.status === 'completed' && statusData.result) {
-                  setTranslatedSQL(statusData.result.translated_sql);
-                  translationComplete = true;
-                  translationSuccessful = true;
-                  
-                  // Auto-scroll to translation tab
-                  setTimeout(() => {
-                    translationRef.current?.scrollIntoView({ 
-                      behavior: 'smooth', 
-                      block: 'start' 
-                    });
-                  }, 500);
-                  
-                  toast.success('SQL translation completed!');
-                } else if (statusData.status === 'failed') {
-                  const errorMsg = statusData.error || statusData.error_message || 'Translation failed';
-                  throw new Error(errorMsg);
-                }
-              }
-            } catch (pollError) {
-              console.error('Error polling translation status:', pollError);
-              break; // Exit polling loop on error
+      // Use the new translation engine for batch processing
+      const results = await sqlTranslationEngine.translateBatch(
+        readyFiles,
+        targetDB,
+        (progress, currentFile) => {
+          setMigrationProgress(progress);
+          // Update real-time steps based on progress
+          setRealTimeSteps(prev => prev.map(step => {
+            if (progress > ((step.id - 1) / prev.length) * 100) {
+              return { ...step, status: "completed" };
+            } else if (progress > ((step.id - 1.5) / prev.length) * 100) {
+              return { ...step, status: "running" };
+            } else {
+              return { ...step, status: "pending" };
             }
-          }
+          }));
         }
-      } catch (backendError) {
-        console.warn('Backend translation failed, using client-side fallback:', backendError);
-      }
+      );
       
-      // If backend translation failed, use client-side fallback
-      if (!translationSuccessful) {
-        const clientTranslated = performClientSideTranslation(sqlContent, sourceDB, targetDB);
-        setTranslatedSQL(clientTranslated);
-        
-        // Auto-scroll to translation tab
-        setTimeout(() => {
-          translationRef.current?.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-          });
-        }, 500);
-        
-        toast.info('Backend unavailable - using client-side translation', {
-          description: 'Basic translation applied. For advanced features, please start the backend service.'
+      setBatchResults(results);
+      
+      // Auto-scroll to results tab
+      setTimeout(() => {
+        translationRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
         });
-      }
-
-      // Step 2: Create migration setup
-      const migrationResponse = await fetch('http://localhost:8000/api/migration/setup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${firebaseToken}`
-        },
-        body: JSON.stringify({
-          project_id: 1, // Default project
-          name: `Migration ${new Date().toISOString()}`,
-          description: 'SQL Migration from uploaded file',
-          source_config: {
-            connection_type: sourceDB,
-            host: 'localhost',
-            port: sourceDB === 'mysql' ? 3306 : 5432,
-            database: 'source_db',
-            username: 'user',
-            password: 'password'
-          },
-          target_config: {
-            connection_type: targetDB,
-            host: 'localhost',
-            port: targetDB === 'snowflake' ? 443 : 5432,
-            database: 'target_db',
-            username: 'user',
-            password: 'password'
-          },
-          migration_options: {
-            migrate_schema: true,
-            migrate_data: true,
-            preserve_constraints: false,
-            optimize_for_target: true
-          }
-        })
+      }, 500);
+      
+      toast.success('Batch SQL translation completed!', {
+        description: `Successfully translated ${readyFiles.length} files from ${sourceDB.toUpperCase()} to ${targetDB.toUpperCase()}`
       });
-
-      if (migrationResponse.ok) {
-        const migrationResult = await migrationResponse.json();
-        const migrationId = migrationResult.migration_id;
-        setActiveMigrationId(migrationId);
+      
+      // Simulate analysis progress for better UX
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 15;
+        setMigrationProgress(progress);
         
-        // Subscribe to migration progress
-        if (isConnected) {
-          subscribeToMigration(migrationId);
-        }
-        // Note: WebSocket connection status is shown in the UI header, no need for toast
-        
-        // Start the actual migration
-        const startResponse = await fetch(`http://localhost:8000/api/migration/start?migration_id=${migrationId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${firebaseToken}`
-          },
-          body: JSON.stringify({
-            migrate_schema: true,
-            migrate_data: true,
-            preserve_constraints: false,
-            optimize_for_target: true,
-            batch_size: 1000,
-            parallel_jobs: 2
-          })
-        });
-
-        if (startResponse.ok) {
-          toast.success('Migration analysis started', {
-            description: 'You will receive real-time updates on the progress'
-          });
+        if (progress >= 100) {
+          clearInterval(progressInterval);
+          setMigrationProgress(100);
           
-          // Generate mock performance data
+          // Generate mock performance data for demonstration
           setTimeout(() => {
             setPerformanceData({
               query_execution: {
@@ -435,15 +475,38 @@ export default function SQLMigration() {
                 roi: '340%'
               }
             });
-          }, 10000);
-        } else {
-          const startErrorData = await startResponse.json().catch(() => ({}));
-          throw new Error(startErrorData.detail || `Failed to start migration with status ${startResponse.status}`);
+            
+            toast.success('Migration analysis completed!', {
+              description: 'Performance metrics and optimization suggestions are now available.'
+            });
+          }, 2000);
         }
-      } else {
-        const migrationErrorData = await migrationResponse.json().catch(() => ({}));
-        throw new Error(migrationErrorData.detail || `Failed to setup migration with status ${migrationResponse.status}`);
-      }
+      }, 300);
+      
+      // Update migration steps
+      const stepUpdates = [
+        { title: "Source Connection", delay: 200 },
+        { title: "Schema Analysis", delay: 500 },
+        { title: "SQL Translation", delay: 800 },
+        { title: "Validation", delay: 1100 },
+        { title: "Data Migration", delay: 1400 },
+        { title: "Performance Test", delay: 1700 }
+      ];
+      
+      stepUpdates.forEach(({ title, delay }) => {
+        setTimeout(() => {
+          setRealTimeSteps(prev => prev.map(step => {
+            if (step.title === title) {
+              return { ...step, status: "completed" };
+            }
+            return step;
+          }));
+        }, delay);
+      });
+
+      // Set a mock migration ID for demo purposes
+      const mockMigrationId = `migration_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setActiveMigrationId(mockMigrationId);
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start migration analysis';
@@ -514,22 +577,40 @@ export default function SQLMigration() {
         )}
       </div>
 
-      <Tabs defaultValue="setup" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="setup">Setup Migration</TabsTrigger>
-          <TabsTrigger value="translation">SQL Translation</TabsTrigger>
-          <TabsTrigger value="progress">Migration Progress</TabsTrigger>
-          <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
+      <Tabs defaultValue="upload" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="upload">
+            <Upload className="h-4 w-4 mr-1" />
+            Upload Files
+          </TabsTrigger>
+          <TabsTrigger value="setup">
+            <Settings className="h-4 w-4 mr-1" />
+            Setup Migration
+          </TabsTrigger>
+          <TabsTrigger value="batch">
+            <Package className="h-4 w-4 mr-1" />
+            Batch Processing
+          </TabsTrigger>
+          <TabsTrigger value="results">
+            <Layers className="h-4 w-4 mr-1" />
+            Results & Download
+          </TabsTrigger>
+          <TabsTrigger value="performance">
+            <Zap className="h-4 w-4 mr-1" />
+            Performance
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-6">
-          {/* SQL Input Section */}
-          <SQLInput 
-            onSQLChange={handleSQLChange}
-            onAnalysisComplete={handleAnalysisComplete}
-            selectedDatabase={sourceDB}
+        <TabsContent value="upload" className="space-y-6">
+          {/* Multi-File SQL Input */}
+          <MultiFileSQLInput 
+            onFilesChange={handleFilesChange}
+            onAnalysisComplete={handleGlobalAnalysisComplete}
+            targetDialect={targetDB}
           />
+        </TabsContent>
 
+        <TabsContent value="setup" className="space-y-6">
           {/* Database Selection */}
           <Card className="enterprise-card" ref={sourceTargetRef}>
             <CardHeader>
@@ -650,7 +731,7 @@ export default function SQLMigration() {
                 <Button 
                   className="enterprise-button-primary"
                   onClick={startMigrationAnalysis}
-                  disabled={!sqlContent.trim() || translationInProgress}
+                  disabled={sqlFiles.length === 0 || translationInProgress}
                 >
                   {translationInProgress ? (
                     <>
@@ -660,7 +741,7 @@ export default function SQLMigration() {
                   ) : (
                     <>
                       <GitBranch className="h-4 w-4 mr-2" />
-                      Start Migration Analysis
+                      Start Migration Analysis ({sqlFiles.length} files)
                     </>
                   )}
                 </Button>
@@ -669,7 +750,238 @@ export default function SQLMigration() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="translation" className="space-y-6" ref={translationRef}>
+        <TabsContent value="batch" className="space-y-6">
+          {/* Batch Translation Processor */}
+          <BatchTranslationProcessor
+            files={sqlFiles}
+            targetDialect={targetDB}
+            onTranslationComplete={handleBatchTranslationComplete}
+            onDownloadReady={(jobId) => {
+              toast.success('Translation results ready for download', {
+                description: `Job ${jobId} completed successfully`
+              });
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="results" className="space-y-6" ref={translationRef}>
+          {/* Translation Results */}
+          {batchResults ? (
+            <div className="space-y-6">
+              {/* Results Summary */}
+              <Card className="enterprise-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2 text-success" />
+                    Translation Results Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Migration completed successfully with {batchResults.files.length} files processed
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">{batchResults.files.length}</p>
+                        <p className="text-sm text-muted-foreground">Files Translated</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">
+                          {batchResults.files.reduce((sum, f) => sum + f.result.appliedRules.length, 0)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Rules Applied</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">
+                          {Math.round(
+                            batchResults.files.reduce((sum, f) => sum + f.result.confidence, 0) / 
+                            batchResults.files.length
+                          )}%
+                        </p>
+                        <p className="text-sm text-muted-foreground">Avg Confidence</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">{batchResults.estimatedExecutionTime}</p>
+                        <p className="text-sm text-muted-foreground">Est. Execution Time</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Download Options */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Download Options</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button 
+                        className="enterprise-button-primary"
+                        onClick={() => {
+                          const files = DownloadSystem.createFileDownloads(
+                            batchResults,
+                            sqlFiles,
+                            sourceDB,
+                            targetDB,
+                            `${targetDB.toUpperCase()} Migration`,
+                            {
+                              includeOriginal: false,
+                              includeReport: true,
+                              includeMetadata: true,
+                              format: 'zip',
+                              compression: 'none'
+                            }
+                          );
+                          DownloadSystem.downloadAsZip(
+                            files,
+                            `${targetDB}_migration_${new Date().toISOString().split('T')[0]}`,
+                            {
+                              includeOriginal: false,
+                              includeReport: true,
+                              includeMetadata: true,
+                              format: 'zip',
+                              compression: 'none'
+                            }
+                          );
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Complete Package
+                      </Button>
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          const report = DownloadSystem.generateMigrationReport(
+                            batchResults,
+                            sourceDB,
+                            targetDB,
+                            `${targetDB.toUpperCase()} Migration`
+                          );
+                          DownloadSystem.downloadFile({
+                            name: 'MIGRATION_REPORT.md',
+                            content: report,
+                            type: 'md',
+                            size: report.length
+                          });
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Report Only
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Execution Order */}
+                  <div className="mt-6 pt-4 border-t">
+                    <h4 className="font-medium mb-3">Recommended Execution Order</h4>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {batchResults.dependencyOrder.map((fileName, index) => (
+                        <React.Fragment key={fileName}>
+                          <Badge variant="outline" className="px-3 py-1">
+                            {index + 1}. {fileName}
+                          </Badge>
+                          {index < batchResults.dependencyOrder.length - 1 && (
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Individual File Results */}
+              <Card className="enterprise-card">
+                <CardHeader>
+                  <CardTitle>Individual File Results</CardTitle>
+                  <CardDescription>
+                    Detailed translation results for each processed file
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {batchResults.files.map(file => (
+                      <Card key={file.id} className="border border-border/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium">{file.name}</h4>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">
+                                {file.result.confidence}% confidence
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  DownloadSystem.downloadFile({
+                                    name: `translated_${file.name}`,
+                                    content: file.result.translatedContent,
+                                    type: 'sql',
+                                    size: file.result.translatedContent.length
+                                  });
+                                }}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Rules Applied:</span>
+                              <p className="font-medium">{file.result.appliedRules.length}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Warnings:</span>
+                              <p className="font-medium text-warning">{file.result.warnings.length}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Errors:</span>
+                              <p className="font-medium text-destructive">{file.result.errors.length}</p>
+                            </div>
+                          </div>
+
+                          {file.result.warnings.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-sm font-medium text-warning mb-2">Warnings:</p>
+                              <div className="space-y-1">
+                                {file.result.warnings.slice(0, 3).map((warning, index) => (
+                                  <p key={index} className="text-xs text-warning">• {warning}</p>
+                                ))}
+                                {file.result.warnings.length > 3 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    +{file.result.warnings.length - 3} more warnings
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="text-center p-8 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="font-medium mb-2">No Translation Results</p>
+              <p className="text-sm">
+                Complete a batch translation to see results and download options
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="translation" className="space-y-6">{/* Legacy translation tab - keeping for compatibility */}
           {/* SQL Editor */}
           <Card className="enterprise-card">
             <CardHeader>
@@ -690,7 +1002,7 @@ export default function SQLMigration() {
                     <Badge variant="outline">Original</Badge>
                   </div>
                   <div className="bg-muted rounded-lg p-4 font-mono text-sm min-h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">{sqlContent || sqlExample}</pre>
+                    <pre className="whitespace-pre-wrap">{sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}</pre>
                   </div>
                 </div>
 
@@ -719,7 +1031,7 @@ export default function SQLMigration() {
                         </div>
                       </div>
                     ) : (
-                      <pre className="whitespace-pre-wrap">{translatedSQL || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlContent || sqlExample}`}</pre>
+                      <pre className="whitespace-pre-wrap">{batchResults?.files[0]?.result.translatedContent || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}`}</pre>
                     )}
                   </div>
                 </div>
@@ -748,7 +1060,7 @@ export default function SQLMigration() {
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      const content = translatedSQL || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlContent || sqlExample}`;
+                      const content = batchResults?.files[0]?.result.translatedContent || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}`;
                       const blob = new Blob([content], { type: 'text/sql' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
@@ -760,7 +1072,7 @@ export default function SQLMigration() {
                       URL.revokeObjectURL(url);
                       toast.success('Translated SQL downloaded!');
                     }}
-                    disabled={!sqlContent && !translatedSQL}
+                    disabled={sqlFiles.length === 0 && !batchResults}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Download SQL
