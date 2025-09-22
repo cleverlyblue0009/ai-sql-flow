@@ -159,7 +159,7 @@ export default function SQLMigration() {
     };
   }, [currentUser]);
 
-  // WebSocket integration for real-time progress
+  // WebSocket integration for real-time progress (only when backend is online)
   const {
     isConnected,
     connectionState,
@@ -168,7 +168,7 @@ export default function SQLMigration() {
     subscribeToMigration,
     unsubscribeFromMigration
   } = useMigrationProgress({
-    token: firebaseToken || undefined,
+    token: backendStatus === 'online' ? (firebaseToken || undefined) : undefined, // Only connect when backend is online
     onProgress: (progress) => {
       console.log('Migration progress:', progress);
       setMigrationProgress(progress.progress_percentage);
@@ -193,39 +193,8 @@ export default function SQLMigration() {
       toast.success(`Migration ${status}`, { description: message });
     },
     onError: (error) => {
-      console.error('Migration error:', error);
-      const errorMessage = error?.error || error?.message || 'An unknown error occurred';
-      
-      // Handle authentication errors specifically
-      if (errorMessage.includes('Authentication') || errorMessage.includes('401') || errorMessage.includes('403')) {
-        toast.error('Authentication Error', { 
-          description: 'Session expired. Refreshing connection...',
-          duration: 3000
-        });
-        
-        // Force token refresh
-        if (currentUser) {
-          currentUser.getIdToken(true).then((newToken) => {
-            setFirebaseToken(newToken);
-            toast.success('Authentication refreshed', {
-              description: 'WebSocket connection will reconnect automatically'
-            });
-          }).catch((refreshError) => {
-            console.error('Token refresh failed:', refreshError);
-            toast.error('Token Refresh Failed', {
-              description: 'Please try logging out and back in'
-            });
-          });
-        }
-      } else if (errorMessage.includes('backend unavailable') || errorMessage.includes('WebSocket connection failed')) {
-        // Handle backend unavailable errors more gracefully - don't spam the user
-        console.warn('Backend service unavailable - operating in offline mode');
-      } else {
-        toast.error('Migration Error', { 
-          description: errorMessage,
-          duration: 5000
-        });
-      }
+      // Completely suppress all WebSocket error toasts - backend status indicator handles this
+      console.warn('WebSocket error (suppressed):', error);
     }
   });
 
@@ -422,11 +391,8 @@ export default function SQLMigration() {
         // Subscribe to migration progress
         if (isConnected) {
           subscribeToMigration(migrationId);
-        } else {
-          toast.warning('WebSocket not connected', {
-            description: 'Real-time updates may not be available'
-          });
         }
+        // Note: WebSocket connection status is shown in the UI header, no need for toast
         
         // Start the actual migration
         const startResponse = await fetch(`http://localhost:8000/api/migration/start?migration_id=${migrationId}`, {

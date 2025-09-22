@@ -24,12 +24,14 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const subscriptionsRef = useRef<Set<string>>(new Set());
+  const lastErrorTime = useRef<number>(0);
+  const errorThrottleDelay = 10000; // 10 seconds between error notifications
 
   const { token, onProgress, onStatusChange, onError } = params;
 
   const connect = useCallback(() => {
     if (!token) {
-      console.warn('No token provided for WebSocket connection');
+      // Don't spam console warnings about missing tokens
       return;
     }
 
@@ -81,8 +83,17 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
               
             case 'error':
               const errorData = { error: data.message, ...data };
-              setErrors(prev => [...prev, errorData]);
-              onError?.(errorData);
+              setErrors(prev => {
+                const newErrors = [...prev, errorData];
+                return newErrors.slice(-2); // Keep only last 2 errors
+              });
+              
+              // Throttle error callbacks to prevent spam
+              const now = Date.now();
+              if (now - lastErrorTime.current > errorThrottleDelay) {
+                lastErrorTime.current = now;
+                onError?.(errorData);
+              }
               break;
               
             case 'connection':
@@ -119,16 +130,18 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
       };
 
       wsRef.current.onerror = (error) => {
-        console.warn('Migration WebSocket connection failed - backend may not be running');
+        // Silently handle WebSocket errors - backend status is shown in UI
         const errorData = { error: 'WebSocket connection failed - backend unavailable', originalError: error };
         setErrors(prev => {
           // Limit error accumulation to prevent spam
           const newErrors = [...prev, errorData];
-          return newErrors.slice(-3); // Keep only last 3 errors
+          return newErrors.slice(-2); // Keep only last 2 errors
         });
         
-        // Only call onError for the first few attempts to avoid spam
-        if (errors.length < 3) {
+        // Throttle error callbacks to prevent spam
+        const now = Date.now();
+        if (now - lastErrorTime.current > errorThrottleDelay && errors.length < 1) {
+          lastErrorTime.current = now;
           onError?.(errorData);
         }
       };
