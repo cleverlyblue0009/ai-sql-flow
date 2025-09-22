@@ -38,3 +38,14 @@ def verify_firebase_token(token: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired Firebase token",
         )
+
+
+def verify_firebase_token_websocket(token: str):
+    """Verify Firebase ID token for WebSocket connections - returns None on failure instead of raising exception"""
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        logger.info(f"WebSocket token verified for user: {decoded_token.get('uid', 'unknown')}")
+        return decoded_token
+    except Exception as e:
+        logger.error(f"WebSocket Firebase token verification failed: {e}")
+        return None
