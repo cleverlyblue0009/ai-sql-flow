@@ -103,27 +103,41 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
         setIsConnected(false);
         setConnectionState('disconnected');
         
-        // Attempt to reconnect after a delay if not a normal closure
-        if (event.code !== 1000 && token) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            connect();
-          }, 3000);
+        // Only attempt to reconnect if it's not a normal closure and we have a token
+        // Reduce spam by adding exponential backoff and limiting reconnection attempts
+        if (event.code !== 1000 && event.code !== 1001 && token) {
+          const reconnectDelay = Math.min(30000, 5000 * Math.pow(2, errors.length)); // Max 30s delay
+          if (errors.length < 5) { // Limit reconnection attempts
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log('Attempting to reconnect to WebSocket...');
+              connect();
+            }, reconnectDelay);
+          } else {
+            console.warn('Max WebSocket reconnection attempts reached. Backend may be unavailable.');
+          }
         }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('Migration WebSocket error:', error);
-        const errorData = { error: 'WebSocket connection error', originalError: error };
-        setErrors(prev => [...prev, errorData]);
-        onError?.(errorData);
+        console.warn('Migration WebSocket connection failed - backend may not be running');
+        const errorData = { error: 'WebSocket connection failed - backend unavailable', originalError: error };
+        setErrors(prev => {
+          // Limit error accumulation to prevent spam
+          const newErrors = [...prev, errorData];
+          return newErrors.slice(-3); // Keep only last 3 errors
+        });
+        
+        // Only call onError for the first few attempts to avoid spam
+        if (errors.length < 3) {
+          onError?.(errorData);
+        }
       };
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
       setConnectionState('disconnected');
       onError?.(error);
     }
-  }, [token, onProgress, onStatusChange, onError]);
+  }, [token, onProgress, onStatusChange, onError, errors.length]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

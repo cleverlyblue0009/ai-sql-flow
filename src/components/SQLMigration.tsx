@@ -89,6 +89,7 @@ export default function SQLMigration() {
   const [translationInProgress, setTranslationInProgress] = useState(false);
   const [performanceData, setPerformanceData] = useState(null);
   const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   
   // Refs for auto-scrolling
   const sourceTargetRef = useRef<HTMLDivElement>(null);
@@ -96,6 +97,34 @@ export default function SQLMigration() {
   
   // Auth context
   const { currentUser } = useAuth();
+
+  // Check backend status
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        if (response.ok) {
+          setBackendStatus('online');
+        } else {
+          setBackendStatus('offline');
+        }
+      } catch (error) {
+        setBackendStatus('offline');
+      }
+    };
+
+    checkBackendStatus();
+    
+    // Check backend status every 30 seconds
+    const statusInterval = setInterval(checkBackendStatus, 30000);
+    
+    return () => {
+      clearInterval(statusInterval);
+    };
+  }, []);
 
   // Get Firebase token for WebSocket authentication with automatic refresh
   useEffect(() => {
@@ -188,6 +217,9 @@ export default function SQLMigration() {
             });
           });
         }
+      } else if (errorMessage.includes('backend unavailable') || errorMessage.includes('WebSocket connection failed')) {
+        // Handle backend unavailable errors more gracefully - don't spam the user
+        console.warn('Backend service unavailable - operating in offline mode');
       } else {
         toast.error('Migration Error', { 
           description: errorMessage,
@@ -217,6 +249,36 @@ export default function SQLMigration() {
     console.log('Analysis completed:', analysis);
   };
 
+  // Client-side SQL translation fallback
+  const performClientSideTranslation = (sql: string, sourceDialect: string, targetDialect: string) => {
+    let translated = sql;
+    
+    // Basic MySQL to Snowflake translations
+    if (sourceDialect === 'mysql' && targetDialect === 'snowflake') {
+      translated = translated
+        .replace(/AUTO_INCREMENT/gi, 'AUTOINCREMENT')
+        .replace(/TINYINT(\(\d+\))?/gi, 'SMALLINT')
+        .replace(/MEDIUMINT(\(\d+\))?/gi, 'INT')
+        .replace(/LONGTEXT/gi, 'TEXT')
+        .replace(/DATE_FORMAT\s*\(\s*([^,]+),\s*'%Y-%m'\s*\)/gi, "TO_CHAR($1, 'YYYY-MM')")
+        .replace(/DATE_SUB\s*\(\s*NOW\(\),\s*INTERVAL\s+(\d+)\s+MONTH\s*\)/gi, 'DATEADD(MONTH, -$1, CURRENT_TIMESTAMP())')
+        .replace(/NOW\(\)/gi, 'CURRENT_TIMESTAMP()')
+        .replace(/`([^`]+)`/g, '"$1"'); // Convert backticks to double quotes
+    }
+    
+    // Basic PostgreSQL to Snowflake translations
+    if (sourceDialect === 'postgresql' && targetDialect === 'snowflake') {
+      translated = translated
+        .replace(/SERIAL/gi, 'AUTOINCREMENT')
+        .replace(/BIGSERIAL/gi, 'AUTOINCREMENT')
+        .replace(/BOOLEAN/gi, 'BOOL')
+        .replace(/TIMESTAMP WITH TIME ZONE/gi, 'TIMESTAMP_TZ')
+        .replace(/CURRENT_TIMESTAMP/gi, 'CURRENT_TIMESTAMP()');
+    }
+    
+    return translated;
+  };
+
   const startMigrationAnalysis = async () => {
     if (!sqlContent.trim()) {
       toast.error('Please provide SQL content to analyze');
@@ -226,76 +288,94 @@ export default function SQLMigration() {
     try {
       setTranslationInProgress(true);
       
-      // Step 1: Start SQL translation
-      const translationResponse = await fetch('http://localhost:8000/api/migration/translate-sql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${firebaseToken}`
-        },
-        body: JSON.stringify({
-          source_sql: sqlContent,
-          source_dialect: sourceDB,
-          target_dialect: targetDB,
-          optimization_level: 'standard'
-        })
-      });
+      // First, try the backend API
+      let translationSuccessful = false;
+      
+      try {
+        // Step 1: Start SQL translation
+        const translationResponse = await fetch('http://localhost:8000/api/migration/translate-sql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${firebaseToken}`
+          },
+          body: JSON.stringify({
+            source_sql: sqlContent,
+            source_dialect: sourceDB,
+            target_dialect: targetDB,
+            optimization_level: 'standard'
+          })
+        });
 
-      if (!translationResponse.ok) {
-        const errorData = await translationResponse.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Translation failed with status ${translationResponse.status}`);
-      }
+        if (translationResponse.ok) {
+          const translationResult = await translationResponse.json();
+          console.log('Translation started:', translationResult);
 
-      const translationResult = await translationResponse.json();
-      console.log('Translation started:', translationResult);
+          // Poll for translation results
+          const jobId = translationResult.job_id;
+          let translationComplete = false;
+          let attempts = 0;
+          const maxAttempts = 15; // Reduced from 30 to fail faster
 
-      // Poll for translation results
-      const jobId = translationResult.job_id;
-      let translationComplete = false;
-      let attempts = 0;
-      const maxAttempts = 30;
+          while (!translationComplete && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
+            attempts++;
 
-      while (!translationComplete && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        attempts++;
+            try {
+              const statusResponse = await fetch(`http://localhost:8000/api/jobs/${jobId}/status`, {
+                headers: {
+                  'Authorization': `Bearer ${firebaseToken}`
+                }
+              });
 
-        try {
-          const statusResponse = await fetch(`http://localhost:8000/api/jobs/${jobId}/status`, {
-            headers: {
-              'Authorization': `Bearer ${firebaseToken}`
-            }
-          });
-
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            
-            if (statusData.status === 'completed' && statusData.result) {
-              setTranslatedSQL(statusData.result.translated_sql || translatedSQL);
-              translationComplete = true;
-              
-              // Auto-scroll to translation tab
-              setTimeout(() => {
-                translationRef.current?.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'start' 
-                });
-              }, 500);
-              
-              toast.success('SQL translation completed!');
-            } else if (statusData.status === 'failed') {
-              const errorMsg = statusData.error || statusData.error_message || 'Translation failed';
-              throw new Error(errorMsg);
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                
+                if (statusData.status === 'completed' && statusData.result) {
+                  setTranslatedSQL(statusData.result.translated_sql);
+                  translationComplete = true;
+                  translationSuccessful = true;
+                  
+                  // Auto-scroll to translation tab
+                  setTimeout(() => {
+                    translationRef.current?.scrollIntoView({ 
+                      behavior: 'smooth', 
+                      block: 'start' 
+                    });
+                  }, 500);
+                  
+                  toast.success('SQL translation completed!');
+                } else if (statusData.status === 'failed') {
+                  const errorMsg = statusData.error || statusData.error_message || 'Translation failed';
+                  throw new Error(errorMsg);
+                }
+              }
+            } catch (pollError) {
+              console.error('Error polling translation status:', pollError);
+              break; // Exit polling loop on error
             }
           }
-        } catch (pollError) {
-          console.error('Error polling translation status:', pollError);
         }
+      } catch (backendError) {
+        console.warn('Backend translation failed, using client-side fallback:', backendError);
       }
-
-      if (!translationComplete) {
-        // Fallback to example translation
-        setTranslatedSQL(translatedSQL);
-        toast.info('Using example translation - translation service may be unavailable');
+      
+      // If backend translation failed, use client-side fallback
+      if (!translationSuccessful) {
+        const clientTranslated = performClientSideTranslation(sqlContent, sourceDB, targetDB);
+        setTranslatedSQL(clientTranslated);
+        
+        // Auto-scroll to translation tab
+        setTimeout(() => {
+          translationRef.current?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }, 500);
+        
+        toast.info('Backend unavailable - using client-side translation', {
+          description: 'Basic translation applied. For advanced features, please start the backend service.'
+        });
       }
 
       // Step 2: Create migration setup
@@ -426,18 +506,30 @@ export default function SQLMigration() {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-3xl font-bold">SQL Migration Workspace</h1>
           
-          {/* WebSocket Connection Status */}
+          {/* Backend and WebSocket Connection Status */}
           <div className="flex items-center space-x-2">
-            {isConnected ? (
-              <Badge variant="default" className="bg-success">
-                <Wifi className="h-3 w-3 mr-1" />
-                Connected
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="bg-warning/20 text-warning">
-                <WifiOff className="h-3 w-3 mr-1" />
-                {connectionState === 'connecting' ? 'Connecting...' : 'Disconnected'}
-              </Badge>
+            {/* Backend Status */}
+            <Badge variant={backendStatus === 'online' ? 'default' : 'secondary'} 
+                   className={backendStatus === 'online' ? 'bg-success' : 'bg-warning/20 text-warning'}>
+              <Database className="h-3 w-3 mr-1" />
+              Backend {backendStatus === 'checking' ? 'Checking...' : backendStatus === 'online' ? 'Online' : 'Offline'}
+            </Badge>
+            
+            {/* WebSocket Status (only show if backend is online) */}
+            {backendStatus === 'online' && (
+              <>
+                {isConnected ? (
+                  <Badge variant="default" className="bg-success">
+                    <Wifi className="h-3 w-3 mr-1" />
+                    Real-time Connected
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-warning/20 text-warning">
+                    <WifiOff className="h-3 w-3 mr-1" />
+                    {connectionState === 'connecting' ? 'Connecting...' : 'Real-time Disconnected'}
+                  </Badge>
+                )}
+              </>
             )}
           </div>
         </div>
