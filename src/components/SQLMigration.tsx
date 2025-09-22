@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -6,10 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import SQLInput from "./SQLInput";
+import MultiFileSQLInput, { SQLFile } from "./MultiFileSQLInput";
+import BatchTranslationProcessor from "./BatchTranslationProcessor";
 import { useMigrationProgress } from "@/hooks/useMigrationProgress";
 import { useAuth } from "@/contexts/AuthContext";
+import { sqlTranslationEngine, BatchTranslationResult } from "@/lib/sqlTranslationEngine";
+import { DownloadSystem, DownloadOptions } from "@/lib/downloadSystem";
 import { 
   Database, 
   ArrowRight, 
@@ -26,7 +30,9 @@ import {
   Wifi,
   WifiOff,
   Download,
-  RefreshCw
+  RefreshCw,
+  Package,
+  Layers
 } from "lucide-react";
 
 const migrationSteps = [
@@ -81,11 +87,11 @@ export default function SQLMigration() {
   const [sourceDB, setSourceDB] = useState("mysql");
   const [targetDB, setTargetDB] = useState("snowflake");
   const [migrationProgress, setMigrationProgress] = useState(45);
-  const [sqlContent, setSQLContent] = useState("");
-  const [sqlAnalysis, setSQLAnalysis] = useState(null);
+  const [sqlFiles, setSQLFiles] = useState<SQLFile[]>([]);
+  const [globalAnalysis, setGlobalAnalysis] = useState(null);
   const [activeMigrationId, setActiveMigrationId] = useState<string | null>(null);
   const [realTimeSteps, setRealTimeSteps] = useState(migrationSteps);
-  const [translatedSQL, setTranslatedSQL] = useState("");
+  const [batchResults, setBatchResults] = useState<BatchTranslationResult | null>(null);
   const [translationInProgress, setTranslationInProgress] = useState(false);
   const [performanceData, setPerformanceData] = useState(null);
   const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
@@ -198,24 +204,37 @@ export default function SQLMigration() {
     }
   });
 
-  const handleSQLChange = (sql: string, metadata?: any) => {
-    setSQLContent(sql);
-    console.log('SQL content updated:', { sql: sql.substring(0, 100) + '...', metadata });
+  const handleFilesChange = (files: SQLFile[]) => {
+    setSQLFiles(files);
+    console.log('Files updated:', files.length, 'files');
     
-    // Auto-scroll to Source & Target Selection after file upload
-    if (metadata && metadata.fileName) {
-      setTimeout(() => {
-        sourceTargetRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }, 500);
+    // Auto-detect source dialect from the most confident file
+    if (files.length > 0) {
+      const mostConfidentFile = files.reduce((best, file) => 
+        file.confidence > best.confidence ? file : best
+      );
+      if (mostConfidentFile.confidence > 50) {
+        setSourceDB(mostConfidentFile.detectedDialect);
+      }
     }
   };
 
-  const handleAnalysisComplete = (analysis: any) => {
-    setSQLAnalysis(analysis);
-    console.log('Analysis completed:', analysis);
+  const handleGlobalAnalysisComplete = (analysis: any) => {
+    setGlobalAnalysis(analysis);
+    console.log('Global analysis completed:', analysis);
+  };
+
+  const handleBatchTranslationComplete = (results: BatchTranslationResult) => {
+    setBatchResults(results);
+    console.log('Batch translation completed:', results);
+    
+    // Auto-scroll to results
+    setTimeout(() => {
+      translationRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 500);
   };
 
   // Enhanced client-side SQL translation with comprehensive database support
@@ -380,20 +399,42 @@ export default function SQLMigration() {
   };
 
   const startMigrationAnalysis = async () => {
-    if (!sqlContent.trim()) {
-      toast.error('Please provide SQL content to analyze');
+    if (sqlFiles.length === 0) {
+      toast.error('Please upload SQL files to analyze');
+      return;
+    }
+
+    const readyFiles = sqlFiles.filter(f => f.status === 'ready');
+    if (readyFiles.length === 0) {
+      toast.error('No files are ready for migration analysis');
       return;
     }
 
     try {
       setTranslationInProgress(true);
       
-      // Use enhanced client-side translation directly
-      // This provides immediate, reliable translation without backend dependency
-      const clientTranslated = performClientSideTranslation(sqlContent, sourceDB, targetDB);
-      setTranslatedSQL(clientTranslated);
+      // Use the new translation engine for batch processing
+      const results = await sqlTranslationEngine.translateBatch(
+        readyFiles,
+        targetDB,
+        (progress, currentFile) => {
+          setMigrationProgress(progress);
+          // Update real-time steps based on progress
+          setRealTimeSteps(prev => prev.map(step => {
+            if (progress > ((step.id - 1) / prev.length) * 100) {
+              return { ...step, status: "completed" };
+            } else if (progress > ((step.id - 1.5) / prev.length) * 100) {
+              return { ...step, status: "running" };
+            } else {
+              return { ...step, status: "pending" };
+            }
+          }));
+        }
+      );
       
-      // Auto-scroll to translation tab
+      setBatchResults(results);
+      
+      // Auto-scroll to results tab
       setTimeout(() => {
         translationRef.current?.scrollIntoView({ 
           behavior: 'smooth', 
@@ -401,8 +442,8 @@ export default function SQLMigration() {
         });
       }, 500);
       
-      toast.success('SQL translation completed!', {
-        description: `Successfully translated ${sourceDB.toUpperCase()} to ${targetDB.toUpperCase()}. Review the output before production use.`
+      toast.success('Batch SQL translation completed!', {
+        description: `Successfully translated ${readyFiles.length} files from ${sourceDB.toUpperCase()} to ${targetDB.toUpperCase()}`
       });
       
       // Simulate analysis progress for better UX
@@ -536,22 +577,40 @@ export default function SQLMigration() {
         )}
       </div>
 
-      <Tabs defaultValue="setup" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="setup">Setup Migration</TabsTrigger>
-          <TabsTrigger value="translation">SQL Translation</TabsTrigger>
-          <TabsTrigger value="progress">Migration Progress</TabsTrigger>
-          <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
+      <Tabs defaultValue="upload" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="upload">
+            <Upload className="h-4 w-4 mr-1" />
+            Upload Files
+          </TabsTrigger>
+          <TabsTrigger value="setup">
+            <Settings className="h-4 w-4 mr-1" />
+            Setup Migration
+          </TabsTrigger>
+          <TabsTrigger value="batch">
+            <Package className="h-4 w-4 mr-1" />
+            Batch Processing
+          </TabsTrigger>
+          <TabsTrigger value="results">
+            <Layers className="h-4 w-4 mr-1" />
+            Results & Download
+          </TabsTrigger>
+          <TabsTrigger value="performance">
+            <Zap className="h-4 w-4 mr-1" />
+            Performance
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-6">
-          {/* SQL Input Section */}
-          <SQLInput 
-            onSQLChange={handleSQLChange}
-            onAnalysisComplete={handleAnalysisComplete}
-            selectedDatabase={sourceDB}
+        <TabsContent value="upload" className="space-y-6">
+          {/* Multi-File SQL Input */}
+          <MultiFileSQLInput 
+            onFilesChange={handleFilesChange}
+            onAnalysisComplete={handleGlobalAnalysisComplete}
+            targetDialect={targetDB}
           />
+        </TabsContent>
 
+        <TabsContent value="setup" className="space-y-6">
           {/* Database Selection */}
           <Card className="enterprise-card" ref={sourceTargetRef}>
             <CardHeader>
@@ -672,7 +731,7 @@ export default function SQLMigration() {
                 <Button 
                   className="enterprise-button-primary"
                   onClick={startMigrationAnalysis}
-                  disabled={!sqlContent.trim() || translationInProgress}
+                  disabled={sqlFiles.length === 0 || translationInProgress}
                 >
                   {translationInProgress ? (
                     <>
@@ -682,7 +741,7 @@ export default function SQLMigration() {
                   ) : (
                     <>
                       <GitBranch className="h-4 w-4 mr-2" />
-                      Start Migration Analysis
+                      Start Migration Analysis ({sqlFiles.length} files)
                     </>
                   )}
                 </Button>
@@ -691,7 +750,238 @@ export default function SQLMigration() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="translation" className="space-y-6" ref={translationRef}>
+        <TabsContent value="batch" className="space-y-6">
+          {/* Batch Translation Processor */}
+          <BatchTranslationProcessor
+            files={sqlFiles}
+            targetDialect={targetDB}
+            onTranslationComplete={handleBatchTranslationComplete}
+            onDownloadReady={(jobId) => {
+              toast.success('Translation results ready for download', {
+                description: `Job ${jobId} completed successfully`
+              });
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="results" className="space-y-6" ref={translationRef}>
+          {/* Translation Results */}
+          {batchResults ? (
+            <div className="space-y-6">
+              {/* Results Summary */}
+              <Card className="enterprise-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2 text-success" />
+                    Translation Results Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Migration completed successfully with {batchResults.files.length} files processed
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">{batchResults.files.length}</p>
+                        <p className="text-sm text-muted-foreground">Files Translated</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">
+                          {batchResults.files.reduce((sum, f) => sum + f.result.appliedRules.length, 0)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Rules Applied</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">
+                          {Math.round(
+                            batchResults.files.reduce((sum, f) => sum + f.result.confidence, 0) / 
+                            batchResults.files.length
+                          )}%
+                        </p>
+                        <p className="text-sm text-muted-foreground">Avg Confidence</p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border border-border/50">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold">{batchResults.estimatedExecutionTime}</p>
+                        <p className="text-sm text-muted-foreground">Est. Execution Time</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Download Options */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Download Options</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button 
+                        className="enterprise-button-primary"
+                        onClick={() => {
+                          const files = DownloadSystem.createFileDownloads(
+                            batchResults,
+                            sqlFiles,
+                            sourceDB,
+                            targetDB,
+                            `${targetDB.toUpperCase()} Migration`,
+                            {
+                              includeOriginal: false,
+                              includeReport: true,
+                              includeMetadata: true,
+                              format: 'zip',
+                              compression: 'none'
+                            }
+                          );
+                          DownloadSystem.downloadAsZip(
+                            files,
+                            `${targetDB}_migration_${new Date().toISOString().split('T')[0]}`,
+                            {
+                              includeOriginal: false,
+                              includeReport: true,
+                              includeMetadata: true,
+                              format: 'zip',
+                              compression: 'none'
+                            }
+                          );
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Complete Package
+                      </Button>
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          const report = DownloadSystem.generateMigrationReport(
+                            batchResults,
+                            sourceDB,
+                            targetDB,
+                            `${targetDB.toUpperCase()} Migration`
+                          );
+                          DownloadSystem.downloadFile({
+                            name: 'MIGRATION_REPORT.md',
+                            content: report,
+                            type: 'md',
+                            size: report.length
+                          });
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Report Only
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Execution Order */}
+                  <div className="mt-6 pt-4 border-t">
+                    <h4 className="font-medium mb-3">Recommended Execution Order</h4>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {batchResults.dependencyOrder.map((fileName, index) => (
+                        <React.Fragment key={fileName}>
+                          <Badge variant="outline" className="px-3 py-1">
+                            {index + 1}. {fileName}
+                          </Badge>
+                          {index < batchResults.dependencyOrder.length - 1 && (
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Individual File Results */}
+              <Card className="enterprise-card">
+                <CardHeader>
+                  <CardTitle>Individual File Results</CardTitle>
+                  <CardDescription>
+                    Detailed translation results for each processed file
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {batchResults.files.map(file => (
+                      <Card key={file.id} className="border border-border/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium">{file.name}</h4>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">
+                                {file.result.confidence}% confidence
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  DownloadSystem.downloadFile({
+                                    name: `translated_${file.name}`,
+                                    content: file.result.translatedContent,
+                                    type: 'sql',
+                                    size: file.result.translatedContent.length
+                                  });
+                                }}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Rules Applied:</span>
+                              <p className="font-medium">{file.result.appliedRules.length}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Warnings:</span>
+                              <p className="font-medium text-warning">{file.result.warnings.length}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Errors:</span>
+                              <p className="font-medium text-destructive">{file.result.errors.length}</p>
+                            </div>
+                          </div>
+
+                          {file.result.warnings.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-sm font-medium text-warning mb-2">Warnings:</p>
+                              <div className="space-y-1">
+                                {file.result.warnings.slice(0, 3).map((warning, index) => (
+                                  <p key={index} className="text-xs text-warning">• {warning}</p>
+                                ))}
+                                {file.result.warnings.length > 3 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    +{file.result.warnings.length - 3} more warnings
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="text-center p-8 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="font-medium mb-2">No Translation Results</p>
+              <p className="text-sm">
+                Complete a batch translation to see results and download options
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="translation" className="space-y-6">{/* Legacy translation tab - keeping for compatibility */}
           {/* SQL Editor */}
           <Card className="enterprise-card">
             <CardHeader>
@@ -712,7 +1002,7 @@ export default function SQLMigration() {
                     <Badge variant="outline">Original</Badge>
                   </div>
                   <div className="bg-muted rounded-lg p-4 font-mono text-sm min-h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">{sqlContent || sqlExample}</pre>
+                    <pre className="whitespace-pre-wrap">{sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}</pre>
                   </div>
                 </div>
 
@@ -741,7 +1031,7 @@ export default function SQLMigration() {
                         </div>
                       </div>
                     ) : (
-                      <pre className="whitespace-pre-wrap">{translatedSQL || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlContent || sqlExample}`}</pre>
+                      <pre className="whitespace-pre-wrap">{batchResults?.files[0]?.result.translatedContent || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}`}</pre>
                     )}
                   </div>
                 </div>
@@ -770,7 +1060,7 @@ export default function SQLMigration() {
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      const content = translatedSQL || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlContent || sqlExample}`;
+                      const content = batchResults?.files[0]?.result.translatedContent || `-- Translated ${targetDB.toUpperCase()} Query\n${sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}`;
                       const blob = new Blob([content], { type: 'text/sql' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
@@ -782,7 +1072,7 @@ export default function SQLMigration() {
                       URL.revokeObjectURL(url);
                       toast.success('Translated SQL downloaded!');
                     }}
-                    disabled={!sqlContent && !translatedSQL}
+                    disabled={sqlFiles.length === 0 && !batchResults}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Download SQL
