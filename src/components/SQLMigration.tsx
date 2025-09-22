@@ -227,7 +227,7 @@ export default function SQLMigration() {
       setTranslationInProgress(true);
       
       // Step 1: Start SQL translation
-      const translationResponse = await fetch('/api/migration/translate-sql', {
+      const translationResponse = await fetch('http://localhost:8000/api/migration/translate-sql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +260,7 @@ export default function SQLMigration() {
         attempts++;
 
         try {
-          const statusResponse = await fetch(`/api/jobs/${jobId}/status`, {
+          const statusResponse = await fetch(`http://localhost:8000/api/jobs/${jobId}/status`, {
             headers: {
               'Authorization': `Bearer ${firebaseToken}`
             }
@@ -299,7 +299,7 @@ export default function SQLMigration() {
       }
 
       // Step 2: Create migration setup
-      const migrationResponse = await fetch('/api/migration/setup', {
+      const migrationResponse = await fetch('http://localhost:8000/api/migration/setup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -349,22 +349,19 @@ export default function SQLMigration() {
         }
         
         // Start the actual migration
-        const startResponse = await fetch(`/api/migration/start`, {
+        const startResponse = await fetch(`http://localhost:8000/api/migration/start?migration_id=${migrationId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${firebaseToken}`
           },
           body: JSON.stringify({
-            migration_id: migrationId,
-            config: {
-              migrate_schema: true,
-              migrate_data: true,
-              preserve_constraints: false,
-              optimize_for_target: true,
-              batch_size: 1000,
-              parallel_jobs: 2
-            }
+            migrate_schema: true,
+            migrate_data: true,
+            preserve_constraints: false,
+            optimize_for_target: true,
+            batch_size: 1000,
+            parallel_jobs: 2
           })
         });
 
