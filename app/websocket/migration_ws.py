@@ -5,13 +5,16 @@ WebSocket service for real-time migration progress tracking
 import json
 import logging
 import asyncio
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional, Set, Union
 from datetime import datetime
 from fastapi import WebSocket
 from sqlalchemy.orm import Session
 
-from .manager import ConnectionManager
-from ..database import get_db, MigrationLog, Job, User
+try:
+    from .manager import ConnectionManager
+except ImportError:
+    # Fallback if manager import fails
+    from manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +23,19 @@ class MigrationProgressManager:
     """Manages WebSocket connections for migration progress tracking"""
     
     def __init__(self):
-        self.connection_manager = ConnectionManager()
+        self.active_connections: Dict[str, WebSocket] = {}
         self.migration_subscriptions: Dict[str, Set[str]] = {}  # migration_id -> set of connection_ids
-        self.user_connections: Dict[str, Set[str]] = {}  # user_id -> set of connection_ids
+        self.user_connections: Dict[Union[int, str], Set[str]] = {}  # user_id -> set of connection_ids
         self.active_migrations: Dict[str, Dict[str, Any]] = {}  # migration_id -> progress data
         
-    async def connect_user(self, websocket: WebSocket, user_id: str, connection_id: str):
+    async def connect_user(self, websocket: WebSocket, user_id: Union[int, str], connection_id: str):
         """Connect a user to the migration progress service"""
         try:
-            await self.connection_manager.connect(websocket, connection_id)
+            # Accept the WebSocket connection
+            await websocket.accept()
+            
+            # Store the connection
+            self.active_connections[connection_id] = websocket
             
             # Track user connection
             if user_id not in self.user_connections:
@@ -39,19 +46,27 @@ class MigrationProgressManager:
             await self.send_to_connection(connection_id, {
                 "type": "connection_established",
                 "message": "Connected to migration progress service",
+                "connection_id": connection_id,
+                "user_id": str(user_id),
                 "timestamp": datetime.utcnow().isoformat()
             })
             
-            logger.info(f"User {user_id} connected to migration progress service")
+            logger.info(f"User {user_id} connected to migration progress service with connection {connection_id}")
             
         except Exception as e:
             logger.error(f"Error connecting user {user_id}: {str(e)}")
+            try:
+                await websocket.close(code=1011, reason=f"Connection error: {str(e)}")
+            except:
+                pass
             raise
     
-    async def disconnect_user(self, connection_id: str, user_id: Optional[str] = None):
+    async def disconnect_user(self, connection_id: str, user_id: Optional[Union[int, str]] = None):
         """Disconnect a user from the migration progress service"""
         try:
-            await self.connection_manager.disconnect(connection_id)
+            # Remove from active connections
+            if connection_id in self.active_connections:
+                del self.active_connections[connection_id]
             
             # Remove from user connections
             if user_id and user_id in self.user_connections:
@@ -70,12 +85,9 @@ class MigrationProgressManager:
         except Exception as e:
             logger.error(f"Error disconnecting user {connection_id}: {str(e)}")
     
-    async def subscribe_to_migration(self, connection_id: str, migration_id: str, user_id: str):
+    async def subscribe_to_migration(self, connection_id: str, migration_id: str, user_id: Union[int, str]):
         """Subscribe a connection to migration progress updates"""
         try:
-            # Verify user has access to this migration (basic check)
-            # In production, you'd verify project ownership/permissions
-            
             if migration_id not in self.migration_subscriptions:
                 self.migration_subscriptions[migration_id] = set()
             
@@ -127,9 +139,9 @@ class MigrationProgressManager:
                 }
                 
                 # Send to all subscribed connections
-                await self.connection_manager.broadcast_to_connections(
-                    message, list(connections)
-                )
+                message_str = json.dumps(message, default=str)
+                for connection_id in list(connections):
+                    await self.send_to_connection(connection_id, message)
                 
                 logger.info(f"Broadcasted progress for migration {migration_id} to {len(connections)} connections")
             
@@ -164,9 +176,8 @@ class MigrationProgressManager:
                     "data": status_data
                 }
                 
-                await self.connection_manager.broadcast_to_connections(
-                    ws_message, list(connections)
-                )
+                for connection_id in list(connections):
+                    await self.send_to_connection(connection_id, ws_message)
                 
                 logger.info(f"Broadcasted status change for migration {migration_id}: {status}")
             
@@ -191,9 +202,8 @@ class MigrationProgressManager:
                     "data": error_data
                 }
                 
-                await self.connection_manager.broadcast_to_connections(
-                    message, list(connections)
-                )
+                for connection_id in list(connections):
+                    await self.send_to_connection(connection_id, message)
                 
                 logger.info(f"Sent error notification for migration {migration_id}")
             
@@ -203,23 +213,30 @@ class MigrationProgressManager:
     async def send_to_connection(self, connection_id: str, message: Dict[str, Any]):
         """Send message to a specific connection"""
         try:
-            await self.connection_manager.send_personal_message(json.dumps(message), connection_id)
+            if connection_id in self.active_connections:
+                websocket = self.active_connections[connection_id]
+                message_str = json.dumps(message, default=str)
+                await websocket.send_text(message_str)
         except Exception as e:
             logger.error(f"Error sending message to connection {connection_id}: {str(e)}")
+            # Remove dead connection
+            await self.disconnect_user(connection_id)
     
-    async def send_to_user(self, user_id: str, message: Dict[str, Any]):
+    async def send_to_user(self, user_id: Union[int, str], message: Dict[str, Any]):
         """Send message to all connections for a specific user"""
         try:
             if user_id in self.user_connections:
                 connections = list(self.user_connections[user_id])
-                await self.connection_manager.broadcast_to_connections(message, connections)
+                for connection_id in connections:
+                    await self.send_to_connection(connection_id, message)
         except Exception as e:
             logger.error(f"Error sending message to user {user_id}: {str(e)}")
     
-    async def handle_client_message(self, connection_id: str, message: Dict[str, Any], user_id: str):
+    async def handle_client_message(self, connection_id: str, message: Dict[str, Any], user_id: Union[int, str]):
         """Handle incoming WebSocket messages from clients"""
         try:
             message_type = message.get("type")
+            logger.info(f"Handling message type '{message_type}' from connection {connection_id}")
             
             if message_type == "subscribe_migration":
                 migration_id = message.get("migration_id")
@@ -270,10 +287,6 @@ class MigrationProgressManager:
     async def cleanup_completed_migration(self, migration_id: str):
         """Clean up resources for completed migration"""
         try:
-            # Keep the migration data for a while for clients to fetch final status
-            # In production, you might want to implement a TTL-based cleanup
-            
-            # Optionally notify subscribers that migration is complete
             if migration_id in self.migration_subscriptions:
                 connections = self.migration_subscriptions[migration_id]
                 
@@ -283,9 +296,8 @@ class MigrationProgressManager:
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 
-                await self.connection_manager.broadcast_to_connections(
-                    message, list(connections)
-                )
+                for connection_id in list(connections):
+                    await self.send_to_connection(connection_id, message)
             
             logger.info(f"Cleaned up resources for completed migration {migration_id}")
             
@@ -295,7 +307,7 @@ class MigrationProgressManager:
     def get_connection_stats(self) -> Dict[str, Any]:
         """Get statistics about current connections"""
         return {
-            "total_connections": len(self.connection_manager.active_connections),
+            "total_connections": len(self.active_connections),
             "total_users": len(self.user_connections),
             "active_migrations": len(self.active_migrations),
             "migration_subscriptions": len(self.migration_subscriptions),

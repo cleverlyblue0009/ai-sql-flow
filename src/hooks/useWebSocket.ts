@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getAuth } from 'firebase/auth';
 
 interface WebSocketMessage {
   type: string;
@@ -10,7 +11,6 @@ interface WebSocketMessage {
 
 interface UseWebSocketOptions {
   url: string;
-  token?: string;
   onMessage?: (message: WebSocketMessage) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -21,7 +21,6 @@ interface UseWebSocketOptions {
 
 export const useWebSocket = ({
   url,
-  token,
   onMessage,
   onConnect,
   onDisconnect,
@@ -35,24 +34,32 @@ export const useWebSocket = ({
   const reconnectCount = useRef(0);
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      return;
+  const connect = useCallback(async () => {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
+
+    setConnectionState('connecting');
+
+    // 🔑 Get Firebase ID token
+    let idToken: string | null = null;
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+    } catch (err) {
+      console.error('Failed to get Firebase ID token:', err);
     }
 
-    if (!token) {
-      console.warn('No token available for WebSocket connection');
+    if (!idToken) {
+      console.warn('No Firebase ID token available for WebSocket connection');
       setConnectionState('error');
       return;
     }
 
-    const wsUrl = `${url}?token=${token}`;
-    console.log('=== WebSocket Connection Debug ===');
-    console.log('Base URL:', url);
-    console.log('Token exists:', !!token);
-    console.log('Token length:', token?.length || 0);
+    const wsUrl = `${url}?token=${idToken}`;
     console.log('Final WebSocket URL:', wsUrl.replace(/token=([^&]+)/, 'token=[REDACTED]'));
-    setConnectionState('connecting');
+
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
@@ -78,17 +85,15 @@ export const useWebSocket = ({
 
       console.log('WebSocket closed:', { code: event.code, reason: event.reason });
 
-      // Handle authentication errors (don't reconnect automatically)
       if (event.code === 4001 || event.code === 4003) {
         console.error('WebSocket authentication failed:', event.reason);
         setConnectionState('error');
         return;
       }
 
-      // Attempt reconnection for other errors
       if (reconnectCount.current < reconnectAttempts) {
         reconnectCount.current++;
-        console.log(`WebSocket reconnection attempt ${reconnectCount.current}/${reconnectAttempts} in ${reconnectDelay}ms`);
+        console.log(`Reconnecting... attempt ${reconnectCount.current}/${reconnectAttempts}`);
         reconnectTimeout.current = setTimeout(() => {
           connect();
         }, reconnectDelay);
@@ -103,18 +108,16 @@ export const useWebSocket = ({
       setConnectionState('error');
       onError?.(error);
     };
-  }, [url, token, onMessage, onConnect, onDisconnect, onError, reconnectAttempts, reconnectDelay]);
+  }, [url, onMessage, onConnect, onDisconnect, onError, reconnectAttempts, reconnectDelay]);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-    }
-    
+    if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+
     if (ws.current) {
       ws.current.close();
       ws.current = null;
     }
-    
+
     setIsConnected(false);
     setConnectionState('disconnected');
   }, []);
@@ -123,7 +126,7 @@ export const useWebSocket = ({
     console.log('Manual WebSocket reconnection initiated');
     disconnect();
     setTimeout(() => {
-      reconnectCount.current = 0; // Reset reconnect count
+      reconnectCount.current = 0;
       connect();
     }, 1000);
   }, [connect, disconnect]);
@@ -138,10 +141,7 @@ export const useWebSocket = ({
 
   useEffect(() => {
     connect();
-
-    return () => {
-      disconnect();
-    };
+    return () => disconnect();
   }, [connect, disconnect]);
 
   return {
