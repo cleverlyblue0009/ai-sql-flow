@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -10,8 +10,11 @@ import structlog
 
 # Fixed imports with error handling
 try:
-    from .database.config import create_tables, settings
+    from .database.config import create_tables, settings, get_db
     from .database.models import *  # Import all models to ensure they're registered
+    from .database import User
+    from .auth.dependencies import get_current_verified_user
+    from sqlalchemy.orm import Session
 except ImportError as e:
     print(f"Database import error: {e}")
     # Create mock settings for development

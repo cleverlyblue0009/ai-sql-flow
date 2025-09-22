@@ -53,7 +53,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
         subscriptionsRef.current.forEach(migrationId => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
-              type: 'subscribe',
+              type: 'subscribe_migration',
               migration_id: migrationId
             }));
           }
@@ -74,19 +74,28 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
               break;
               
             case 'migration_status':
+            case 'migration_status_change':
               if (data.data) {
                 onStatusChange?.(data.migration_id, data.data.status, data.data.message || '');
               }
               break;
               
-            case 'error':
-              const errorData = { error: data.message, ...data };
+            case 'migration_error':
+              const errorData = { error: data.data?.error || data.message, ...data };
               setErrors(prev => [...prev, errorData]);
               onError?.(errorData);
               break;
               
-            case 'connection':
-              console.log('Connection status:', data.message);
+            case 'error':
+              const generalErrorData = { error: data.message, ...data };
+              setErrors(prev => [...prev, generalErrorData]);
+              onError?.(generalErrorData);
+              break;
+              
+            case 'connection_established':
+            case 'subscription_confirmed':
+            case 'unsubscription_confirmed':
+              console.log('WebSocket event:', data.type, data.message || data.migration_id);
               break;
               
             default:
@@ -146,7 +155,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
-        type: 'subscribe',
+        type: 'subscribe_migration',
         migration_id: migrationId
       }));
       console.log(`Subscribed to migration: ${migrationId}`);
@@ -158,7 +167,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
-        type: 'unsubscribe',
+        type: 'unsubscribe_migration',
         migration_id: migrationId
       }));
       console.log(`Unsubscribed from migration: ${migrationId}`);
