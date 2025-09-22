@@ -1,16 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..database import get_db, User
-from .security import verify_password, hash_password, verify_firebase_token
+from .schemas import FirebaseAuthRequest, FirebaseAuthResponse, UserResponse
+from .dependencies import get_current_verified_user
+from .security import verify_firebase_token
 
 router = APIRouter()
 
-# Example: Firebase login endpoint (verifies token)
-@router.post("/firebase-auth")
-async def firebase_authenticate(token: str, db: Session = Depends(get_db)):
+
+# ------------------------------
+# Firebase login / registration
+# ------------------------------
+@router.post("/firebase-auth", response_model=FirebaseAuthResponse)
+async def firebase_authenticate(
+    request: FirebaseAuthRequest,
+    db: Session = Depends(get_db)
+):
     """Authenticate with Firebase ID token and ensure user exists in DB"""
     try:
-        payload = verify_firebase_token(token)
+        payload = verify_firebase_token(request.token)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,15 +48,22 @@ async def firebase_authenticate(token: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    return {"message": "Authenticated via Firebase", "user": user.to_dict()}
+    return FirebaseAuthResponse(message="Authenticated via Firebase", user=user)
 
 
-# Example: Get current user (using Firebase token)
-@router.get("/me")
-async def get_me(token: str, db: Session = Depends(get_db)):
-    payload = verify_firebase_token(token)
-    uid = payload.get("uid")
-    user = db.query(User).filter(User.firebase_uid == uid).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user.to_dict()
+# ------------------------------
+# Get current logged-in user
+# ------------------------------
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_verified_user)):
+    """Get currently authenticated user"""
+    return user
+
+
+# ------------------------------
+# Example of a protected route
+# ------------------------------
+@router.get("/protected", response_model=UserResponse)
+async def protected_route(user: User = Depends(get_current_verified_user)):
+    """This route requires Firebase auth"""
+    return user

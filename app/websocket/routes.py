@@ -1,293 +1,67 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from sqlalchemy.orm import Session
-import logging
-import json
-import uuid
-from typing import Optional
-
-from ..database import get_db, User
-from ..auth import get_current_user_from_token
+# app/websocket/routes.py
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from ..auth.security import verify_firebase_token  # ✅ firebase auth
 from .manager import connection_manager
 from .migration_ws import migration_progress_manager
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    """WebSocket endpoint for real-time updates"""
-    
-    user = None
-    
+async def websocket_endpoint(websocket: WebSocket, token: str):
+    user = verify_firebase_token(token)
+    if not user:
+        await websocket.close(code=1008, reason="Authentication failed")
+        return
+
+    connection_id = f"user:{user['uid']}"
+
     try:
-        # Authenticate user from token
-        if token:
-            try:
-                user = await get_current_user_from_token(token, db)
-            except Exception as e:
-                logger.error(f"WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
-                return
-        
-        if not user:
-            await websocket.close(code=4001, reason="Authentication required")
-            return
-        
-        # Generate connection ID
-        connection_id = str(uuid.uuid4())
-        
-        # Connect to WebSocket manager
-        await connection_manager.connect(websocket, connection_id, user.id, {
-            "user_agent": websocket.headers.get("user-agent"),
-            "ip_address": websocket.client.host if websocket.client else None
-        })
-        
-        # Send initial user data
-        await connection_manager.send_personal_message(json.dumps({
-            "type": "user_connected",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "role": user.role.value
-            },
-            "message": f"Welcome back, {user.full_name}!"
-        }), connection_id)
-        
-        # Listen for messages
+        await connection_manager.connect(websocket, connection_id, user['uid'])
         while True:
-            try:
-                # Receive message from client
-                message = await websocket.receive_text()
-                
-                # Handle the message
-                await connection_manager.handle_message(connection_id, message)
-                
-            except WebSocketDisconnect:
-                logger.info(f"WebSocket disconnected for user {user.id}")
-                break
-            except Exception as e:
-                logger.error(f"Error handling WebSocket message: {str(e)}")
-                await connection_manager.send_personal_message(json.dumps({
-                    "type": "error",
-                    "message": "An error occurred while processing your message",
-                    "details": str(e)
-                }), connection_id)
-                
+            data = await websocket.receive_text()
+            await websocket.send_text(f"Message received: {data}")
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for user {user.id if user else 'unknown'}")
-    except Exception as e:
-        logger.error(f"WebSocket error: {str(e)}")
-    finally:
-        # Ensure cleanup
         await connection_manager.disconnect(connection_id)
 
 
 @router.websocket("/ws/admin")
-async def admin_websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    """Admin WebSocket endpoint for system monitoring"""
-    
-    user = None
-    
+async def admin_websocket_endpoint(websocket: WebSocket, token: str):
+    user = verify_firebase_token(token)
+    if not user or not user.get("is_admin"):  # you may need a custom claim for this
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
+
+    connection_id = f"admin:{user['uid']}"
+
     try:
-        # Authenticate admin user
-        if token:
-            try:
-                user = await get_current_user_from_token(token, db)
-                if user.role.value != "admin":
-                    await websocket.close(code=4003, reason="Admin access required")
-                    return
-            except Exception as e:
-                logger.error(f"Admin WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
-                return
-        
-        if not user:
-            await websocket.close(code=4001, reason="Authentication required")
-            return
-        
-        # Generate connection ID
-        connection_id = str(uuid.uuid4())
-        
-        # Connect to WebSocket manager
-        await connection_manager.connect(websocket, connection_id, user.id, {
-            "user_agent": websocket.headers.get("user-agent"),
-            "ip_address": websocket.client.host if websocket.client else None,
-            "admin_connection": True
-        })
-        
-        # Subscribe to admin topics
-        await connection_manager.subscribe(connection_id, "system_metrics")
-        await connection_manager.subscribe(connection_id, "system_alerts")
-        await connection_manager.subscribe(connection_id, "user_activity")
-        
-        # Send admin welcome message
-        await connection_manager.send_personal_message(json.dumps({
-            "type": "admin_connected",
-            "message": "Admin WebSocket connected",
-            "system_info": {
-                "active_connections": connection_manager.get_connection_count(),
-                "active_users": connection_manager.get_user_count()
-            }
-        }), connection_id)
-        
-        # Listen for admin messages
+        await connection_manager.connect(websocket, connection_id, user['uid'])
         while True:
-            try:
-                message = await websocket.receive_text()
-                data = json.loads(message)
-                
-                # Handle admin-specific commands
-                if data.get("type") == "get_system_status":
-                    await connection_manager.send_personal_message(json.dumps({
-                        "type": "system_status",
-                        "data": {
-                            "active_connections": connection_manager.get_connection_count(),
-                            "active_users": connection_manager.get_user_count(),
-                            "connection_details": [
-                                {
-                                    "user_id": metadata["user_id"],
-                                    "connected_at": metadata["connected_at"].isoformat(),
-                                    "subscriptions": list(metadata["subscriptions"])
-                                }
-                                for metadata in connection_manager.connection_metadata.values()
-                            ]
-                        }
-                    }), connection_id)
-                
-                elif data.get("type") == "broadcast_message":
-                    message_content = data.get("message")
-                    if message_content:
-                        await connection_manager.broadcast({
-                            "type": "admin_broadcast",
-                            "message": message_content,
-                            "from_admin": user.username
-                        }, exclude_user=user.id)
-                
-                else:
-                    # Handle regular message
-                    await connection_manager.handle_message(connection_id, message)
-                
-            except WebSocketDisconnect:
-                logger.info(f"Admin WebSocket disconnected for user {user.id}")
-                break
-            except Exception as e:
-                logger.error(f"Error handling admin WebSocket message: {str(e)}")
-                
+            data = await websocket.receive_text()
+            await websocket.send_text(f"Admin message received: {data}")
     except WebSocketDisconnect:
-        logger.info(f"Admin WebSocket disconnected for user {user.id if user else 'unknown'}")
-    except Exception as e:
-        logger.error(f"Admin WebSocket error: {str(e)}")
-    finally:
         await connection_manager.disconnect(connection_id)
 
 
-# Helper function to send updates from background tasks
-async def send_job_progress_update(job_id: str, user_id: int, progress_data: dict):
-    """Send job progress update via WebSocket"""
-    await connection_manager.send_job_update(
-        job_id=job_id,
-        user_id=user_id,
-        status=progress_data.get("status", "running"),
-        progress=progress_data.get("progress", 0),
-        message=progress_data.get("message", "Processing...")
-    )
-
-
-async def send_migration_progress_update(migration_id: str, user_id: int, progress_data: dict):
-    """Send migration progress update via WebSocket"""
-    await connection_manager.send_migration_update(
-        migration_id=migration_id,
-        user_id=user_id,
-        status=progress_data.get("status", "running"),
-        progress=progress_data.get("progress", 0),
-        phase=progress_data.get("phase", "Processing")
-    )
-
-
-async def send_new_activity(user_id: int, activity_data: dict):
-    """Send new activity to user's activity feed"""
-    await connection_manager.send_activity_update(user_id, activity_data)
-
-
-async def send_system_notification(notification_type: str, message: str, severity: str = "info"):
-    """Send system-wide notification"""
-    await connection_manager.send_system_alert(notification_type, message, severity)
-
-
 @router.websocket("/ws/migration")
-async def migration_websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    """WebSocket endpoint for real-time migration progress tracking"""
-    
-    user = None
-    connection_id = str(uuid.uuid4())
-    
+async def migration_websocket_endpoint(websocket: WebSocket, token: str):
     try:
-        # Authenticate user from token
-        if token:
-            try:
-                user = await get_current_user_from_token(token, db)
-            except Exception as e:
-                logger.error(f"Migration WebSocket authentication failed: {str(e)}")
-                await websocket.close(code=4001, reason="Authentication failed")
-                return
-        
+        # Verify Firebase token
+        user = verify_firebase_token(token)
         if not user:
-            await websocket.close(code=4001, reason="Authentication required")
+            await websocket.close(code=1008, reason="Authentication failed")
             return
-        
-        await websocket.accept()
-        
-        # Connect to migration progress manager
-        await migration_progress_manager.connect_user(websocket, user.id, connection_id)
-        
-        logger.info(f"Migration WebSocket connected for user {user.id}")
-        
-        # Listen for messages
-        while True:
-            try:
-                # Receive message from client
-                message_text = await websocket.receive_text()
-                message_data = json.loads(message_text)
-                
-                # Handle the message through migration progress manager
-                await migration_progress_manager.handle_client_message(
-                    connection_id, message_data, user.id
-                )
-                
-            except WebSocketDisconnect:
-                logger.info(f"Migration WebSocket disconnected for user {user.id}")
-                break
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON received from user {user.id}")
-                await migration_progress_manager.send_to_connection(connection_id, {
-                    "type": "error",
-                    "message": "Invalid JSON format"
-                })
-            except Exception as e:
-                logger.error(f"Error handling migration WebSocket message: {str(e)}")
-                await migration_progress_manager.send_to_connection(connection_id, {
-                    "type": "error",
-                    "message": "Error processing message"
-                })
-                
-    except WebSocketDisconnect:
-        logger.info(f"Migration WebSocket disconnected for user {user.id if user else 'unknown'}")
     except Exception as e:
-        logger.error(f"Migration WebSocket error: {str(e)}")
-    finally:
-        # Ensure cleanup
-        await migration_progress_manager.disconnect_user(connection_id, user.id if user else None)
+        # Log the error
+        print(f"Firebase token verification failed: {e}")
+        await websocket.close(code=1008, reason="Invalid Firebase token")
+        return
+
+    connection_id = f"migration:{user['uid']}"
+
+    try:
+        await migration_progress_manager.connect_user(websocket, user['uid'], connection_id)
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await migration_progress_manager.disconnect_user(connection_id, user['uid'])
