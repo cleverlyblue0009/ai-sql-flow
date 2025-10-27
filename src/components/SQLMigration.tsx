@@ -84,7 +84,6 @@ ORDER BY total_spent DESC
 LIMIT 100;`;
 
 export default function SQLMigration() {
-  const [sourceDB, setSourceDB] = useState("mysql");
   const [targetDB, setTargetDB] = useState("snowflake");
   const [migrationProgress, setMigrationProgress] = useState(45);
   const [sqlFiles, setSQLFiles] = useState<SQLFile[]>([]);
@@ -207,16 +206,6 @@ export default function SQLMigration() {
   const handleFilesChange = (files: SQLFile[]) => {
     setSQLFiles(files);
     console.log('Files updated:', files.length, 'files');
-    
-    // Auto-detect source dialect from the most confident file
-    if (files.length > 0) {
-      const mostConfidentFile = files.reduce((best, file) => 
-        file.confidence > best.confidence ? file : best
-      );
-      if (mostConfidentFile.confidence > 50) {
-        setSourceDB(mostConfidentFile.detectedDialect);
-      }
-    }
   };
 
   const handleGlobalAnalysisComplete = (analysis: any) => {
@@ -442,8 +431,9 @@ export default function SQLMigration() {
         });
       }, 500);
       
+      const uniqueSourceDialects = Array.from(new Set(readyFiles.map(f => f.detectedDialect))).join(', ').toUpperCase();
       toast.success('Batch SQL translation completed!', {
-        description: `Successfully translated ${readyFiles.length} files from ${sourceDB.toUpperCase()} to ${targetDB.toUpperCase()}`
+        description: `Successfully translated ${readyFiles.length} files to ${targetDB.toUpperCase()}`
       });
       
       // Simulate analysis progress for better UX
@@ -581,18 +571,18 @@ export default function SQLMigration() {
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="upload">
             <Upload className="h-4 w-4 mr-1" />
-            Upload Files
+            Upload & Analyze
           </TabsTrigger>
           <TabsTrigger value="setup">
             <Settings className="h-4 w-4 mr-1" />
-            Setup Migration
+            Configure Migration
           </TabsTrigger>
           <TabsTrigger value="batch">
-            <Package className="h-4 w-4 mr-1" />
-            Batch Processing
+            <Clock className="h-4 w-4 mr-1" />
+            Migration Progress
           </TabsTrigger>
           <TabsTrigger value="results">
-            <Layers className="h-4 w-4 mr-1" />
+            <Download className="h-4 w-4 mr-1" />
             Results & Download
           </TabsTrigger>
           <TabsTrigger value="performance">
@@ -611,140 +601,183 @@ export default function SQLMigration() {
         </TabsContent>
 
         <TabsContent value="setup" className="space-y-6">
-          {/* Database Selection */}
+          {/* Target Database Selection */}
           <Card className="enterprise-card" ref={sourceTargetRef}>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Database className="h-5 w-5 mr-2" />
-                Source & Target Selection
+                Target Database Selection
               </CardTitle>
               <CardDescription>
-                Choose your source and target database platforms for migration
+                Select the target database platform for migration. Source dialects will be automatically detected from your SQL files.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                {/* Source Database */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Source Database</label>
-                  <Select value={sourceDB} onValueChange={setSourceDB}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {databases.map((db) => (
-                        <SelectItem key={db.id} value={db.id}>
-                          <div className="flex items-center space-x-2">
-                            <span>{db.icon}</span>
-                            <span>{db.name} {db.version}</span>
+              <div className="space-y-6">
+                {/* Detected Source Dialects Summary */}
+                {sqlFiles.length > 0 && (
+                  <Card className="border border-border/50 bg-muted/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg flex items-center">
+                        <Code className="h-4 w-4 mr-2" />
+                        Detected Source Dialects
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(new Set(sqlFiles.map(f => f.detectedDialect))).map((dialect) => {
+                          const count = sqlFiles.filter(f => f.detectedDialect === dialect).length;
+                          const avgConfidence = Math.round(
+                            sqlFiles
+                              .filter(f => f.detectedDialect === dialect)
+                              .reduce((sum, f) => sum + f.confidence, 0) / count
+                          );
+                          return (
+                            <div key={dialect} className="flex items-center space-x-2 bg-background border rounded-lg px-3 py-2">
+                              <Database className="h-4 w-4 text-primary" />
+                              <span className="font-medium">{dialect.toUpperCase()}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {count} file{count > 1 ? 's' : ''}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {avgConfidence}% confidence
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {sqlFiles.some(f => f.confidence < 50) && (
+                        <Alert className="mt-4">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Some files have low dialect detection confidence. Review the results carefully before migration.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Target Database Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="border border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg">Select Target Database</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Select value={targetDB} onValueChange={setTargetDB}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {databases.map((db) => (
+                            <SelectItem key={db.id} value={db.id}>
+                              <div className="flex items-center space-x-3 py-1">
+                                <span className="text-2xl">{db.icon}</span>
+                                <div>
+                                  <p className="font-medium">{db.name}</p>
+                                  <p className="text-xs text-muted-foreground">{db.version}</p>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <div className="mt-4 p-3 bg-muted rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <CheckCircle className="h-4 w-4 text-success mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium">Ready for Migration</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              All uploaded files will be converted to {targetDB.toUpperCase()} dialect
+                            </p>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Migration Options */}
+                  <Card className="border border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg">Migration Options</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="opt-schema" className="rounded" defaultChecked />
+                        <label htmlFor="opt-schema" className="text-sm cursor-pointer">Migrate schema structure</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="opt-data" className="rounded" defaultChecked />
+                        <label htmlFor="opt-data" className="text-sm cursor-pointer">Migrate data content</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="opt-constraints" className="rounded" defaultChecked />
+                        <label htmlFor="opt-constraints" className="text-sm cursor-pointer">Preserve constraints</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="opt-optimize" className="rounded" defaultChecked />
+                        <label htmlFor="opt-optimize" className="text-sm cursor-pointer">Optimize for target platform</label>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Arrow */}
-                <div className="flex justify-center">
-                  <ArrowRight className="h-8 w-8 text-muted-foreground" />
-                </div>
-
-                {/* Target Database */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Target Database</label>
-                  <Select value={targetDB} onValueChange={setTargetDB}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {databases.map((db) => (
-                        <SelectItem key={db.id} value={db.id}>
+                {/* Migration Summary */}
+                {sqlFiles.length > 0 && (
+                  <Card className="border border-primary/20 bg-primary/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-2">
-                            <span>{db.icon}</span>
-                            <span>{db.name} {db.version}</span>
+                            <FileText className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="text-sm font-medium">Files Ready</p>
+                              <p className="text-2xl font-bold">{sqlFiles.length}</p>
+                            </div>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                          <div className="h-12 w-px bg-border" />
+                          <div className="flex items-center space-x-2">
+                            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">Target</p>
+                              <p className="text-lg font-bold">{targetDB.toUpperCase()}</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          className="enterprise-button-primary"
+                          size="lg"
+                          onClick={startMigrationAnalysis}
+                          disabled={sqlFiles.length === 0 || translationInProgress}
+                        >
+                          {translationInProgress ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Processing Migration...
+                            </>
+                          ) : (
+                            <>
+                              <GitBranch className="h-4 w-4 mr-2" />
+                              Start Migration ({sqlFiles.length} files)
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Connection Details */}
-                <Card className="border border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Connection Status</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Source Connection</span>
-                      <Badge variant="default" className="bg-success">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Target Connection</span>
-                      <Badge variant="default" className="bg-success">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Schema Compatibility</span>
-                      <Badge variant="secondary" className="bg-warning/20 text-warning">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        Review Needed
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Migration Options */}
-                <Card className="border border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Migration Options</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm">Migrate schema structure</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm">Migrate data content</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Preserve constraints</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm">Optimize for target platform</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <Button 
-                  className="enterprise-button-primary"
-                  onClick={startMigrationAnalysis}
-                  disabled={sqlFiles.length === 0 || translationInProgress}
-                >
-                  {translationInProgress ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Processing Migration...
-                    </>
-                  ) : (
-                    <>
-                      <GitBranch className="h-4 w-4 mr-2" />
-                      Start Migration Analysis ({sqlFiles.length} files)
-                    </>
-                  )}
-                </Button>
+                {sqlFiles.length === 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Upload SQL files in the "Upload Files" tab to begin migration setup.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -824,10 +857,11 @@ export default function SQLMigration() {
                       <Button 
                         className="enterprise-button-primary"
                         onClick={() => {
+                          const uniqueSourceDialects = Array.from(new Set(sqlFiles.map(f => f.detectedDialect))).join('_');
                           const files = DownloadSystem.createFileDownloads(
                             batchResults,
                             sqlFiles,
-                            sourceDB,
+                            uniqueSourceDialects,
                             targetDB,
                             `${targetDB.toUpperCase()} Migration`,
                             {
@@ -858,9 +892,10 @@ export default function SQLMigration() {
                       <Button 
                         variant="outline"
                         onClick={() => {
+                          const uniqueSourceDialects = Array.from(new Set(sqlFiles.map(f => f.detectedDialect))).join('_');
                           const report = DownloadSystem.generateMigrationReport(
                             batchResults,
-                            sourceDB,
+                            uniqueSourceDialects,
                             targetDB,
                             `${targetDB.toUpperCase()} Migration`
                           );
@@ -998,11 +1033,15 @@ export default function SQLMigration() {
                 {/* Source SQL */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Source SQL ({sourceDB.toUpperCase()})</h4>
+                    <h4 className="font-medium">
+                      Source SQL {sqlFiles.length > 0 && sqlFiles[0]?.detectedDialect ? 
+                        `(${sqlFiles[0].detectedDialect.toUpperCase()})` : 
+                        '(Auto-detected)'}
+                    </h4>
                     <Badge variant="outline">Original</Badge>
                   </div>
                   <div className="bg-muted rounded-lg p-4 font-mono text-sm min-h-[400px] overflow-auto">
-                    <pre className="whitespace-pre-wrap">{sqlFiles.length > 0 ? sqlFiles[0]?.content || sqlExample : sqlExample}</pre>
+                    <pre className="whitespace-pre-wrap">{sqlFiles.length > 0 && sqlFiles[0]?.content ? sqlFiles[0].content : sqlExample}</pre>
                   </div>
                 </div>
 
@@ -1147,11 +1186,11 @@ export default function SQLMigration() {
                 Performance Analysis
               </CardTitle>
               <CardDescription>
-                Before and after performance metrics comparison
+                Estimated performance metrics comparison after migration
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="border border-border/50">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Query Execution</CardTitle>
@@ -1159,16 +1198,17 @@ export default function SQLMigration() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Before</span>
+                        <span className="text-sm text-muted-foreground">Before Migration</span>
                         <span className="font-medium">{performanceData?.query_execution?.before || '2.4s'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">After</span>
+                        <span className="text-sm text-muted-foreground">After Migration</span>
                         <span className="font-medium text-success">{performanceData?.query_execution?.after || '0.8s'}</span>
                       </div>
+                      <div className="h-px bg-border my-2" />
                       <div className="flex justify-between font-medium">
-                        <span>Improvement</span>
-                        <span className="text-success">{performanceData?.query_execution?.improvement || '+67%'}</span>
+                        <span>Performance Gain</span>
+                        <span className="text-success text-lg">{performanceData?.query_execution?.improvement || '+67%'}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1176,7 +1216,7 @@ export default function SQLMigration() {
 
                 <Card className="border border-border/50">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Resource Usage</CardTitle>
+                    <CardTitle className="text-lg">Resource Efficiency</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1185,7 +1225,7 @@ export default function SQLMigration() {
                         <span className="font-medium text-success">{performanceData?.resource_usage?.cpu_usage || '-45%'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Memory</span>
+                        <span className="text-sm text-muted-foreground">Memory Usage</span>
                         <span className="font-medium text-success">{performanceData?.resource_usage?.memory || '-32%'}</span>
                       </div>
                       <div className="flex justify-between">
@@ -1195,43 +1235,99 @@ export default function SQLMigration() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
 
-                <Card className="border border-border/50">
+              {/* Performance Insights */}
+              <Card className="border border-border/50 mt-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Migration Insights</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">Query Optimization</p>
+                        <p className="text-sm text-muted-foreground">
+                          Translated queries are optimized for {targetDB.toUpperCase()} platform-specific features
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">Index Recommendations</p>
+                        <p className="text-sm text-muted-foreground">
+                          Review suggested indexes for frequently accessed columns
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">Schema Efficiency</p>
+                        <p className="text-sm text-muted-foreground">
+                          Data types and constraints optimized for target database
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Optimization Recommendations */}
+              {batchResults && batchResults.files.length > 0 && (
+                <Card className="border border-border/50 mt-6">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Cost Analysis</CardTitle>
+                    <CardTitle className="text-lg">Optimization Recommendations</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Monthly Cost</span>
-                        <span className="font-medium text-success">{performanceData?.cost_analysis?.monthly_cost || '-$2,340'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Annual Savings</span>
-                        <span className="font-medium text-success">{performanceData?.cost_analysis?.annual_savings || '$28,080'}</span>
-                      </div>
-                      <div className="flex justify-between font-medium">
-                        <span>ROI</span>
-                        <span className="text-success">{performanceData?.cost_analysis?.roi || '340%'}</span>
-                      </div>
+                      {batchResults.files.map((file, index) => {
+                        const hasWarnings = file.result.warnings.length > 0;
+                        if (!hasWarnings) return null;
+                        
+                        return (
+                          <div key={file.id} className="border-l-2 border-primary pl-3">
+                            <p className="font-medium text-sm">{file.name}</p>
+                            <ul className="mt-2 space-y-1">
+                              {file.result.warnings.slice(0, 3).map((warning, wIndex) => (
+                                <li key={wIndex} className="text-sm text-muted-foreground flex items-start space-x-2">
+                                  <span className="text-primary mt-1">•</span>
+                                  <span>{warning}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      }).filter(Boolean)}
+                      
+                      {batchResults.files.every(f => f.result.warnings.length === 0) && (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Zap className="h-8 w-8 mx-auto mb-2 text-success" />
+                          <p className="font-medium">No optimization warnings</p>
+                          <p className="text-sm">Your SQL is well-optimized for migration</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              )}
 
               <div className="mt-6 flex justify-end">
                 <Button 
                   variant="outline"
                   onClick={() => {
+                    const detectedDialects = Array.from(new Set(sqlFiles.map(f => f.detectedDialect))).join(', ').toUpperCase();
                     const reportData = {
                       migration_id: activeMigrationId,
                       timestamp: new Date().toISOString(),
-                      source_database: sourceDB,
-                      target_database: targetDB,
+                      source_databases: detectedDialects,
+                      target_database: targetDB.toUpperCase(),
+                      files_migrated: sqlFiles.length,
                       performance_metrics: performanceData || {
                         query_execution: { before: '2.4s', after: '0.8s', improvement: '+67%' },
-                        resource_usage: { cpu_usage: '-45%', memory: '-32%', io_operations: '-58%' },
-                        cost_analysis: { monthly_cost: '-$2,340', annual_savings: '$28,080', roi: '340%' }
+                        resource_usage: { cpu_usage: '-45%', memory: '-32%', io_operations: '-58%' }
                       }
                     };
                     
@@ -1241,23 +1337,26 @@ Generated: ${new Date().toLocaleString()}
 Migration ID: ${activeMigrationId || 'N/A'}
 
 ## Migration Details
-- Source Database: ${sourceDB.toUpperCase()}
-- Target Database: ${targetDB.toUpperCase()}
+- Source Dialects: ${reportData.source_databases}
+- Target Database: ${reportData.target_database}
+- Files Migrated: ${reportData.files_migrated}
 
 ## Query Performance
 - Before Migration: ${reportData.performance_metrics.query_execution.before}
 - After Migration: ${reportData.performance_metrics.query_execution.after}
-- Improvement: ${reportData.performance_metrics.query_execution.improvement}
+- Performance Gain: ${reportData.performance_metrics.query_execution.improvement}
 
-## Resource Usage
-- CPU Usage: ${reportData.performance_metrics.resource_usage.cpu_usage}
-- Memory: ${reportData.performance_metrics.resource_usage.memory}
-- I/O Operations: ${reportData.performance_metrics.resource_usage.io_operations}
+## Resource Efficiency
+- CPU Usage Improvement: ${reportData.performance_metrics.resource_usage.cpu_usage}
+- Memory Usage Improvement: ${reportData.performance_metrics.resource_usage.memory}
+- I/O Operations Improvement: ${reportData.performance_metrics.resource_usage.io_operations}
 
-## Cost Analysis
-- Monthly Cost Savings: ${reportData.performance_metrics.cost_analysis.monthly_cost}
-- Annual Savings: ${reportData.performance_metrics.cost_analysis.annual_savings}
-- ROI: ${reportData.performance_metrics.cost_analysis.roi}
+## Recommendations
+${batchResults ? batchResults.files.map(f => 
+  f.result.warnings.length > 0 
+    ? `\n### ${f.name}\n${f.result.warnings.map(w => `- ${w}`).join('\n')}`
+    : ''
+).join('\n') : 'No specific recommendations at this time.'}
 
 ---
 Generated by DataFlow AI SQL Migration Tool`;
