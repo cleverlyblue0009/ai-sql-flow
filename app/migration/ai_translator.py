@@ -1,5 +1,5 @@
 """
-Advanced AI-powered SQL translation service with OpenAI API
+Advanced AI-powered SQL translation service with Google Gemini API
 """
 
 import re
@@ -9,33 +9,38 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sqlparse
 from sqlparse import sql, tokens
-from openai import AsyncOpenAI
+import google.generativeai as genai
 import json
 
 logger = logging.getLogger(__name__)
 
 
 class AITranslationEngine:
-    """Advanced AI-powered SQL translation engine using OpenAI API"""
+    """Advanced AI-powered SQL translation engine using Google Gemini API"""
     
     def __init__(self):
         self.executor = ThreadPoolExecutor(max_workers=2)
         
-        # Initialize OpenAI client
+        # Initialize Gemini client
         from ..database.config import settings
-        self.openai_client = None
+        self.gemini_model = None
         self.use_api = False
         
-        if settings.openai_api_key and settings.openai_api_key.strip():
+        # Check for Gemini API key (try both possible env var names)
+        api_key = getattr(settings, 'gemini_api_key', None) or getattr(settings, 'google_api_key', None)
+        
+        if api_key and api_key.strip():
             try:
-                self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+                genai.configure(api_key=api_key)
+                # Use Gemini 1.5 Pro for best SQL translation quality
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
                 self.use_api = True
-                logger.info("OpenAI API initialized successfully for SQL translation")
+                logger.info("Google Gemini API initialized successfully for SQL translation")
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI API: {str(e)}. Falling back to rule-based translation.")
+                logger.warning(f"Failed to initialize Gemini API: {str(e)}. Falling back to rule-based translation.")
                 self.use_api = False
         else:
-            logger.info("OpenAI API key not configured. Using rule-based translation.")
+            logger.info("Gemini API key not configured. Using rule-based translation.")
         
         # SQL dialect patterns and transformations
         self.dialect_patterns = {
@@ -156,15 +161,15 @@ class AITranslationEngine:
             else:
                 analysis = {"statement_type": "UNKNOWN", "tables": [], "complexity_score": 0}
             
-            # Perform translation - use OpenAI API if available
-            if self.use_api and self.openai_client:
-                logger.info("Using OpenAI API for SQL translation")
-                translated_sql, api_suggestions = await self._translate_with_openai(
+            # Perform translation - use Gemini API if available
+            if self.use_api and self.gemini_model:
+                logger.info("Using Google Gemini API for SQL translation")
+                translated_sql, api_suggestions = await self._translate_with_gemini(
                     source_sql, source_dialect, target_dialect, optimization_level, analysis, schema_context
                 )
                 optimization_suggestions = api_suggestions
             else:
-                logger.info("Using rule-based translation (OpenAI API not available)")
+                logger.info("Using rule-based translation (Gemini API not available)")
                 # Perform rule-based translation
                 translated_sql = await self._perform_translation(
                     source_sql, source_dialect, target_dialect, analysis
@@ -195,7 +200,7 @@ class AITranslationEngine:
                 "validation_result": validation_result,
                 "analysis": analysis,
                 "performance_impact": self._estimate_performance_impact(analysis, target_dialect),
-                "translation_method": "openai_api" if (self.use_api and self.openai_client) else "rule_based"
+                "translation_method": "gemini_api" if (self.use_api and self.gemini_model) else "rule_based"
             }
             
         except Exception as e:
@@ -289,7 +294,7 @@ class AITranslationEngine:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, _analyze)
     
-    async def _translate_with_openai(
+    async def _translate_with_gemini(
         self,
         source_sql: str,
         source_dialect: str,
@@ -298,7 +303,7 @@ class AITranslationEngine:
         analysis: Dict[str, Any],
         schema_context: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, List[str]]:
-        """Translate SQL using OpenAI API for higher accuracy"""
+        """Translate SQL using Google Gemini API for higher accuracy"""
         
         try:
             # Prepare context information
@@ -331,8 +336,8 @@ Please also apply standard performance optimizations:
 - Use dialect-specific best practices
 """
             
-            # Construct the prompt
-            system_prompt = f"""You are an expert SQL database engineer specializing in SQL dialect translation. 
+            # Construct the prompt - Gemini uses a single prompt string
+            prompt = f"""You are an expert SQL database engineer specializing in SQL dialect translation. 
 Your task is to accurately translate SQL from {source_dialect} to {target_dialect} while preserving:
 1. Exact functionality and semantics
 2. Data types with proper conversions
@@ -349,9 +354,9 @@ You must:
 {optimization_instructions}
 
 Output ONLY valid SQL for {target_dialect}. Do not include explanations in the SQL itself.
-After the SQL, provide optimization suggestions as a separate section."""
+After the SQL, provide optimization suggestions as a separate section.
 
-            user_prompt = f"""Translate this {source_dialect} SQL to {target_dialect}:
+Translate this {source_dialect} SQL to {target_dialect}:
 
 {source_sql}
 
@@ -371,21 +376,27 @@ OPTIMIZATION_SUGGESTIONS:
 - etc.
 """
             
-            # Call OpenAI API
-            logger.info(f"Calling OpenAI API for {source_dialect} to {target_dialect} translation")
+            # Call Gemini API
+            logger.info(f"Calling Google Gemini API for {source_dialect} to {target_dialect} translation")
             
-            response = await self.openai_client.chat.completions.create(
-                model="gpt-4o",  # Using GPT-4 for best accuracy
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1,  # Low temperature for more deterministic/accurate output
-                max_tokens=4000
-            )
+            # Run in executor to make it async
+            loop = asyncio.get_event_loop()
             
-            # Parse the response
-            content = response.choices[0].message.content
+            def call_gemini():
+                generation_config = {
+                    "temperature": 0.1,  # Low temperature for consistent output
+                    "top_p": 0.95,
+                    "top_k": 40,
+                    "max_output_tokens": 8192,
+                }
+                
+                response = self.gemini_model.generate_content(
+                    prompt,
+                    generation_config=generation_config,
+                )
+                return response.text
+            
+            content = await loop.run_in_executor(self.executor, call_gemini)
             
             # Extract translated SQL and suggestions
             translated_sql = ""
@@ -401,7 +412,9 @@ OPTIMIZATION_SUGGESTIONS:
                 # Remove markdown code blocks if present
                 if translated_sql.startswith("```"):
                     lines = translated_sql.split("\n")
-                    translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    # Remove first line (language tag) and last line (closing backticks)
+                    if len(lines) > 2:
+                        translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
                     translated_sql = translated_sql.strip()
                 
                 # Parse suggestions
@@ -418,17 +431,18 @@ OPTIMIZATION_SUGGESTIONS:
                 # Remove markdown code blocks if present
                 if translated_sql.startswith("```"):
                     lines = translated_sql.split("\n")
-                    translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    if len(lines) > 2:
+                        translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
                     translated_sql = translated_sql.strip()
                 
                 suggestions = ["SQL translated using AI - please review for accuracy"]
             
-            logger.info(f"Successfully translated SQL using OpenAI API")
+            logger.info(f"Successfully translated SQL using Google Gemini API")
             
             return translated_sql, suggestions
             
         except Exception as e:
-            logger.error(f"Error translating with OpenAI API: {str(e)}")
+            logger.error(f"Error translating with Gemini API: {str(e)}")
             # Fall back to rule-based translation
             logger.info("Falling back to rule-based translation")
             translated_sql = await self._perform_translation(

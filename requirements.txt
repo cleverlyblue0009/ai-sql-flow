@@ -28,7 +28,7 @@ numpy
 pandas
 transformers
 sentence-transformers
-openai
+google-generativeai
 
 # Data Processing
 pydantic
