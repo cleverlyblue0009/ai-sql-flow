@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
 
 // Firebase configuration
 // Replace these with your actual Firebase config values
@@ -12,18 +12,48 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Validate Firebase configuration
+const validateFirebaseConfig = () => {
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
+  
+  if (missingFields.length > 0) {
+    console.error('Missing Firebase configuration fields:', missingFields);
+    console.warn('Firebase authentication will not work without proper configuration');
+    return false;
+  }
+  
+  return true;
+};
 
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
+// Initialize Firebase with error handling
+let app: FirebaseApp;
+let auth: Auth;
+let googleProvider: GoogleAuthProvider;
 
-// Initialize Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
+try {
+  const isValid = validateFirebaseConfig();
+  
+  if (!isValid) {
+    console.warn('Firebase configuration is incomplete. Using fallback configuration.');
+  }
+  
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  
+  // Initialize Google Auth Provider
+  googleProvider = new GoogleAuthProvider();
+  
+  // Configure Google provider
+  googleProvider.setCustomParameters({
+    prompt: 'select_account'
+  });
+  
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Firebase:', error);
+  throw new Error('Firebase initialization failed. Please check your configuration.');
+}
 
-// Configure Google provider
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
-
+export { auth, googleProvider };
 export default app;
