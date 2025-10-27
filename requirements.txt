@@ -28,6 +28,7 @@ numpy
 pandas
 transformers
 sentence-transformers
+openai
 
 # Data Processing
 pydantic

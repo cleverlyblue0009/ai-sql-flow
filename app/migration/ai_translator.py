@@ -1,5 +1,5 @@
 """
-Advanced AI-powered SQL translation service with transformer models
+Advanced AI-powered SQL translation service with OpenAI API
 """
 
 import re
@@ -9,15 +9,33 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sqlparse
 from sqlparse import sql, tokens
+from openai import AsyncOpenAI
+import json
 
 logger = logging.getLogger(__name__)
 
 
 class AITranslationEngine:
-    """Advanced AI-powered SQL translation engine"""
+    """Advanced AI-powered SQL translation engine using OpenAI API"""
     
     def __init__(self):
         self.executor = ThreadPoolExecutor(max_workers=2)
+        
+        # Initialize OpenAI client
+        from ..database.config import settings
+        self.openai_client = None
+        self.use_api = False
+        
+        if settings.openai_api_key and settings.openai_api_key.strip():
+            try:
+                self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+                self.use_api = True
+                logger.info("OpenAI API initialized successfully for SQL translation")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI API: {str(e)}. Falling back to rule-based translation.")
+                self.use_api = False
+        else:
+            logger.info("OpenAI API key not configured. Using rule-based translation.")
         
         # SQL dialect patterns and transformations
         self.dialect_patterns = {
@@ -130,23 +148,35 @@ class AITranslationEngine:
         
         try:
             # Parse the SQL
-            parsed = sqlparse.parse(source_sql)[0]
+            parsed = sqlparse.parse(source_sql)[0] if sqlparse.parse(source_sql) else None
             
             # Analyze SQL structure
-            analysis = await self._analyze_sql_structure(parsed, source_dialect)
-            
-            # Perform translation
-            translated_sql = await self._perform_translation(
-                source_sql, source_dialect, target_dialect, analysis
-            )
-            
-            # Apply optimizations
-            if optimization_level in ["standard", "aggressive"]:
-                translated_sql, optimization_suggestions = await self._apply_advanced_optimizations(
-                    translated_sql, target_dialect, optimization_level, analysis, schema_context
-                )
+            if parsed:
+                analysis = await self._analyze_sql_structure(parsed, source_dialect)
             else:
-                optimization_suggestions = []
+                analysis = {"statement_type": "UNKNOWN", "tables": [], "complexity_score": 0}
+            
+            # Perform translation - use OpenAI API if available
+            if self.use_api and self.openai_client:
+                logger.info("Using OpenAI API for SQL translation")
+                translated_sql, api_suggestions = await self._translate_with_openai(
+                    source_sql, source_dialect, target_dialect, optimization_level, analysis, schema_context
+                )
+                optimization_suggestions = api_suggestions
+            else:
+                logger.info("Using rule-based translation (OpenAI API not available)")
+                # Perform rule-based translation
+                translated_sql = await self._perform_translation(
+                    source_sql, source_dialect, target_dialect, analysis
+                )
+                
+                # Apply optimizations
+                if optimization_level in ["standard", "aggressive"]:
+                    translated_sql, optimization_suggestions = await self._apply_advanced_optimizations(
+                        translated_sql, target_dialect, optimization_level, analysis, schema_context
+                    )
+                else:
+                    optimization_suggestions = []
             
             # Validate translation
             validation_result = await self._validate_translation(
@@ -164,7 +194,8 @@ class AITranslationEngine:
                 "optimization_suggestions": optimization_suggestions,
                 "validation_result": validation_result,
                 "analysis": analysis,
-                "performance_impact": self._estimate_performance_impact(analysis, target_dialect)
+                "performance_impact": self._estimate_performance_impact(analysis, target_dialect),
+                "translation_method": "openai_api" if (self.use_api and self.openai_client) else "rule_based"
             }
             
         except Exception as e:
@@ -257,6 +288,154 @@ class AITranslationEngine:
         
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, _analyze)
+    
+    async def _translate_with_openai(
+        self,
+        source_sql: str,
+        source_dialect: str,
+        target_dialect: str,
+        optimization_level: str,
+        analysis: Dict[str, Any],
+        schema_context: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, List[str]]:
+        """Translate SQL using OpenAI API for higher accuracy"""
+        
+        try:
+            # Prepare context information
+            context_info = []
+            if schema_context:
+                context_info.append(f"Schema Context: {json.dumps(schema_context, indent=2)}")
+            
+            if analysis.get("tables"):
+                tables_info = [t for t in analysis["tables"]]
+                context_info.append(f"Tables involved: {', '.join(tables_info)}")
+            
+            if analysis.get("complexity_score", 0) > 20:
+                context_info.append("Note: This is a complex query requiring careful translation")
+            
+            # Build the optimization instructions
+            optimization_instructions = ""
+            if optimization_level == "aggressive":
+                optimization_instructions = """
+Please also apply aggressive performance optimizations for the target dialect:
+- Add clustering keys or partition suggestions for Snowflake
+- Suggest appropriate indexes
+- Optimize JOIN operations
+- Use dialect-specific performance features
+"""
+            elif optimization_level == "standard":
+                optimization_instructions = """
+Please also apply standard performance optimizations:
+- Use appropriate data types for best performance
+- Suggest basic indexes where beneficial
+- Use dialect-specific best practices
+"""
+            
+            # Construct the prompt
+            system_prompt = f"""You are an expert SQL database engineer specializing in SQL dialect translation. 
+Your task is to accurately translate SQL from {source_dialect} to {target_dialect} while preserving:
+1. Exact functionality and semantics
+2. Data types with proper conversions
+3. Functions and their equivalents
+4. Constraints and relationships
+5. Performance characteristics
+
+You must:
+- Handle dialect-specific features (AUTO_INCREMENT, SERIAL, IDENTITY, etc.)
+- Convert syntax (backticks, quotes, brackets)
+- Translate functions to their equivalents (NOW(), GETDATE(), CURRENT_TIMESTAMP, etc.)
+- Preserve data integrity constraints
+- Apply best practices for the target dialect
+{optimization_instructions}
+
+Output ONLY valid SQL for {target_dialect}. Do not include explanations in the SQL itself.
+After the SQL, provide optimization suggestions as a separate section."""
+
+            user_prompt = f"""Translate this {source_dialect} SQL to {target_dialect}:
+
+{source_sql}
+
+{chr(10).join(context_info) if context_info else ""}
+
+Please provide:
+1. The translated SQL (valid {target_dialect} syntax only)
+2. A section labeled "OPTIMIZATION_SUGGESTIONS:" with specific recommendations
+
+Format your response exactly as:
+TRANSLATED_SQL:
+[your translated SQL here]
+
+OPTIMIZATION_SUGGESTIONS:
+- suggestion 1
+- suggestion 2
+- etc.
+"""
+            
+            # Call OpenAI API
+            logger.info(f"Calling OpenAI API for {source_dialect} to {target_dialect} translation")
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o",  # Using GPT-4 for best accuracy
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,  # Low temperature for more deterministic/accurate output
+                max_tokens=4000
+            )
+            
+            # Parse the response
+            content = response.choices[0].message.content
+            
+            # Extract translated SQL and suggestions
+            translated_sql = ""
+            suggestions = []
+            
+            if "TRANSLATED_SQL:" in content and "OPTIMIZATION_SUGGESTIONS:" in content:
+                parts = content.split("OPTIMIZATION_SUGGESTIONS:")
+                sql_part = parts[0].replace("TRANSLATED_SQL:", "").strip()
+                suggestions_part = parts[1].strip() if len(parts) > 1 else ""
+                
+                # Clean up SQL
+                translated_sql = sql_part.strip()
+                # Remove markdown code blocks if present
+                if translated_sql.startswith("```"):
+                    lines = translated_sql.split("\n")
+                    translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    translated_sql = translated_sql.strip()
+                
+                # Parse suggestions
+                if suggestions_part:
+                    for line in suggestions_part.split("\n"):
+                        line = line.strip()
+                        if line.startswith("-") or line.startswith("*"):
+                            suggestions.append(line[1:].strip())
+                        elif line and not line.startswith("```"):
+                            suggestions.append(line)
+            else:
+                # Fallback parsing if format is different
+                translated_sql = content.strip()
+                # Remove markdown code blocks if present
+                if translated_sql.startswith("```"):
+                    lines = translated_sql.split("\n")
+                    translated_sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    translated_sql = translated_sql.strip()
+                
+                suggestions = ["SQL translated using AI - please review for accuracy"]
+            
+            logger.info(f"Successfully translated SQL using OpenAI API")
+            
+            return translated_sql, suggestions
+            
+        except Exception as e:
+            logger.error(f"Error translating with OpenAI API: {str(e)}")
+            # Fall back to rule-based translation
+            logger.info("Falling back to rule-based translation")
+            translated_sql = await self._perform_translation(
+                source_sql, source_dialect, target_dialect, analysis
+            )
+            suggestions = ["Translation completed using rule-based fallback"]
+            return translated_sql, suggestions
     
     async def _perform_translation(
         self, 
