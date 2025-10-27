@@ -1,11 +1,12 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
 import logging
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import structlog
 
 # Fixed imports with error handling
@@ -23,6 +24,23 @@ except ImportError as e:
     settings = MockSettings()
     def create_tables():
         pass
+
+# Import authentication dependencies with error handling
+try:
+    from .auth.dependencies import get_current_user, get_current_verified_user
+    from .database.config import get_db
+    from .database.models import User, Job
+except ImportError as e:
+    print(f"Auth dependencies import error: {e}")
+    # Create mock functions for development
+    def get_current_user():
+        return None
+    def get_current_verified_user():
+        return None
+    def get_db():
+        return None
+    User = None
+    Job = None
 
 # Import routers with error handling
 try:
@@ -346,59 +364,6 @@ app.include_router(auth_router)
 app.include_router(data_quality_router)
 app.include_router(dashboard_router)
 app.include_router(migration_router)
-
-# Add jobs endpoint to main API
-@app.get("/api/jobs/{job_id}/status")
-async def get_job_status(
-    job_id: str,
-    current_user: User = Depends(get_current_verified_user),
-    db: Session = Depends(get_db)
-):
-    """Get job status and results"""
-    from .database import Job
-    
-    try:
-        # Get job
-        job = db.query(Job).filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.id
-        ).first()
-        
-        if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job not found"
-            )
-        
-        response = {
-            "job_id": job.job_id,
-            "status": job.status.value if job.status else "unknown",
-            "progress": job.progress,
-            "current_step": job.current_step,
-            "created_at": job.created_at,
-            "updated_at": job.updated_at,
-            "completed_at": job.completed_at
-        }
-        
-        # Add result if job is completed
-        if job.status and job.status.value == "completed" and job.result:
-            response["result"] = job.result
-        
-        # Add error if job failed
-        if job.status and job.status.value == "failed" and job.error_message:
-            response["error"] = job.error_message
-            response["error_message"] = job.error_message
-            
-        return response
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting job status: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get job status"
-        )
 app.include_router(monitoring_router)
 app.include_router(settings_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
