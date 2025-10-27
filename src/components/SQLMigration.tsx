@@ -134,35 +134,46 @@ export default function SQLMigration() {
   // Get Firebase token for WebSocket authentication with automatic refresh
   useEffect(() => {
     const getFirebaseToken = async (forceRefresh = false) => {
-      if (currentUser) {
+      // Safety check: ensure currentUser exists and has getIdToken method
+      if (currentUser && typeof currentUser.getIdToken === 'function') {
         try {
           const token = await currentUser.getIdToken(forceRefresh);
           setFirebaseToken(token);
           console.log('Firebase token updated:', forceRefresh ? '(forced refresh)' : '(cached)');
         } catch (error) {
           console.error('Error getting Firebase token:', error);
-          setFirebaseToken(null);
+          // Don't set to null immediately, keep existing token if available
+          if (!firebaseToken) {
+            setFirebaseToken(null);
+          }
         }
       } else {
-        setFirebaseToken(null);
+        // User not authenticated, clear token
+        if (firebaseToken) {
+          setFirebaseToken(null);
+        }
       }
     };
 
     // Get initial token
-    getFirebaseToken();
+    getFirebaseToken().catch(err => {
+      console.error('Failed to get initial Firebase token:', err);
+    });
 
     // Set up automatic token refresh every 50 minutes (tokens expire in 1 hour)
     const tokenRefreshInterval = setInterval(() => {
-      if (currentUser) {
+      if (currentUser && typeof currentUser.getIdToken === 'function') {
         console.log('Refreshing Firebase token automatically...');
-        getFirebaseToken(true); // Force refresh
+        getFirebaseToken(true).catch(err => {
+          console.error('Failed to refresh Firebase token:', err);
+        });
       }
     }, 50 * 60 * 1000); // 50 minutes
 
     return () => {
       clearInterval(tokenRefreshInterval);
     };
-  }, [currentUser]);
+  }, [currentUser, firebaseToken]);
 
   // WebSocket integration for real-time progress (only when backend is online)
   const {

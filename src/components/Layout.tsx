@@ -83,7 +83,9 @@ function SidebarContent() {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      if (logout && typeof logout === 'function') {
+        await logout();
+      }
     } catch (error) {
       console.error('Failed to log out:', error);
     }

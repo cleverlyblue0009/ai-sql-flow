@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
@@ -35,6 +35,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const signUp = (email: string, password: string) => {
     return createUserWithEmailAndPassword(auth, email, password);
@@ -53,12 +54,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
+    try {
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        (user) => {
+          setCurrentUser(user);
+          setLoading(false);
+          setError(null);
+        },
+        (error) => {
+          console.error('Auth state change error:', error);
+          setError(error);
+          setLoading(false);
+        }
+      );
 
-    return unsubscribe;
+      return unsubscribe;
+    } catch (err) {
+      console.error('Firebase auth initialization error:', err);
+      setError(err as Error);
+      setLoading(false);
+    }
   }, []);
 
   const value = {
@@ -69,6 +85,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle,
     logout,
   };
+
+  // Show error state if Firebase failed to initialize
+  if (error) {
+    return (
+      <AuthContext.Provider value={value}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
