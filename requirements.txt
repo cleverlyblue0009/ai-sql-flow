@@ -13,7 +13,6 @@ asyncpg
 
 # Authentication and Security
 firebase-admin
-passlib[bcrypt]
 cryptography
 
 # Background Tasks
