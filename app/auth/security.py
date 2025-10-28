@@ -1,4 +1,3 @@
-import bcrypt
 import logging
 import firebase_admin
 from firebase_admin import auth as firebase_auth
@@ -11,17 +10,6 @@ logger = logging.getLogger(__name__)
 if not firebase_admin._apps:
     cred = credentials.Certificate("firebase-creds.json")
     firebase_admin.initialize_app(cred)
-
-
-# ------------------------------
-# Password Hashing Helpers
-# ------------------------------
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_password(password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 # ------------------------------

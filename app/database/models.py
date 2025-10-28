@@ -47,7 +47,6 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(100), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=False)
-    hashed_password = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.ANALYST, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
@@ -58,7 +57,7 @@ class User(Base):
     # OAuth fields
     google_id = Column(String(100), unique=True)
     github_id = Column(String(100), unique=True)
-    firebase_uid = Column(String(255), unique=True)
+    firebase_uid = Column(String(255), unique=True, nullable=False)
     
     # Profile fields
     avatar_url = Column(String(500))

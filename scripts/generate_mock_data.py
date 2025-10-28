@@ -26,7 +26,7 @@ from app.database.models import (
 fake = Faker()
 
 def create_mock_users(db, count=10):
-    """Create mock users"""
+    """Create mock users with Firebase UIDs"""
     users = []
     
     # Create admin user
@@ -34,7 +34,7 @@ def create_mock_users(db, count=10):
         email="admin@dataflow.ai",
         username="admin",
         full_name="System Administrator",
-        hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # 'secret'
+        firebase_uid=fake.uuid4(),
         role=UserRole.ADMIN,
         is_active=True,
         is_verified=True,
@@ -50,7 +50,7 @@ def create_mock_users(db, count=10):
             email=f"engineer{i+1}@dataflow.ai",
             username=f"engineer{i+1}",
             full_name=fake.name(),
-            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
+            firebase_uid=fake.uuid4(),
             role=UserRole.ENGINEER,
             is_active=True,
             is_verified=True,
@@ -66,7 +66,7 @@ def create_mock_users(db, count=10):
             email=fake.email(),
             username=fake.user_name(),
             full_name=fake.name(),
-            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
+            firebase_uid=fake.uuid4(),
             role=UserRole.ANALYST,
             is_active=random.choice([True, True, True, False]),  # 75% active
             is_verified=random.choice([True, True, False]),  # 66% verified
@@ -574,10 +574,9 @@ def main():
         print(f"  - {len(audit_logs)} audit logs")
         print(f"  - 3 sample CSV files")
         
-        print("\nTest credentials:")
-        print("  Admin: admin@dataflow.ai / secret")
-        print("  Engineer: engineer1@dataflow.ai / secret")
-        print("  Analyst: Use any generated user email / secret")
+        print("\nNote:")
+        print("  All users are created with Firebase UIDs")
+        print("  Use Firebase Authentication to log in with the generated emails")
         
     except Exception as e:
         print(f"❌ Error generating mock data: {str(e)}")
