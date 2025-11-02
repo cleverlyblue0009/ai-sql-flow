@@ -33,6 +33,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 export interface SQLFile {
   id: string;
@@ -137,7 +138,31 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
   const [batchProgress, setBatchProgress] = useState(0);
   const editorRef = useRef(null);
 
-  // Detect SQL dialect from content - Enhanced detection
+  // Detect SQL dialect using AI API (with fallback to pattern matching)
+  const detectDialectWithAI = async (content: string): Promise<DialectDetectionResult> => {
+    try {
+      // Call the backend AI detection API
+      const response = await api.migration.detectDialect(content);
+      
+      if (response.success) {
+        return {
+          dialect: response.dialect,
+          confidence: response.confidence,
+          features: response.features || [],
+          patterns: [`AI Detection: ${response.explanation}`]
+        };
+      } else {
+        // Fallback to client-side detection
+        return detectDialect(content);
+      }
+    } catch (error) {
+      console.warn('AI dialect detection failed, using fallback pattern matching:', error);
+      // Fallback to client-side detection
+      return detectDialect(content);
+    }
+  };
+
+  // Detect SQL dialect from content - Enhanced detection (FALLBACK ONLY)
   const detectDialect = (content: string): DialectDetectionResult => {
     const upperContent = content.toUpperCase();
     const scores: { [key: string]: { score: number; features: string[]; patterns: string[] } } = {};
@@ -435,8 +460,8 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
           f.id === fileId ? { ...f, content, status: 'analyzing' } : f
         ));
         
-        // Detect dialect
-        const dialectResult = detectDialect(content);
+        // Detect dialect using AI
+        const dialectResult = await detectDialectWithAI(content);
         
         // Analyze content
         const analysis = await analyzeSQLContent(content, file.name);
@@ -452,8 +477,9 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
           } : f
         ));
         
+        const detectionMethod = dialectResult.confidence >= 70 ? '?? AI-powered' : dialectResult.confidence >= 40 ? '?? AI' : '?? Pattern-based';
         toast.success(`${file.name} processed successfully`, {
-          description: `Detected: ${dialectResult.dialect.toUpperCase()} (${dialectResult.confidence}% confidence)`
+          description: `${detectionMethod} detection: ${dialectResult.dialect.toUpperCase()} (${dialectResult.confidence}% confidence)`
         });
         
       } catch (error) {
@@ -680,6 +706,13 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
                               <div className="flex items-center space-x-1">
                                 <Badge variant="outline" className="text-xs">
                                   {file.detectedDialect.toUpperCase()}
+                                </Badge>
+                                <Badge 
+                                  variant={file.confidence >= 70 ? "default" : "secondary"} 
+                                  className="text-xs"
+                                  title={file.confidence >= 70 ? "AI Detected with high confidence" : file.confidence >= 50 ? "AI Detected" : "Pattern Matching Fallback"}
+                                >
+                                  {file.confidence >= 70 ? '?? AI' : file.confidence >= 40 ? '??' : '??'}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {file.confidence}%
