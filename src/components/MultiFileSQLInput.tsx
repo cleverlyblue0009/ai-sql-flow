@@ -78,42 +78,48 @@ interface MultiFileSQLInputProps {
   targetDialect?: string;
 }
 
-// Dialect detection patterns
+// Dialect detection patterns - Enhanced for better detection
 const DIALECT_PATTERNS = {
   mysql: {
-    keywords: ['AUTO_INCREMENT', 'ENGINE=InnoDB', 'ENGINE=MyISAM', 'CHARSET=utf8mb4', 'DELIMITER //', 'TINYINT', 'MEDIUMINT', 'LONGTEXT', 'ENUM(', 'SET('],
-    functions: ['CURDATE()', 'DATE_SUB(', 'JSON_EXTRACT(', 'IFNULL(', 'DATE_FORMAT('],
-    operators: ['`', 'LIMIT ', 'UNSIGNED'],
+    keywords: ['AUTO_INCREMENT', 'ENGINE=InnoDB', 'ENGINE=MyISAM', 'CHARSET=utf8mb4', 'DELIMITER //', 'TINYINT', 'MEDIUMINT', 'LONGTEXT', 'ENUM(', 'SET(', 'ZEROFILL', 'AFTER ', 'FIRST ', 'MODIFY COLUMN'],
+    functions: ['CURDATE()', 'DATE_SUB(', 'JSON_EXTRACT(', 'IFNULL(', 'DATE_FORMAT(', 'CONCAT_WS(', 'GROUP_CONCAT(', 'UNIX_TIMESTAMP('],
+    operators: ['`', 'LIMIT ', 'UNSIGNED', 'COLLATE utf8'],
+    datatypes: ['TINYINT', 'MEDIUMINT', 'BIGINT', 'LONGTEXT', 'MEDIUMTEXT', 'TINYTEXT', 'DOUBLE'],
     weight: 1.0
   },
   postgresql: {
-    keywords: ['SERIAL', 'BIGSERIAL', 'GENERATE_ALWAYS AS IDENTITY', 'RETURNING', 'ARRAY[', 'JSONB', 'UUID'],
-    functions: ['NOW()', 'CURRENT_DATE', 'AGE(', 'COALESCE(', 'EXTRACT('],
-    operators: ['::', '||', 'ILIKE', 'SIMILAR TO'],
+    keywords: ['SERIAL', 'BIGSERIAL', 'GENERATE_ALWAYS AS IDENTITY', 'RETURNING', 'ARRAY[', 'JSONB', 'UUID', 'SMALLSERIAL', 'GENERATE_ALWAYS', 'ON CONFLICT'],
+    functions: ['NOW()', 'CURRENT_DATE', 'AGE(', 'COALESCE(', 'EXTRACT(', 'STRING_AGG(', 'ARRAY_AGG(', 'GENERATE_SERIES('],
+    operators: ['::', '||', 'ILIKE', 'SIMILAR TO', '~', '!~', 'ANY(', 'ALL('],
+    datatypes: ['SERIAL', 'BIGSERIAL', 'SMALLSERIAL', 'BYTEA', 'TEXT', 'BOOLEAN', 'INET', 'JSON', 'JSONB'],
     weight: 1.0
   },
   mssql: {
-    keywords: ['IDENTITY(1,1)', 'TOP ', 'GO', 'NVARCHAR', 'UNIQUEIDENTIFIER', 'BIT'],
-    functions: ['GETDATE()', 'DATEPART(', 'ISNULL(', 'LEN(', 'CHARINDEX('],
-    operators: ['[', ']', 'WITH (NOLOCK)'],
+    keywords: ['IDENTITY(1,1)', 'TOP ', 'GO', 'NVARCHAR', 'UNIQUEIDENTIFIER', 'BIT', 'WITH (NOLOCK)', 'OUTPUT ', 'INSERTED', 'DELETED'],
+    functions: ['GETDATE()', 'DATEPART(', 'ISNULL(', 'LEN(', 'CHARINDEX(', 'STUFF(', 'CAST(', 'CONVERT('],
+    operators: ['[', ']', 'WITH (NOLOCK)', 'MERGE ', 'OUTPUT'],
+    datatypes: ['NVARCHAR', 'NCHAR', 'NTEXT', 'UNIQUEIDENTIFIER', 'DATETIME2', 'DATETIMEOFFSET', 'HIERARCHYID'],
     weight: 1.0
   },
   oracle: {
-    keywords: ['SEQUENCE', 'DUAL', 'ROWNUM', 'VARCHAR2', 'NUMBER', 'CLOB', 'BLOB'],
-    functions: ['SYSDATE', 'SUBSTR(', 'NVL(', 'DECODE(', 'TO_CHAR('],
-    operators: ['BEGIN', 'END;', 'EXCEPTION', 'WHEN'],
+    keywords: ['SEQUENCE', 'DUAL', 'ROWNUM', 'VARCHAR2', 'NUMBER', 'CLOB', 'BLOB', 'NVARCHAR2', 'ROWID', 'TRIGGER'],
+    functions: ['SYSDATE', 'SUBSTR(', 'NVL(', 'DECODE(', 'TO_CHAR(', 'TO_DATE(', 'TO_NUMBER(', 'TRUNC('],
+    operators: ['BEGIN', 'END;', 'EXCEPTION', 'WHEN', '||', 'CONNECT BY', 'START WITH'],
+    datatypes: ['VARCHAR2', 'NVARCHAR2', 'NUMBER', 'CLOB', 'NCLOB', 'BLOB', 'BFILE', 'ROWID'],
     weight: 1.0
   },
   snowflake: {
-    keywords: ['AUTOINCREMENT', 'VARIANT', 'QUALIFY', 'DISTKEY', 'SORTKEY'],
-    functions: ['CURRENT_TIMESTAMP()', 'DATEDIFF(', 'DATEADD(', 'TRY_PARSE_JSON('],
-    operators: ['"', 'SAMPLE(', 'FLATTEN('],
+    keywords: ['AUTOINCREMENT', 'VARIANT', 'QUALIFY', 'DISTKEY', 'SORTKEY', 'CLUSTER BY', 'COPY INTO', 'WAREHOUSE'],
+    functions: ['CURRENT_TIMESTAMP()', 'DATEDIFF(', 'DATEADD(', 'TRY_PARSE_JSON(', 'PARSE_JSON(', 'TRY_CAST(', 'FLATTEN('],
+    operators: ['"', 'SAMPLE(', 'FLATTEN(', 'QUALIFY ', '::', 'MATCH_RECOGNIZE'],
+    datatypes: ['VARIANT', 'OBJECT', 'ARRAY', 'GEOGRAPHY', 'TIMESTAMP_TZ', 'TIMESTAMP_LTZ', 'TIMESTAMP_NTZ'],
     weight: 1.0
   },
   redshift: {
-    keywords: ['DISTKEY', 'SORTKEY', 'DISTSTYLE', 'ENCODE', 'VACUUM', 'ANALYZE'],
-    functions: ['DATEADD(', 'DATEDIFF(', 'GETDATE(', 'NVL('],
-    operators: ['COPY', 'UNLOAD'],
+    keywords: ['DISTKEY', 'SORTKEY', 'DISTSTYLE', 'ENCODE', 'VACUUM', 'ANALYZE', 'COMPOUND SORTKEY', 'INTERLEAVED SORTKEY'],
+    functions: ['DATEADD(', 'DATEDIFF(', 'GETDATE(', 'NVL(', 'NVL2(', 'LISTAGG(', 'MEDIAN('],
+    operators: ['COPY', 'UNLOAD', 'DISTKEY', 'SORTKEY', 'DISTSTYLE'],
+    datatypes: ['SMALLINT', 'INTEGER', 'BIGINT', 'DECIMAL', 'REAL', 'DOUBLE PRECISION', 'BOOLEAN'],
     weight: 1.0
   }
 };
@@ -131,22 +137,27 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
   const [batchProgress, setBatchProgress] = useState(0);
   const editorRef = useRef(null);
 
-  // Detect SQL dialect from content
+  // Detect SQL dialect from content - Enhanced detection
   const detectDialect = (content: string): DialectDetectionResult => {
     const upperContent = content.toUpperCase();
     const scores: { [key: string]: { score: number; features: string[]; patterns: string[] } } = {};
+    
+    // Initialize scores for all dialects
+    Object.keys(DIALECT_PATTERNS).forEach(dialect => {
+      scores[dialect] = { score: 0, features: [], patterns: [] };
+    });
     
     Object.entries(DIALECT_PATTERNS).forEach(([dialect, patterns]) => {
       let score = 0;
       const features: string[] = [];
       const matchedPatterns: string[] = [];
       
-      // Check keywords
+      // Check keywords (highest weight)
       patterns.keywords.forEach(keyword => {
         const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         const matches = (content.match(regex) || []).length;
         if (matches > 0) {
-          score += matches * 3;
+          score += matches * 5; // Increased weight for keywords
           features.push(keyword);
           matchedPatterns.push(`keyword: ${keyword}`);
         }
@@ -157,7 +168,7 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
         const regex = new RegExp(func.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         const matches = (content.match(regex) || []).length;
         if (matches > 0) {
-          score += matches * 2;
+          score += matches * 3; // Increased weight for functions
           features.push(func);
           matchedPatterns.push(`function: ${func}`);
         }
@@ -168,11 +179,24 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
         const regex = new RegExp(op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         const matches = (content.match(regex) || []).length;
         if (matches > 0) {
-          score += matches;
+          score += matches * 2; // Increased weight for operators
           features.push(op);
           matchedPatterns.push(`operator: ${op}`);
         }
       });
+      
+      // Check data types (if available)
+      if (patterns.datatypes) {
+        patterns.datatypes.forEach(datatype => {
+          const regex = new RegExp(`\\b${datatype}\\b`, 'gi');
+          const matches = (content.match(regex) || []).length;
+          if (matches > 0) {
+            score += matches * 3; // Added data type detection
+            features.push(datatype);
+            matchedPatterns.push(`datatype: ${datatype}`);
+          }
+        });
+      }
       
       scores[dialect] = { 
         score: score * patterns.weight, 
@@ -182,19 +206,61 @@ const MultiFileSQLInput: React.FC<MultiFileSQLInputProps> = ({
     });
     
     // Find the dialect with the highest score
-    const bestMatch = Object.entries(scores).reduce((best, [dialect, data]) => {
-      return data.score > best.score ? { dialect, ...data } : best;
-    }, { dialect: 'unknown', score: 0, features: [], patterns: [] });
+    const sortedDialects = Object.entries(scores).sort((a, b) => b[1].score - a[1].score);
+    const bestMatch = sortedDialects[0];
+    const secondBest = sortedDialects[1];
     
-    // Calculate confidence based on score and content length
+    // If no patterns matched, make an educated guess based on common SQL structure
+    if (bestMatch[1].score === 0) {
+      // Check for very basic indicators
+      const hasBackticks = content.includes('`');
+      const hasDoubleColon = content.includes('::');
+      const hasSquareBrackets = /\[[\w\s]+\]/.test(content);
+      const hasLimitClause = /\bLIMIT\s+\d+/i.test(content);
+      
+      let guessedDialect = 'mysql'; // Default guess
+      let guessConfidence = 35; // Low but above threshold
+      
+      if (hasBackticks && hasLimitClause) {
+        guessedDialect = 'mysql';
+        guessConfidence = 40;
+      } else if (hasDoubleColon) {
+        guessedDialect = 'postgresql';
+        guessConfidence = 40;
+      } else if (hasSquareBrackets) {
+        guessedDialect = 'mssql';
+        guessConfidence = 40;
+      } else if (content.includes('DUAL')) {
+        guessedDialect = 'oracle';
+        guessConfidence = 40;
+      }
+      
+      return {
+        dialect: guessedDialect,
+        confidence: guessConfidence,
+        features: ['basic SQL structure'],
+        patterns: ['inferred from syntax']
+      };
+    }
+    
+    // Calculate confidence based on score difference
     const totalScore = Object.values(scores).reduce((sum, data) => sum + data.score, 0);
-    const confidence = totalScore > 0 ? Math.min((bestMatch.score / totalScore) * 100, 95) : 0;
+    let confidence = totalScore > 0 ? Math.min((bestMatch[1].score / totalScore) * 100, 95) : 0;
+    
+    // Boost confidence if there's a clear winner
+    if (secondBest && bestMatch[1].score > secondBest[1].score * 1.5) {
+      confidence = Math.min(confidence * 1.2, 95);
+    }
+    
+    // Minimum confidence threshold lowered to 15 for better detection
+    const finalDialect = confidence > 15 ? bestMatch[0] : 'mysql'; // Default to mysql if uncertain
+    const finalConfidence = Math.max(Math.round(confidence), 25); // Ensure minimum 25% confidence
     
     return {
-      dialect: confidence > 20 ? bestMatch.dialect : 'unknown',
-      confidence: Math.round(confidence),
-      features: bestMatch.features,
-      patterns: bestMatch.patterns
+      dialect: finalDialect,
+      confidence: finalConfidence,
+      features: bestMatch[1].features.slice(0, 10), // Limit features shown
+      patterns: bestMatch[1].patterns.slice(0, 10)  // Limit patterns shown
     };
   };
 
