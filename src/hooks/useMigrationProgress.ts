@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MigrationProgressData {
   migration_id: string;
@@ -9,17 +10,18 @@ interface MigrationProgressData {
 }
 
 interface MigrationProgressHookParams {
-  token?: string;
   onProgress?: (progress: MigrationProgressData) => void;
   onStatusChange?: (migrationId: string, status: string, message: string) => void;
   onError?: (error: any) => void;
 }
 
 export const useMigrationProgress = (params: MigrationProgressHookParams = {}) => {
+  const { currentUser } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [progressData, setProgressData] = useState<MigrationProgressData | null>(null);
   const [errors, setErrors] = useState<any[]>([]);
+  const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -27,11 +29,30 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
   const lastErrorTime = useRef<number>(0);
   const errorThrottleDelay = 10000; // 10 seconds between error notifications
 
-  const { token, onProgress, onStatusChange, onError } = params;
+  const { onProgress, onStatusChange, onError } = params;
+
+  // Get Firebase ID token when user changes
+  useEffect(() => {
+    const getToken = async () => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          setFirebaseToken(token);
+        } catch (error) {
+          console.error('Failed to get Firebase token:', error);
+          setFirebaseToken(null);
+        }
+      } else {
+        setFirebaseToken(null);
+      }
+    };
+
+    getToken();
+  }, [currentUser]);
 
   const connect = useCallback(() => {
-    if (!token) {
-      // Don't spam console warnings about missing tokens
+    if (!firebaseToken) {
+      // Don't connect without authentication
       return;
     }
 
@@ -42,7 +63,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     setConnectionState('connecting');
     
     try {
-      const wsUrl = `ws://localhost:8000/ws/migration?token=${encodeURIComponent(token)}`;
+      const wsUrl = `ws://localhost:8000/ws/migration?token=${encodeURIComponent(firebaseToken)}`;
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
@@ -114,9 +135,9 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
         setIsConnected(false);
         setConnectionState('disconnected');
         
-        // Only attempt to reconnect if it's not a normal closure and we have a token
+        // Only attempt to reconnect if it's not a normal closure and we have a Firebase token
         // Reduce spam by adding exponential backoff and limiting reconnection attempts
-        if (event.code !== 1000 && event.code !== 1001 && token) {
+        if (event.code !== 1000 && event.code !== 1001 && firebaseToken) {
           const reconnectDelay = Math.min(30000, 5000 * Math.pow(2, errors.length)); // Max 30s delay
           if (errors.length < 5) { // Limit reconnection attempts
             reconnectTimeoutRef.current = setTimeout(() => {
@@ -150,7 +171,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
       setConnectionState('disconnected');
       onError?.(error);
     }
-  }, [token, onProgress, onStatusChange, onError, errors.length]);
+  }, [firebaseToken, onProgress, onStatusChange, onError, errors.length]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -192,9 +213,9 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     }
   }, []);
 
-  // Connect when token is available
+  // Connect when Firebase token is available
   useEffect(() => {
-    if (token) {
+    if (firebaseToken) {
       connect();
     } else {
       disconnect();
@@ -203,7 +224,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     return () => {
       disconnect();
     };
-  }, [token, connect, disconnect]);
+  }, [firebaseToken, connect, disconnect]);
 
   return {
     isConnected,

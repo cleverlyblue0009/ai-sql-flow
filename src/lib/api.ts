@@ -261,6 +261,121 @@ export const api = {
         disk: { usage_percent: number; status: string };
       };
     }>('/monitoring/system'),
+    
+    getApplicationMetrics: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/monitoring/application'),
+    
+    getServiceStatus: () => apiRequest<{
+      status: string;
+      data: {
+        services: Record<string, { status: string; uptime: string; response: string }>;
+        overall_health: string;
+      };
+    }>('/monitoring/services'),
+    
+    getActiveAlerts: () => apiRequest<{
+      status: string;
+      data: {
+        alerts: Array<{
+          id: string;
+          severity: string;
+          title: string;
+          description: string;
+          timestamp: string;
+          affected: string;
+        }>;
+        total_count: number;
+        critical_count: number;
+        warning_count: number;
+        info_count: number;
+      };
+    }>('/monitoring/alerts'),
+    
+    acknowledgeAlert: (alertId: string) => apiRequest<{
+      status: string;
+      message: string;
+    }>(`/monitoring/alerts/${alertId}/acknowledge`, {
+      method: 'POST',
+    }),
+    
+    getRealtimeMetrics: () => apiRequest<{
+      status: string;
+      data: {
+        timestamp: number;
+        summary: {
+          active_processes: number;
+          success_rate: number;
+          avg_response_time: number;
+          error_rate: number;
+          cpu_usage: number;
+          memory_usage: number;
+          active_alerts: number;
+        };
+        trends: Record<string, string>;
+        service_count: {
+          operational: number;
+          degraded: number;
+          error: number;
+        };
+      };
+    }>('/monitoring/metrics/realtime'),
+  },
+  
+  // Settings endpoints
+  settings: {
+    getDatabaseConnections: () => apiRequest<{
+      status: string;
+      data: {
+        connections: Array<{
+          id: number;
+          name: string;
+          type: string;
+          host: string;
+          status: string;
+          lastTest: string;
+        }>;
+        total_count: number;
+      };
+    }>('/settings/database-connections'),
+    
+    testConnection: (connectionId: number) => apiRequest<{
+      status: string;
+      data: any;
+    }>(`/settings/database-connections/${connectionId}/test`, {
+      method: 'POST',
+    }),
+    
+    getUserManagement: () => apiRequest<{
+      status: string;
+      data: {
+        users: Array<{
+          id: number;
+          name: string;
+          email: string;
+          role: string;
+          status: string;
+          lastActive: string;
+        }>;
+        total_count: number;
+      };
+    }>('/settings/user-management'),
+    
+    getAIConfiguration: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/settings/ai-configuration'),
+    
+    getIntegrations: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/settings/integrations'),
+    
+    getSecuritySettings: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/settings/security'),
   },
 };
 

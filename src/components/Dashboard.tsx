@@ -54,36 +54,6 @@ const metrics = [
   }
 ];
 
-const recentActivities = [
-  {
-    id: 1,
-    type: "migration",
-    title: "PostgreSQL to Snowflake migration completed",
-    timestamp: "2 minutes ago",
-    status: "success"
-  },
-  {
-    id: 2,
-    type: "quality",
-    title: "Data quality check started for customer_data table",
-    timestamp: "15 minutes ago", 
-    status: "running"
-  },
-  {
-    id: 3,
-    type: "alert",
-    title: "Schema validation warning in orders table",
-    timestamp: "1 hour ago",
-    status: "warning"
-  },
-  {
-    id: 4,
-    type: "migration",
-    title: "MySQL migration queued for processing",
-    timestamp: "2 hours ago",
-    status: "pending"
-  }
-];
 
 const quickActions = [
   {
@@ -124,6 +94,13 @@ export default function Dashboard() {
     refetchInterval: 10000, // Refresh every 10 seconds
   });
 
+  // Fetch recent uploads for activity
+  const { data: recentUploadsData } = useQuery({
+    queryKey: ['recent-uploads'],
+    queryFn: api.dataQuality.getRecentUploads,
+    refetchInterval: 30000,
+  });
+
   // Update metrics with API data when available
   const updatedMetrics = dashboardData?.data?.summary ? [
     {
@@ -159,6 +136,44 @@ export default function Dashboard() {
       color: "text-success"
     }
   ] : metrics;
+
+  // Map recent uploads to activities
+  const recentActivities = recentUploadsData?.data ? recentUploadsData.data.slice(0, 4).map((upload: any, index: number) => ({
+    id: upload.id,
+    type: upload.status === 'completed' ? 'quality' : upload.status === 'failed' ? 'alert' : 'migration',
+    title: `Data quality ${upload.status} for ${upload.name}`,
+    timestamp: upload.date,
+    status: upload.status
+  })) : [
+    {
+      id: 1,
+      type: "migration",
+      title: "PostgreSQL to Snowflake migration completed",
+      timestamp: "2 minutes ago",
+      status: "success"
+    },
+    {
+      id: 2,
+      type: "quality",
+      title: "Data quality check started for customer_data table",
+      timestamp: "15 minutes ago", 
+      status: "running"
+    },
+    {
+      id: 3,
+      type: "alert",
+      title: "Schema validation warning in orders table",
+      timestamp: "1 hour ago",
+      status: "warning"
+    },
+    {
+      id: 4,
+      type: "migration",
+      title: "MySQL migration queued for processing",
+      timestamp: "2 hours ago",
+      status: "pending"
+    }
+  ];
 
   if (error) {
     return (

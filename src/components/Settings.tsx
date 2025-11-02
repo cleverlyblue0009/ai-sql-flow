@@ -17,69 +17,117 @@ import {
   Edit,
   Trash2
 } from "lucide-react";
-
-const dbConnections = [
-  { 
-    id: 1, 
-    name: "Production MySQL", 
-    type: "MySQL", 
-    host: "prod-mysql.company.com", 
-    status: "connected",
-    lastTest: "2 minutes ago"
-  },
-  { 
-    id: 2, 
-    name: "Warehouse Snowflake", 
-    type: "Snowflake", 
-    host: "company.snowflakecomputing.com", 
-    status: "connected",
-    lastTest: "5 minutes ago"
-  },
-  { 
-    id: 3, 
-    name: "Analytics Redshift", 
-    type: "Redshift", 
-    host: "analytics.redshift.amazonaws.com", 
-    status: "error",
-    lastTest: "1 hour ago"
-  }
-];
-
-const teamMembers = [
-  { 
-    id: 1, 
-    name: "Sarah Chen", 
-    email: "sarah.chen@company.com", 
-    role: "Admin", 
-    status: "active",
-    lastActive: "Online"
-  },
-  { 
-    id: 2, 
-    name: "Michael Rodriguez", 
-    email: "m.rodriguez@company.com", 
-    role: "Data Engineer", 
-    status: "active",
-    lastActive: "2 hours ago"
-  },
-  { 
-    id: 3, 
-    name: "Lisa Park", 
-    email: "lisa.park@company.com", 
-    role: "Database Admin", 
-    status: "inactive",
-    lastActive: "1 week ago"
-  }
-];
-
-const apiIntegrations = [
-  { name: "Slack", description: "Real-time notifications", status: "connected", icon: "💬" },
-  { name: "Email (SMTP)", description: "Alert delivery", status: "connected", icon: "📧" },
-  { name: "Webhook", description: "Custom integrations", status: "configured", icon: "🔗" },
-  { name: "Jira", description: "Issue tracking", status: "disconnected", icon: "📋" }
-];
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function Settings() {
+  // Fetch database connections
+  const { data: connectionsData, isLoading: isLoadingConnections } = useQuery({
+    queryKey: ['settings-connections'],
+    queryFn: api.settings.getDatabaseConnections,
+    retry: false,
+  });
+
+  // Fetch user management data
+  const { data: usersData, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ['settings-users'],
+    queryFn: api.settings.getUserManagement,
+    retry: false,
+  });
+
+  // Fetch AI configuration
+  const { data: aiConfigData, isLoading: isLoadingAI } = useQuery({
+    queryKey: ['settings-ai'],
+    queryFn: api.settings.getAIConfiguration,
+    retry: false,
+  });
+
+  // Fetch integrations
+  const { data: integrationsData, isLoading: isLoadingIntegrations } = useQuery({
+    queryKey: ['settings-integrations'],
+    queryFn: api.settings.getIntegrations,
+    retry: false,
+  });
+
+  // Fetch security settings
+  const { data: securityData, isLoading: isLoadingSecurity } = useQuery({
+    queryKey: ['settings-security'],
+    queryFn: api.settings.getSecuritySettings,
+    retry: false,
+  });
+
+  const handleTestConnection = async (connectionId: number) => {
+    try {
+      await api.settings.testConnection(connectionId);
+      alert('Connection test successful!');
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      alert('Connection test failed. Please check your settings.');
+    }
+  };
+
+  // Use real data or fallback to mock data
+  const dbConnections = connectionsData?.data?.connections || [
+    { 
+      id: 1, 
+      name: "Production MySQL", 
+      type: "MySQL", 
+      host: "prod-mysql.company.com", 
+      status: "connected",
+      lastTest: "2 minutes ago"
+    },
+    { 
+      id: 2, 
+      name: "Warehouse Snowflake", 
+      type: "Snowflake", 
+      host: "company.snowflakecomputing.com", 
+      status: "connected",
+      lastTest: "5 minutes ago"
+    },
+    { 
+      id: 3, 
+      name: "Analytics Redshift", 
+      type: "Redshift", 
+      host: "analytics.redshift.amazonaws.com", 
+      status: "error",
+      lastTest: "1 hour ago"
+    }
+  ];
+
+  const teamMembers = usersData?.data?.users || [
+    { 
+      id: 1, 
+      name: "Sarah Chen", 
+      email: "sarah.chen@company.com", 
+      role: "Admin", 
+      status: "active",
+      lastActive: "Online"
+    },
+    { 
+      id: 2, 
+      name: "Michael Rodriguez", 
+      email: "m.rodriguez@company.com", 
+      role: "Data Engineer", 
+      status: "active",
+      lastActive: "2 hours ago"
+    },
+    { 
+      id: 3, 
+      name: "Lisa Park", 
+      email: "lisa.park@company.com", 
+      role: "Database Admin", 
+      status: "inactive",
+      lastActive: "1 week ago"
+    }
+  ];
+
+  const apiIntegrations = integrationsData?.data?.integrations || [
+    { name: "Slack", description: "Real-time notifications", status: "connected", icon: "💬" },
+    { name: "Email (SMTP)", description: "Alert delivery", status: "connected", icon: "📧" },
+    { name: "Webhook", description: "Custom integrations", status: "configured", icon: "🔗" },
+    { name: "Jira", description: "Issue tracking", status: "disconnected", icon: "📋" }
+  ];
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -144,7 +192,7 @@ export default function Settings() {
                       <Button variant="outline" size="sm">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleTestConnection(connection.id)}>
                         Test Connection
                       </Button>
                     </div>

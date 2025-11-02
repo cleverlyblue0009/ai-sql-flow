@@ -184,7 +184,6 @@ export default function SQLMigration() {
     subscribeToMigration,
     unsubscribeFromMigration
   } = useMigrationProgress({
-    token: backendStatus === 'online' ? (firebaseToken || undefined) : undefined, // Only connect when backend is online
     onProgress: (progress) => {
       console.log('Migration progress:', progress);
       setMigrationProgress(progress.progress_percentage);
