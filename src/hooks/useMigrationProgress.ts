@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface MigrationProgressData {
   migration_id: string;
@@ -16,12 +15,10 @@ interface MigrationProgressHookParams {
 }
 
 export const useMigrationProgress = (params: MigrationProgressHookParams = {}) => {
-  const { currentUser } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [progressData, setProgressData] = useState<MigrationProgressData | null>(null);
   const [errors, setErrors] = useState<any[]>([]);
-  const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -31,31 +28,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
 
   const { onProgress, onStatusChange, onError } = params;
 
-  // Get Firebase ID token when user changes
-  useEffect(() => {
-    const getToken = async () => {
-      if (currentUser) {
-        try {
-          const token = await currentUser.getIdToken();
-          setFirebaseToken(token);
-        } catch (error) {
-          console.error('Failed to get Firebase token:', error);
-          setFirebaseToken(null);
-        }
-      } else {
-        setFirebaseToken(null);
-      }
-    };
-
-    getToken();
-  }, [currentUser]);
-
   const connect = useCallback(() => {
-    if (!firebaseToken) {
-      // Don't connect without authentication
-      return;
-    }
-
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return; // Already connected
     }
@@ -63,7 +36,8 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     setConnectionState('connecting');
     
     try {
-      const wsUrl = `ws://localhost:8000/ws/migration?token=${encodeURIComponent(firebaseToken)}`;
+      // Connect without authentication
+      const wsUrl = `ws://localhost:8000/ws/migration`;
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
@@ -135,9 +109,9 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
         setIsConnected(false);
         setConnectionState('disconnected');
         
-        // Only attempt to reconnect if it's not a normal closure and we have a Firebase token
+        // Only attempt to reconnect if it's not a normal closure
         // Reduce spam by adding exponential backoff and limiting reconnection attempts
-        if (event.code !== 1000 && event.code !== 1001 && firebaseToken) {
+        if (event.code !== 1000 && event.code !== 1001) {
           const reconnectDelay = Math.min(30000, 5000 * Math.pow(2, errors.length)); // Max 30s delay
           if (errors.length < 5) { // Limit reconnection attempts
             reconnectTimeoutRef.current = setTimeout(() => {
@@ -171,7 +145,7 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
       setConnectionState('disconnected');
       onError?.(error);
     }
-  }, [firebaseToken, onProgress, onStatusChange, onError, errors.length]);
+  }, [onProgress, onStatusChange, onError, errors.length]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -213,18 +187,14 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     }
   }, []);
 
-  // Connect when Firebase token is available
+  // Auto-connect on mount
   useEffect(() => {
-    if (firebaseToken) {
-      connect();
-    } else {
-      disconnect();
-    }
+    connect();
 
     return () => {
       disconnect();
     };
-  }, [firebaseToken, connect, disconnect]);
+  }, [connect, disconnect]);
 
   return {
     isConnected,

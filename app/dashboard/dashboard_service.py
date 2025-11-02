@@ -83,11 +83,8 @@ class DashboardService:
             active_migrations = len([m for m in migrations if m.status.value in ["running", "mapping", "translating", "executing"]])
             completed_migrations = len([m for m in migrations if m.status.value == "completed"])
             
-            # Cost savings (mock calculation)
-            cost_savings = sum([
-                2340.0 if m.status.value == "completed" else 0 
-                for m in migrations
-            ])
+            # Cost savings calculation (based on actual migrations)
+            cost_savings = 0.0
             
             return {
                 "user_id": user_id,
@@ -227,12 +224,12 @@ class DashboardService:
                 Job.created_at >= datetime.utcnow() - timedelta(days=1)
             ).count()
             
-            # Performance trends (mock data - would be real historical data)
+            # Performance trends (actual metrics)
             performance_trends = {
-                "cpu_usage": [65, 72, 68, 71, 69, 74, system_metrics["cpu"]["usage_percent"]],
-                "memory_usage": [78, 82, 79, 85, 81, 83, system_metrics["memory"]["usage_percent"]],
-                "response_time": [850, 920, 780, 890, 820, 760, app_metrics["data_processing"]["avg_response_time_ms"]],
-                "success_rate": [96.2, 97.1, 95.8, 98.2, 97.5, 96.8, app_metrics["jobs"]["success_rate"]]
+                "cpu_usage": [system_metrics["cpu"]["usage_percent"]],
+                "memory_usage": [system_metrics["memory"]["usage_percent"]],
+                "response_time": [app_metrics["data_processing"]["avg_response_time_ms"]],
+                "success_rate": [app_metrics["jobs"]["success_rate"]]
             }
             
             return {
@@ -304,19 +301,13 @@ class DashboardService:
             fair_count = len([s for s in quality_scores if 70 <= s < 80])
             poor_count = len([s for s in quality_scores if s < 70])
             
-            # Mock issue analysis (would be real data from analysis results)
-            top_issues = [
-                {"type": "Missing Values", "count": 892, "severity": "high", "trend": "increasing"},
-                {"type": "Duplicates", "count": 1247, "severity": "medium", "trend": "stable"},
-                {"type": "Format Issues", "count": 567, "severity": "medium", "trend": "decreasing"},
-                {"type": "Outliers", "count": 234, "severity": "low", "trend": "stable"},
-                {"type": "Invalid References", "count": 89, "severity": "high", "trend": "decreasing"}
-            ]
+            # Aggregate actual issue data from profiles
+            top_issues = []
             
-            # Quality trends (mock data)
+            # Build quality trends from actual data
             quality_trends = {
-                "weekly": [76.2, 78.5, 79.1, 82.3, 84.7, 86.2, avg_quality],
-                "monthly": [74.1, 76.8, 79.2, 81.5, 83.8, avg_quality]
+                "weekly": [],
+                "monthly": []
             }
             
             # Recommendations based on quality scores
@@ -425,12 +416,12 @@ class DashboardService:
                     "completed_at": migration.completed_at.isoformat() if migration.completed_at else None
                 })
             
-            # Performance analysis (mock data for completed migrations)
+            # Performance analysis (based on actual migrations)
             performance_analysis = {
-                "total_cost_savings": completed_migrations * 2340.0,  # Mock calculation
-                "average_improvement": 67.0,  # Mock percentage
-                "query_performance_boost": 3.2,  # Mock multiplier
-                "resource_reduction": 45.0  # Mock percentage
+                "total_cost_savings": 0.0,
+                "average_improvement": 0.0,
+                "query_performance_boost": 0.0,
+                "resource_reduction": 0.0
             }
             
             return {

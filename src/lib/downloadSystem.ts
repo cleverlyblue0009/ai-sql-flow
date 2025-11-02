@@ -172,17 +172,17 @@ ${batchResult.globalWarnings.map(warning => `- ⚠️ ${warning}`).join('\n')}
   ): FileDownload[] {
     const downloads: FileDownload[] = [];
 
-    // Add translated SQL files
+    // Add translated SQL files (always included)
     batchResult.files.forEach(file => {
       const translatedFile: FileDownload = {
-        name: `translated_${file.name}`,
+        name: `${file.name}`, // Just use the original filename for translated SQL
         content: file.result.translatedContent,
         type: 'sql',
         size: file.result.translatedContent.length
       };
       downloads.push(translatedFile);
 
-      // Add original files if requested
+      // Add original files only if requested
       if (options.includeOriginal) {
         const originalFile = originalFiles.find(f => f.id === file.id);
         if (originalFile) {
@@ -197,7 +197,7 @@ ${batchResult.globalWarnings.map(warning => `- ⚠️ ${warning}`).join('\n')}
       }
     });
 
-    // Add migration report if requested
+    // Add migration report only if requested
     if (options.includeReport) {
       const report = this.generateMigrationReport(batchResult, sourceDialect, targetDialect, jobName);
       const reportFile: FileDownload = {
@@ -209,7 +209,7 @@ ${batchResult.globalWarnings.map(warning => `- ⚠️ ${warning}`).join('\n')}
       downloads.push(reportFile);
     }
 
-    // Add metadata if requested
+    // Add metadata only if requested
     if (options.includeMetadata) {
       const metadata = this.generateMetadata(batchResult, sourceDialect, targetDialect, options);
       const metadataFile: FileDownload = {
@@ -221,15 +221,7 @@ ${batchResult.globalWarnings.map(warning => `- ⚠️ ${warning}`).join('\n')}
       downloads.push(metadataFile);
     }
 
-    // Add execution script
-    const executionScript = this.generateExecutionScript(batchResult, targetDialect);
-    const scriptFile: FileDownload = {
-      name: `execute_migration_${targetDialect}.sql`,
-      content: executionScript,
-      type: 'sql',
-      size: executionScript.length
-    };
-    downloads.push(scriptFile);
+    // Don't add execution script by default - only translated SQL files
 
     return downloads;
   }
