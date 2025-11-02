@@ -21,6 +21,7 @@ import {
   Play, 
   CheckCircle, 
   Clock,
+  AlertCircle,
   AlertTriangle,
   GitBranch,
   Settings,
