@@ -77,6 +77,27 @@ export const api = {
     }>('/dashboard/comprehensive-overview'),
   },
   
+  // SQL Migration endpoints
+  migration: {
+    detectDialect: async (sqlContent: string) => {
+      const token = await getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/migration/detect-dialect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: new URLSearchParams({ sql_content: sqlContent }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to detect dialect: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    },
+  },
+  
   // Data Quality endpoints
   dataQuality: {
     getRecentUploads: () => apiRequest<{

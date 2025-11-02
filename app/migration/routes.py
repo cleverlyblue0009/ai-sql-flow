@@ -15,6 +15,7 @@ from .schemas import (
 )
 from .services import MigrationService, SQLTranslationService, ConnectionService
 from .enterprise_features import batch_migration_manager, export_manager, history_manager
+from .ai_translator import AITranslationEngine
 from ..tasks.migration_tasks import start_migration_task_wrapper, translate_sql_task_wrapper, analyze_sql_schema_task_wrapper
 from ..utils.audit import log_migration_action
 
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 migration_service = MigrationService()
 translation_service = SQLTranslationService()
 connection_service = ConnectionService()
+ai_engine = AITranslationEngine()
 
 
 @router.get("/databases", response_model=DatabaseListResponse)
@@ -506,6 +508,43 @@ async def list_migrations(
 
 
 # Enterprise Features Endpoints
+
+@router.post("/detect-dialect")
+async def detect_sql_dialect(
+    sql_content: str,
+    current_user: User = Depends(get_current_verified_user)
+):
+    """Detect SQL dialect using Gemini AI"""
+    
+    try:
+        if not sql_content or not sql_content.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="SQL content cannot be empty"
+            )
+        
+        # Use AI engine to detect dialect
+        result = await ai_engine.detect_sql_dialect(sql_content)
+        
+        logger.info(f"Detected SQL dialect: {result['dialect']} with {result['confidence']}% confidence (method: {result['method']})")
+        
+        return {
+            "success": True,
+            "dialect": result["dialect"],
+            "confidence": result["confidence"],
+            "features": result["features"],
+            "explanation": result["explanation"],
+            "alternative_dialects": result.get("alternative_dialects", []),
+            "detection_method": result["method"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error detecting SQL dialect: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to detect SQL dialect: {str(e)}"
+        )
+
 
 @router.post("/analyze-sql")
 async def analyze_sql_schema(

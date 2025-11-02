@@ -141,6 +141,203 @@ class AITranslationEngine:
             }
         }
     
+    async def detect_sql_dialect(self, sql_content: str) -> Dict[str, Any]:
+        """
+        Detect SQL dialect using Gemini AI
+        Returns: {dialect: str, confidence: float, features: List[str], explanation: str}
+        """
+        
+        if not self.use_api or not self.gemini_model:
+            # Fallback to basic pattern matching if Gemini unavailable
+            return self._detect_dialect_fallback(sql_content)
+        
+        try:
+            prompt = f"""You are an expert SQL database engineer. Analyze the following SQL code and detect which SQL dialect it uses.
+
+Supported dialects: MySQL, PostgreSQL, SQL Server (MSSQL), Oracle, Snowflake, Redshift
+
+Analyze the SQL for dialect-specific features such as:
+- Keywords (AUTO_INCREMENT, SERIAL, IDENTITY, etc.)
+- Data types (TINYINT, BIGINT, VARCHAR2, NVARCHAR, VARIANT, etc.)
+- Functions (NOW(), GETDATE(), CURRENT_TIMESTAMP, DATE_FORMAT, etc.)
+- Syntax patterns (backticks, square brackets, double colons, etc.)
+- Operators and clauses (LIMIT, TOP, RETURNING, etc.)
+
+SQL Code:
+```sql
+{sql_content[:5000]}
+```
+
+Respond in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
+{{
+  "dialect": "mysql|postgresql|mssql|oracle|snowflake|redshift",
+  "confidence": 0.0-1.0,
+  "features": ["list", "of", "detected", "features"],
+  "explanation": "Brief explanation of why this dialect was detected",
+  "alternative_dialects": ["possible", "alternatives"]
+}}"""
+
+            loop = asyncio.get_event_loop()
+            
+            def call_gemini():
+                generation_config = {
+                    "temperature": 0.2,  # Low temperature for consistent detection
+                    "top_p": 0.8,
+                    "top_k": 40,
+                    "max_output_tokens": 1024,
+                }
+                
+                response = self.gemini_model.generate_content(
+                    prompt,
+                    generation_config=generation_config,
+                )
+                return response.text
+            
+            content = await loop.run_in_executor(self.executor, call_gemini)
+            
+            # Clean the response (remove markdown code blocks if present)
+            cleaned_content = content.strip()
+            if cleaned_content.startswith("```"):
+                lines = cleaned_content.split("\n")
+                # Find the start and end of JSON
+                start_idx = 0
+                end_idx = len(lines)
+                for i, line in enumerate(lines):
+                    if line.strip().startswith("{"):
+                        start_idx = i
+                        break
+                for i in range(len(lines) - 1, -1, -1):
+                    if lines[i].strip().endswith("}"):
+                        end_idx = i + 1
+                        break
+                cleaned_content = "\n".join(lines[start_idx:end_idx])
+            
+            # Parse JSON response
+            result = json.loads(cleaned_content)
+            
+            # Normalize dialect names
+            dialect_map = {
+                "mysql": "mysql",
+                "postgresql": "postgresql",
+                "postgres": "postgresql",
+                "mssql": "mssql",
+                "sqlserver": "mssql",
+                "sql server": "mssql",
+                "oracle": "oracle",
+                "snowflake": "snowflake",
+                "redshift": "redshift"
+            }
+            
+            detected_dialect = result.get("dialect", "mysql").lower()
+            normalized_dialect = dialect_map.get(detected_dialect, "mysql")
+            
+            confidence = float(result.get("confidence", 0.7))
+            confidence_percentage = int(confidence * 100)
+            
+            return {
+                "dialect": normalized_dialect,
+                "confidence": max(confidence_percentage, 30),  # Minimum 30% confidence
+                "features": result.get("features", [])[:15],  # Limit features
+                "explanation": result.get("explanation", "Detected using AI analysis"),
+                "alternative_dialects": result.get("alternative_dialects", [])[:3],
+                "method": "gemini_ai"
+            }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Gemini response as JSON: {str(e)}")
+            logger.debug(f"Response content: {content[:500]}")
+            return self._detect_dialect_fallback(sql_content)
+        except Exception as e:
+            logger.error(f"Error detecting dialect with Gemini: {str(e)}")
+            return self._detect_dialect_fallback(sql_content)
+    
+    def _detect_dialect_fallback(self, sql_content: str) -> Dict[str, Any]:
+        """Fallback basic pattern matching for dialect detection"""
+        upper_content = sql_content.upper()
+        scores = {
+            "mysql": 0,
+            "postgresql": 0,
+            "mssql": 0,
+            "oracle": 0,
+            "snowflake": 0,
+            "redshift": 0
+        }
+        features = []
+        
+        # MySQL indicators
+        if "AUTO_INCREMENT" in upper_content:
+            scores["mysql"] += 10
+            features.append("AUTO_INCREMENT")
+        if "`" in sql_content:
+            scores["mysql"] += 5
+            features.append("backtick quotes")
+        if "ENGINE=INNODB" in upper_content or "ENGINE=MYISAM" in upper_content:
+            scores["mysql"] += 10
+            features.append("ENGINE clause")
+        
+        # PostgreSQL indicators
+        if "SERIAL" in upper_content or "BIGSERIAL" in upper_content:
+            scores["postgresql"] += 10
+            features.append("SERIAL type")
+        if "::" in sql_content:
+            scores["postgresql"] += 8
+            features.append("cast operator (::)")
+        if "RETURNING" in upper_content:
+            scores["postgresql"] += 7
+            features.append("RETURNING clause")
+        
+        # SQL Server indicators
+        if "IDENTITY(" in upper_content:
+            scores["mssql"] += 10
+            features.append("IDENTITY")
+        if "[" in sql_content and "]" in sql_content:
+            scores["mssql"] += 5
+            features.append("square brackets")
+        if "NVARCHAR" in upper_content:
+            scores["mssql"] += 7
+            features.append("NVARCHAR type")
+        
+        # Oracle indicators
+        if "VARCHAR2" in upper_content:
+            scores["oracle"] += 10
+            features.append("VARCHAR2 type")
+        if "DUAL" in upper_content:
+            scores["oracle"] += 8
+            features.append("DUAL table")
+        if "ROWNUM" in upper_content:
+            scores["oracle"] += 7
+            features.append("ROWNUM")
+        
+        # Snowflake indicators
+        if "VARIANT" in upper_content:
+            scores["snowflake"] += 10
+            features.append("VARIANT type")
+        if "QUALIFY" in upper_content:
+            scores["snowflake"] += 8
+            features.append("QUALIFY clause")
+        
+        # Find best match
+        best_dialect = max(scores.keys(), key=lambda k: scores[k])
+        best_score = scores[best_dialect]
+        total_score = sum(scores.values())
+        
+        # Calculate confidence
+        if total_score == 0:
+            confidence = 40  # Default confidence for generic SQL
+            best_dialect = "mysql"  # Default to MySQL
+        else:
+            confidence = min(int((best_score / total_score) * 100), 95)
+            confidence = max(confidence, 35)  # Minimum 35% confidence
+        
+        return {
+            "dialect": best_dialect,
+            "confidence": confidence,
+            "features": features[:10],
+            "explanation": "Detected using pattern matching (Gemini AI unavailable)",
+            "alternative_dialects": [],
+            "method": "pattern_matching"
+        }
+    
     async def translate_sql_advanced(
         self,
         source_sql: str,

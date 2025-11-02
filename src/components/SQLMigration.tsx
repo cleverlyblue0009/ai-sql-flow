@@ -657,10 +657,10 @@ export default function SQLMigration() {
                         })}
                       </div>
                       {sqlFiles.some(f => f.confidence < 50) && (
-                        <Alert className="mt-4">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
-                            Some files have low dialect detection confidence. Review the results carefully before migration.
+                        <Alert className="mt-4 border-blue-200 bg-blue-50">
+                          <AlertTriangle className="h-4 w-4 text-blue-600" />
+                          <AlertDescription className="text-blue-800">
+                            <strong>Note:</strong> Dialect detection is based on pattern matching. You can manually select the source dialect if needed, or proceed with the detected dialect.
                           </AlertDescription>
                         </Alert>
                       )}
