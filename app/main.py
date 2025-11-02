@@ -13,7 +13,6 @@ import structlog
 try:
     from .database.config import create_tables, settings, get_db
     from .database.models import *  # Import all models to ensure they're registered
-    from .auth.dependencies import get_current_verified_user
 except ImportError as e:
     print(f"Database import error: {e}")
     # Create mock settings for development
@@ -27,16 +26,8 @@ except ImportError as e:
         pass
     def get_db():
         pass
-    def get_current_verified_user():
-        pass
 
-# Import routers with error handling
-try:
-    from .auth.routes import router as auth_router
-except ImportError:
-    print("Auth router not found, creating placeholder")
-    from fastapi import APIRouter
-    auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
+# Auth router removed - no authentication required
 
 try:
     from .data_quality.routes import router as data_quality_router
@@ -249,7 +240,6 @@ async def health_check():
         "version": APP_VERSION,
         "timestamp": time.time(),
         "services": {
-            "authentication": "operational",
             "data_quality": "operational",
             "background_tasks": "operational"
         }
@@ -265,11 +255,6 @@ async def system_info():
         "version": APP_VERSION,
         "description": "AI-Powered Data Cleaning and SQL Migration Platform",
         "capabilities": {
-            "authentication": {
-                "firebase_auth": True,
-                "oauth2": True,
-                "role_based_access": True
-            },
             "data_quality": {
                 "ai_analysis": True,
                 "duplicate_detection": True,
@@ -350,27 +335,22 @@ LIMIT 100;""",
     }
 
 # Include routers with API prefix
-app.include_router(auth_router)
 app.include_router(data_quality_router)
 app.include_router(dashboard_router)
 app.include_router(migration_router)
 
-# Add jobs endpoint to main API
+# Add jobs endpoint to main API (no authentication required)
 @app.get("/api/jobs/{job_id}/status")
 async def get_job_status(
     job_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get job status and results"""
     from .database import Job
     
     try:
-        # Get job
-        job = db.query(Job).filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.id
-        ).first()
+        # Get job (no user filtering needed without auth)
+        job = db.query(Job).filter(Job.job_id == job_id).first()
         
         if not job:
             raise HTTPException(
@@ -421,7 +401,7 @@ async def not_found_handler(request: Request, exc):
             "error": "Not Found",
             "message": f"The requested resource was not found: {request.url.path}",
             "available_endpoints": [
-                "/docs", "/health", "/info", "/auth/*", "/data-quality/*"
+                "/docs", "/health", "/info", "/data-quality/*", "/migration/*"
             ]
         }
     )
@@ -453,8 +433,9 @@ async def root():
         "health": "/health",
         "info": "/info",
         "endpoints": {
-            "authentication": "/auth",
-            "data_quality": "/data-quality"
+            "data_quality": "/data-quality",
+            "sql_migration": "/migration",
+            "dashboard": "/dashboard"
         }
     }
 

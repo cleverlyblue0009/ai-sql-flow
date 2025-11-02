@@ -93,15 +93,11 @@ export default function SQLMigration() {
   const [batchResults, setBatchResults] = useState<BatchTranslationResult | null>(null);
   const [translationInProgress, setTranslationInProgress] = useState(false);
   const [performanceData, setPerformanceData] = useState(null);
-  const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   
   // Refs for auto-scrolling
   const sourceTargetRef = useRef<HTMLDivElement>(null);
   const translationRef = useRef<HTMLDivElement>(null);
-  
-  // Auth context
-  const { currentUser } = useAuth();
 
   // Check backend status
   useEffect(() => {
@@ -131,51 +127,7 @@ export default function SQLMigration() {
     };
   }, []);
 
-  // Get Firebase token for WebSocket authentication with automatic refresh
-  useEffect(() => {
-    const getFirebaseToken = async (forceRefresh = false) => {
-      // Safety check: ensure currentUser exists and has getIdToken method
-      if (currentUser && typeof currentUser.getIdToken === 'function') {
-        try {
-          const token = await currentUser.getIdToken(forceRefresh);
-          setFirebaseToken(token);
-          console.log('Firebase token updated:', forceRefresh ? '(forced refresh)' : '(cached)');
-        } catch (error) {
-          console.error('Error getting Firebase token:', error);
-          // Don't set to null immediately, keep existing token if available
-          if (!firebaseToken) {
-            setFirebaseToken(null);
-          }
-        }
-      } else {
-        // User not authenticated, clear token
-        if (firebaseToken) {
-          setFirebaseToken(null);
-        }
-      }
-    };
-
-    // Get initial token
-    getFirebaseToken().catch(err => {
-      console.error('Failed to get initial Firebase token:', err);
-    });
-
-    // Set up automatic token refresh every 50 minutes (tokens expire in 1 hour)
-    const tokenRefreshInterval = setInterval(() => {
-      if (currentUser && typeof currentUser.getIdToken === 'function') {
-        console.log('Refreshing Firebase token automatically...');
-        getFirebaseToken(true).catch(err => {
-          console.error('Failed to refresh Firebase token:', err);
-        });
-      }
-    }, 50 * 60 * 1000); // 50 minutes
-
-    return () => {
-      clearInterval(tokenRefreshInterval);
-    };
-  }, [currentUser, firebaseToken]);
-
-  // WebSocket integration for real-time progress (only when backend is online)
+  // WebSocket integration for real-time progress (only when backend is online, no auth required)
   const {
     isConnected,
     connectionState,
@@ -533,7 +485,7 @@ export default function SQLMigration() {
       {/* Header */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold">SQL Migration Workspace</h1>
+          <h1 className="text-3xl font-bold">SQL Converter</h1>
           
           {/* Backend and WebSocket Connection Status */}
           <div className="flex items-center space-x-2">
@@ -563,15 +515,15 @@ export default function SQLMigration() {
           </div>
         </div>
         <p className="text-muted-foreground">
-          Seamlessly migrate and translate SQL across different database platforms
+          Convert SQL code between different databases
         </p>
         
-        {/* Show active migration info */}
+        {/* Show active conversion info */}
         {activeMigrationId && (
           <Alert className="mt-4">
             <Clock className="h-4 w-4" />
             <AlertDescription>
-              Active migration: {activeMigrationId} - Progress: {Math.round(migrationProgress)}%
+              Converting: {activeMigrationId} - Progress: {Math.round(migrationProgress)}%
             </AlertDescription>
           </Alert>
         )}
@@ -581,23 +533,23 @@ export default function SQLMigration() {
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="upload">
             <Upload className="h-4 w-4 mr-1" />
-            Upload & Analyze
+            Upload Files
           </TabsTrigger>
           <TabsTrigger value="setup">
             <Settings className="h-4 w-4 mr-1" />
-            Configure Migration
+            Setup
           </TabsTrigger>
           <TabsTrigger value="batch">
             <Clock className="h-4 w-4 mr-1" />
-            Migration Progress
+            Progress
           </TabsTrigger>
           <TabsTrigger value="results">
             <Download className="h-4 w-4 mr-1" />
-            Results & Download
+            Download
           </TabsTrigger>
           <TabsTrigger value="performance">
             <Zap className="h-4 w-4 mr-1" />
-            Performance
+            Stats
           </TabsTrigger>
         </TabsList>
 
@@ -616,10 +568,10 @@ export default function SQLMigration() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Database className="h-5 w-5 mr-2" />
-                Target Database Selection
+                Choose Target Database
               </CardTitle>
               <CardDescription>
-                Select the target database platform for migration. Source dialects will be automatically detected from your SQL files.
+                Pick which database you want to convert to. We'll automatically detect what database your SQL is from.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -630,7 +582,7 @@ export default function SQLMigration() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg flex items-center">
                         <Code className="h-4 w-4 mr-2" />
-                        Detected Source Dialects
+                        Detected Databases
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -660,7 +612,7 @@ export default function SQLMigration() {
                         <Alert className="mt-4">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertDescription>
-                            Some files have low dialect detection confidence. Review the results carefully before migration.
+                            We're not fully confident about the database type for some files. Please review the results carefully.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -708,33 +660,33 @@ export default function SQLMigration() {
                     </CardContent>
                   </Card>
 
-                  {/* Migration Options */}
+                  {/* Conversion Options */}
                   <Card className="border border-border/50">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">Migration Options</CardTitle>
+                      <CardTitle className="text-lg">Conversion Options</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <input type="checkbox" id="opt-schema" className="rounded" defaultChecked />
-                        <label htmlFor="opt-schema" className="text-sm cursor-pointer">Migrate schema structure</label>
+                        <label htmlFor="opt-schema" className="text-sm cursor-pointer">Convert table structure</label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <input type="checkbox" id="opt-data" className="rounded" defaultChecked />
-                        <label htmlFor="opt-data" className="text-sm cursor-pointer">Migrate data content</label>
+                        <label htmlFor="opt-data" className="text-sm cursor-pointer">Convert data queries</label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <input type="checkbox" id="opt-constraints" className="rounded" defaultChecked />
-                        <label htmlFor="opt-constraints" className="text-sm cursor-pointer">Preserve constraints</label>
+                        <label htmlFor="opt-constraints" className="text-sm cursor-pointer">Keep constraints</label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <input type="checkbox" id="opt-optimize" className="rounded" defaultChecked />
-                        <label htmlFor="opt-optimize" className="text-sm cursor-pointer">Optimize for target platform</label>
+                        <label htmlFor="opt-optimize" className="text-sm cursor-pointer">Optimize code</label>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Migration Summary */}
+                {/* Conversion Summary */}
                 {sqlFiles.length > 0 && (
                   <Card className="border border-primary/20 bg-primary/5">
                     <CardContent className="pt-6">
@@ -751,7 +703,7 @@ export default function SQLMigration() {
                           <div className="flex items-center space-x-2">
                             <ArrowRight className="h-5 w-5 text-muted-foreground" />
                             <div>
-                              <p className="text-sm font-medium">Target</p>
+                              <p className="text-sm font-medium">Converting To</p>
                               <p className="text-lg font-bold">{targetDB.toUpperCase()}</p>
                             </div>
                           </div>
@@ -766,12 +718,12 @@ export default function SQLMigration() {
                           {translationInProgress ? (
                             <>
                               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              Processing Migration...
+                              Converting...
                             </>
                           ) : (
                             <>
                               <GitBranch className="h-4 w-4 mr-2" />
-                              Start Migration ({sqlFiles.length} files)
+                              Start Conversion ({sqlFiles.length} files)
                             </>
                           )}
                         </Button>
@@ -784,7 +736,7 @@ export default function SQLMigration() {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Upload SQL files in the "Upload Files" tab to begin migration setup.
+                      Upload SQL files in the "Upload Files" tab to get started.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -816,10 +768,10 @@ export default function SQLMigration() {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <CheckCircle className="h-5 w-5 mr-2 text-success" />
-                    Translation Results Summary
+                    Conversion Complete
                   </CardTitle>
                   <CardDescription>
-                    Migration completed successfully with {batchResults.files.length} files processed
+                    Successfully converted {batchResults.files.length} files
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -876,19 +828,19 @@ export default function SQLMigration() {
                             `${targetDB.toUpperCase()} Migration`,
                             {
                               includeOriginal: false,
-                              includeReport: true,
-                              includeMetadata: true,
+                              includeReport: false,
+                              includeMetadata: false,
                               format: 'zip',
                               compression: 'none'
                             }
                           );
                           DownloadSystem.downloadAsZip(
                             files,
-                            `${targetDB}_migration_${new Date().toISOString().split('T')[0]}`,
+                            `${targetDB}_translated_${new Date().toISOString().split('T')[0]}`,
                             {
                               includeOriginal: false,
-                              includeReport: true,
-                              includeMetadata: true,
+                              includeReport: false,
+                              includeMetadata: false,
                               format: 'zip',
                               compression: 'none'
                             }
@@ -896,7 +848,7 @@ export default function SQLMigration() {
                         }}
                       >
                         <Download className="h-4 w-4 mr-2" />
-                        Download Complete Package
+                        Download Translated Files
                       </Button>
                       
                       <Button 
