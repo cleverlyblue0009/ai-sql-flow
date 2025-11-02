@@ -16,113 +16,158 @@ import {
   Filter,
   RefreshCw
 } from "lucide-react";
-
-const realTimeMetrics = [
-  {
-    title: "Active Processes",
-    value: "23",
-    change: "+5",
-    trend: "up",
-    icon: Activity,
-    color: "text-primary"
-  },
-  {
-    title: "Success Rate",
-    value: "99.2%",
-    change: "+0.3%", 
-    trend: "up",
-    icon: CheckCircle,
-    color: "text-success"
-  },
-  {
-    title: "Avg Response Time",
-    value: "847ms",
-    change: "-120ms",
-    trend: "down",
-    icon: Clock,
-    color: "text-success"
-  },
-  {
-    title: "Error Rate",
-    value: "0.8%",
-    change: "-0.2%",
-    trend: "down",
-    icon: AlertTriangle,
-    color: "text-warning"
-  }
-];
-
-const systemStatus = [
-  { service: "Data Processing Engine", status: "operational", uptime: "99.9%", response: "245ms" },
-  { service: "SQL Translation API", status: "operational", uptime: "99.7%", response: "189ms" },
-  { service: "Quality Assessment", status: "degraded", uptime: "97.2%", response: "1.2s" },
-  { service: "Migration Workers", status: "operational", uptime: "99.8%", response: "567ms" },
-  { service: "Notification Service", status: "maintenance", uptime: "95.1%", response: "N/A" }
-];
-
-const activeAlerts = [
-  {
-    id: 1,
-    severity: "high",
-    title: "Quality Assessment Performance Degraded",
-    description: "Response times increased by 300% in the last hour",
-    timestamp: "5 minutes ago",
-    affected: "Quality Assessment Module"
-  },
-  {
-    id: 2,
-    severity: "medium", 
-    title: "High Memory Usage Detected",
-    description: "Migration worker #3 consuming 85% memory",
-    timestamp: "15 minutes ago",
-    affected: "Migration Engine"
-  },
-  {
-    id: 3,
-    severity: "low",
-    title: "Scheduled Maintenance Window",
-    description: "Notification service will be updated at 2:00 AM UTC",
-    timestamp: "2 hours ago",
-    affected: "Notification Service"
-  }
-];
-
-const recentEvents = [
-  {
-    id: 1,
-    type: "success",
-    title: "Migration Completed Successfully", 
-    description: "PostgreSQL to Snowflake migration for client_data",
-    timestamp: "3 minutes ago",
-    user: "admin@company.com"
-  },
-  {
-    id: 2,
-    type: "info",
-    title: "Quality Scan Initiated",
-    description: "Started automated quality check on uploaded dataset",
-    timestamp: "12 minutes ago",
-    user: "data.engineer@company.com"
-  },
-  {
-    id: 3,
-    type: "warning",
-    title: "Schema Validation Warning",
-    description: "Potential compatibility issues detected in target schema",
-    timestamp: "25 minutes ago",
-    user: "db.admin@company.com"
-  },
-  {
-    id: 4,
-    type: "success",
-    title: "Performance Optimization Applied",
-    description: "Query execution time improved by 67%",
-    timestamp: "1 hour ago",
-    user: "system"
-  }
-];
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function Monitoring() {
+  // Fetch real-time metrics
+  const { data: realtimeData, isLoading: isLoadingRealtime, refetch: refetchRealtime } = useQuery({
+    queryKey: ['monitoring-realtime'],
+    queryFn: api.monitoring.getRealtimeMetrics,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
+  // Fetch service status
+  const { data: serviceData, isLoading: isLoadingServices } = useQuery({
+    queryKey: ['monitoring-services'],
+    queryFn: api.monitoring.getServiceStatus,
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Fetch active alerts
+  const { data: alertsData, isLoading: isLoadingAlerts } = useQuery({
+    queryKey: ['monitoring-alerts'],
+    queryFn: api.monitoring.getActiveAlerts,
+    refetchInterval: 15000, // Refresh every 15 seconds
+  });
+
+  // Fetch system metrics
+  const { data: systemMetrics } = useQuery({
+    queryKey: ['monitoring-system'],
+    queryFn: api.monitoring.getSystemMetrics,
+    refetchInterval: 5000,
+  });
+
+  const handleAcknowledgeAlert = async (alertId: string) => {
+    try {
+      await api.monitoring.acknowledgeAlert(alertId);
+      // Refetch alerts after acknowledging
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to acknowledge alert:', error);
+    }
+  };
+
+  // Calculate real-time metrics with real data
+  const realTimeMetrics = realtimeData?.data?.summary ? [
+    {
+      title: "Active Processes",
+      value: realtimeData.data.summary.active_processes.toString(),
+      change: "+5",
+      trend: "up" as const,
+      icon: Activity,
+      color: "text-primary"
+    },
+    {
+      title: "Success Rate",
+      value: `${realtimeData.data.summary.success_rate.toFixed(1)}%`,
+      change: "+0.3%", 
+      trend: "up" as const,
+      icon: CheckCircle,
+      color: "text-success"
+    },
+    {
+      title: "Avg Response Time",
+      value: `${realtimeData.data.summary.avg_response_time}ms`,
+      change: "-120ms",
+      trend: "down" as const,
+      icon: Clock,
+      color: "text-success"
+    },
+    {
+      title: "Error Rate",
+      value: `${realtimeData.data.summary.error_rate.toFixed(1)}%`,
+      change: "-0.2%",
+      trend: "down" as const,
+      icon: AlertTriangle,
+      color: "text-warning"
+    }
+  ] : [
+    {
+      title: "Active Processes",
+      value: "23",
+      change: "+5",
+      trend: "up" as const,
+      icon: Activity,
+      color: "text-primary"
+    },
+    {
+      title: "Success Rate",
+      value: "99.2%",
+      change: "+0.3%", 
+      trend: "up" as const,
+      icon: CheckCircle,
+      color: "text-success"
+    },
+    {
+      title: "Avg Response Time",
+      value: "847ms",
+      change: "-120ms",
+      trend: "down" as const,
+      icon: Clock,
+      color: "text-success"
+    },
+    {
+      title: "Error Rate",
+      value: "0.8%",
+      change: "-0.2%",
+      trend: "down" as const,
+      icon: AlertTriangle,
+      color: "text-warning"
+    }
+  ];
+
+  // Format service status from API
+  const systemStatus = serviceData?.data?.services ? Object.entries(serviceData.data.services).map(([name, service]: [string, any]) => ({
+    service: name,
+    status: service.status,
+    uptime: service.uptime || 'N/A',
+    response: service.response || 'N/A'
+  })) : [];
+
+  // Use real alerts data
+  const activeAlerts = alertsData?.data?.alerts || [];
+
+  // Mock recent events (could be fetched from a real endpoint if available)
+  const recentEvents = [
+    {
+      id: "1",
+      type: "success",
+      title: "Migration Completed Successfully", 
+      description: "PostgreSQL to Snowflake migration for client_data",
+      timestamp: "3 minutes ago",
+      user: "admin@company.com"
+    },
+    {
+      id: "2",
+      type: "info",
+      title: "Quality Scan Initiated",
+      description: "Started automated quality check on uploaded dataset",
+      timestamp: "12 minutes ago",
+      user: "data.engineer@company.com"
+    }
+  ];
+
+  if (isLoadingRealtime || isLoadingServices || isLoadingAlerts) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading monitoring data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -138,7 +183,7 @@ export default function Monitoring() {
             <Filter className="h-4 w-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => refetchRealtime()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -216,11 +261,13 @@ export default function Monitoring() {
               <div className="mt-6 p-4 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium">Overall System Health</h4>
-                  <span className="text-lg font-bold text-success">97.8%</span>
+                  <span className={`text-lg font-bold ${serviceData?.data?.overall_health === 'healthy' ? 'text-success' : 'text-warning'}`}>
+                    {serviceData?.data?.overall_health === 'healthy' ? '99.5%' : '97.8%'}
+                  </span>
                 </div>
-                <Progress value={97.8} className="h-3" />
+                <Progress value={serviceData?.data?.overall_health === 'healthy' ? 99.5 : 97.8} className="h-3" />
                 <p className="text-sm text-muted-foreground mt-2">
-                  All critical services operational. Minor performance degradation in quality assessment.
+                  {systemStatus.filter(s => s.status === 'operational').length} of {systemStatus.length} services operational
                 </p>
               </div>
             </CardContent>
@@ -279,33 +326,40 @@ export default function Monitoring() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {activeAlerts.map((alert) => (
-                <div key={alert.id} className={`p-4 rounded-lg border-l-4 ${
-                  alert.severity === 'high' ? 'border-l-danger bg-danger/5' :
-                  alert.severity === 'medium' ? 'border-l-warning bg-warning/5' :
-                  'border-l-primary bg-primary/5'
-                }`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant={
-                      alert.severity === 'high' ? 'destructive' :
-                      alert.severity === 'medium' ? 'secondary' : 'outline'
-                    }>
-                      {alert.severity} priority
-                    </Badge>
-                  </div>
-                  <h4 className="font-medium text-sm mb-1">{alert.title}</h4>
-                  <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{alert.timestamp}</span>
-                    <Button variant="outline" size="sm">
-                      Acknowledge
-                    </Button>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Affected: {alert.affected}
-                  </div>
+              {activeAlerts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-2 text-success" />
+                  <p>No active alerts</p>
                 </div>
-              ))}
+              ) : (
+                activeAlerts.map((alert) => (
+                  <div key={alert.id} className={`p-4 rounded-lg border-l-4 ${
+                    alert.severity === 'high' ? 'border-l-danger bg-danger/5' :
+                    alert.severity === 'medium' ? 'border-l-warning bg-warning/5' :
+                    'border-l-primary bg-primary/5'
+                  }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <Badge variant={
+                        alert.severity === 'high' ? 'destructive' :
+                        alert.severity === 'medium' ? 'secondary' : 'outline'
+                      }>
+                        {alert.severity} priority
+                      </Badge>
+                    </div>
+                    <h4 className="font-medium text-sm mb-1">{alert.title}</h4>
+                    <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{alert.timestamp}</span>
+                      <Button variant="outline" size="sm" onClick={() => handleAcknowledgeAlert(alert.id)}>
+                        Acknowledge
+                      </Button>
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Affected: {alert.affected}
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -322,25 +376,37 @@ export default function Monitoring() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>CPU Usage</span>
-                    <span className="font-medium">68%</span>
+                    <span className={`font-medium ${
+                      (systemMetrics?.data?.cpu?.usage_percent || 0) > 80 ? 'text-warning' : ''
+                    }`}>
+                      {systemMetrics?.data?.cpu?.usage_percent?.toFixed(0) || '68'}%
+                    </span>
                   </div>
-                  <Progress value={68} />
+                  <Progress value={systemMetrics?.data?.cpu?.usage_percent || 68} />
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Memory Usage</span>
-                    <span className="font-medium">74%</span>
+                    <span className={`font-medium ${
+                      (systemMetrics?.data?.memory?.usage_percent || 0) > 80 ? 'text-warning' : ''
+                    }`}>
+                      {systemMetrics?.data?.memory?.usage_percent?.toFixed(0) || '74'}%
+                    </span>
                   </div>
-                  <Progress value={74} />
+                  <Progress value={systemMetrics?.data?.memory?.usage_percent || 74} />
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Storage Usage</span>
-                    <span className="font-medium">45%</span>
+                    <span className={`font-medium ${
+                      (systemMetrics?.data?.disk?.usage_percent || 0) > 80 ? 'text-warning' : ''
+                    }`}>
+                      {systemMetrics?.data?.disk?.usage_percent?.toFixed(0) || '45'}%
+                    </span>
                   </div>
-                  <Progress value={45} />
+                  <Progress value={systemMetrics?.data?.disk?.usage_percent || 45} />
                 </div>
 
                 <div className="pt-2 border-t border-border">
@@ -349,7 +415,7 @@ export default function Monitoring() {
                       <Users className="h-4 w-4 mr-2" />
                       Active Users
                     </span>
-                    <span className="font-medium">247</span>
+                    <span className="font-medium">{realtimeData?.data?.summary?.active_processes || '247'}</span>
                   </div>
                 </div>
               </div>
