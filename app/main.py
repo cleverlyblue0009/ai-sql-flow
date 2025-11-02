@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
 import logging
 import time
 from typing import Dict, Any
@@ -10,8 +11,9 @@ import structlog
 
 # Fixed imports with error handling
 try:
-    from .database.config import create_tables, settings
+    from .database.config import create_tables, settings, get_db
     from .database.models import *  # Import all models to ensure they're registered
+    from .auth.dependencies import get_current_verified_user
 except ImportError as e:
     print(f"Database import error: {e}")
     # Create mock settings for development
@@ -22,6 +24,10 @@ except ImportError as e:
         max_file_size_mb = 100
     settings = MockSettings()
     def create_tables():
+        pass
+    def get_db():
+        pass
+    def get_current_verified_user():
         pass
 
 # Import routers with error handling
@@ -151,7 +157,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000", 
         "http://localhost:3001",
-        "http://127.0.0.1:3001"
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
