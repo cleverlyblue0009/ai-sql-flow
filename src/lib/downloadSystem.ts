@@ -302,14 +302,28 @@ START TRANSACTION;
     });
     zipContent += '\n';
 
-    // Add files with separators
+    // Add files with separators - properly formatted with line breaks preserved
     files.forEach(file => {
       zipContent += `\n${'='.repeat(80)}\n`;
       zipContent += `FILE: ${file.name}\n`;
       zipContent += `TYPE: ${file.type.toUpperCase()}\n`;
       zipContent += `SIZE: ${(file.size / 1024).toFixed(1)} KB\n`;
       zipContent += `${'='.repeat(80)}\n\n`;
-      zipContent += file.content;
+      
+      // Ensure proper formatting - preserve line breaks and formatting
+      // Remove any accidental line concatenation
+      let formattedContent = file.content;
+      
+      // If SQL file, ensure proper formatting
+      if (file.type === 'sql') {
+        // Ensure statements are on separate lines
+        formattedContent = formattedContent
+          .replace(/;\s*(?=CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|SELECT)/gi, ';\n\n')
+          .replace(/--([^\n]*)/g, '-- $1') // Ensure comments have space after --
+          .trim();
+      }
+      
+      zipContent += formattedContent;
       zipContent += '\n\n';
     });
 
