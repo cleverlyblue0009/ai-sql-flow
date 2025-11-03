@@ -20,15 +20,32 @@ logger = logging.getLogger(__name__)
 dashboard_service = DashboardService()
 
 
+def _get_demo_user(db: Session) -> User:
+    """Get or create demo user for non-authenticated requests - No auth required"""
+    demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+    if not demo_user:
+        demo_user = User(
+            email="demo@example.com",
+            username="demo",
+            firebase_uid="demo_uid",
+            full_name="Demo User",
+            role="admin"
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+    return demo_user
+
+
 @router.get("/metrics", response_model=DashboardMetrics)
 async def get_dashboard_metrics(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get key dashboard metrics"""
+    """Get key dashboard metrics - No auth required - No auth required"""
     
     try:
-        metrics = await dashboard_service.get_dashboard_metrics(db, current_user.id)
+        demo_user = _get_demo_user(db)
+        metrics = await dashboard_service.get_dashboard_metrics(db, demo_user.id)
         return metrics
         
     except Exception as e:
@@ -42,13 +59,13 @@ async def get_dashboard_metrics(
 @router.get("/activities", response_model=ActivityResponse)
 async def get_recent_activities(
     limit: int = 20,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get recent platform activities"""
+    """Get recent platform activities - No auth required"""
     
     try:
-        activities = await dashboard_service.get_recent_activities(db, current_user.id, limit)
+        demo_user = _get_demo_user(db)
+        activities = await dashboard_service.get_recent_activities(db, demo_user.id, limit)
         return ActivityResponse(activities=activities, total=len(activities))
         
     except Exception as e:
@@ -61,13 +78,13 @@ async def get_recent_activities(
 
 @router.get("/quick-stats", response_model=QuickStats)
 async def get_quick_stats(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get quick statistics for today"""
+    """Get quick statistics for today - No auth required"""
     
     try:
-        stats = await dashboard_service.get_quick_stats(db, current_user.id)
+        demo_user = _get_demo_user(db)
+        stats = await dashboard_service.get_quick_stats(db, demo_user.id)
         return stats
         
     except Exception as e:
@@ -80,10 +97,9 @@ async def get_quick_stats(
 
 @router.get("/system-status", response_model=SystemStatus)
 async def get_system_status(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get system health and status"""
+    """Get system health and status - No auth required"""
     
     try:
         status_info = await dashboard_service.get_system_status(db)
@@ -99,16 +115,16 @@ async def get_system_status(
 
 @router.get("/overview", response_model=DashboardResponse)
 async def get_dashboard_overview(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get complete dashboard overview"""
+    """Get complete dashboard overview - No auth required"""
     
     try:
+        demo_user = _get_demo_user(db)
         # Get all dashboard data in one request
-        metrics = await dashboard_service.get_dashboard_metrics(db, current_user.id)
-        activities = await dashboard_service.get_recent_activities(db, current_user.id, 10)
-        quick_stats = await dashboard_service.get_quick_stats(db, current_user.id)
+        metrics = await dashboard_service.get_dashboard_metrics(db, demo_user.id)
+        activities = await dashboard_service.get_recent_activities(db, demo_user.id, 10)
+        quick_stats = await dashboard_service.get_quick_stats(db, demo_user.id)
         system_status = await dashboard_service.get_system_status(db)
         
         return DashboardResponse(
@@ -129,13 +145,13 @@ async def get_dashboard_overview(
 @router.get("/performance-trends")
 async def get_performance_trends(
     days: int = 30,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get performance trends over time"""
+    """Get performance trends over time - No auth required"""
     
     try:
-        trends = await dashboard_service.get_performance_trends(db, current_user.id, days)
+        demo_user = _get_demo_user(db)
+        trends = await dashboard_service.get_performance_trends(db, demo_user.id, days)
         return trends
         
     except Exception as e:
@@ -148,13 +164,13 @@ async def get_performance_trends(
 
 @router.get("/cost-analysis")
 async def get_cost_analysis(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get cost analysis and savings data"""
+    """Get cost analysis and savings data - No auth required"""
     
     try:
-        cost_analysis = await dashboard_service.get_cost_analysis(db, current_user.id)
+        demo_user = _get_demo_user(db)
+        cost_analysis = await dashboard_service.get_cost_analysis(db, demo_user.id)
         return cost_analysis
         
     except Exception as e:
@@ -167,13 +183,13 @@ async def get_cost_analysis(
 
 @router.get("/comprehensive-overview", response_model=Dict[str, Any])
 async def get_comprehensive_overview(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get comprehensive dashboard overview with all metrics"""
+    """Get comprehensive dashboard overview with all metrics - No auth required"""
     
     try:
-        overview = await dashboard_service.get_dashboard_overview(current_user.id, db)
+        demo_user = _get_demo_user(db)
+        overview = await dashboard_service.get_dashboard_overview(demo_user.id, db)
         return {
             "status": "success",
             "data": overview
@@ -190,13 +206,13 @@ async def get_comprehensive_overview(
 @router.get("/activity-feed", response_model=Dict[str, Any])
 async def get_activity_feed(
     limit: int = 20,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get user's activity feed"""
+    """Get user's activity feed - No auth required"""
     
     try:
-        activities = await dashboard_service.get_recent_activity(current_user.id, db, limit)
+        demo_user = _get_demo_user(db)
+        activities = await dashboard_service.get_recent_activity(demo_user.id, db, limit)
         return {
             "status": "success",
             "data": {
@@ -215,13 +231,13 @@ async def get_activity_feed(
 
 @router.get("/performance-dashboard", response_model=Dict[str, Any])
 async def get_performance_dashboard(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get performance metrics dashboard"""
+    """Get performance metrics dashboard - No auth required"""
     
     try:
-        metrics = await dashboard_service.get_performance_metrics(current_user.id, db)
+        demo_user = _get_demo_user(db)
+        metrics = await dashboard_service.get_performance_metrics(demo_user.id, db)
         return {
             "status": "success",
             "data": metrics
@@ -237,13 +253,13 @@ async def get_performance_dashboard(
 
 @router.get("/data-quality-insights", response_model=Dict[str, Any])
 async def get_data_quality_insights(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get data quality insights and analytics"""
+    """Get data quality insights and analytics - No auth required"""
     
     try:
-        insights = await dashboard_service.get_data_quality_insights(current_user.id, db)
+        demo_user = _get_demo_user(db)
+        insights = await dashboard_service.get_data_quality_insights(demo_user.id, db)
         return {
             "status": "success",
             "data": insights
@@ -259,13 +275,13 @@ async def get_data_quality_insights(
 
 @router.get("/migration-dashboard", response_model=Dict[str, Any])
 async def get_migration_dashboard(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get migration dashboard with statistics and progress"""
+    """Get migration dashboard with statistics and progress - No auth required"""
     
     try:
-        dashboard_data = await dashboard_service.get_migration_dashboard(current_user.id, db)
+        demo_user = _get_demo_user(db)
+        dashboard_data = await dashboard_service.get_migration_dashboard(demo_user.id, db)
         return {
             "status": "success",
             "data": dashboard_data

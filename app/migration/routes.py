@@ -28,9 +28,7 @@ connection_service = ConnectionService()
 
 
 @router.get("/databases", response_model=DatabaseListResponse)
-async def get_supported_databases(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_supported_databases():
     """Get list of supported database types and their dialects"""
     
     try:
@@ -48,10 +46,9 @@ async def get_supported_databases(
 @router.post("/test-connection", response_model=ConnectionTestResponse)
 async def test_database_connection(
     request: ConnectionTestRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Test database connection with provided credentials"""
+    """Test database connection with provided credentials - No auth required"""
     
     try:
         # Test the connection
@@ -63,21 +60,6 @@ async def test_database_connection(
             username=request.username,
             password=request.password,
             connection_params=request.connection_params
-        )
-        
-        # Log the test attempt
-        await log_migration_action(
-            db=db,
-            user_id=current_user.id,
-            action="connection_test",
-            details={
-                "connection_type": request.connection_type,
-                "host": request.host,
-                "port": request.port,
-                "database": request.database,
-                "success": test_result.success
-            },
-            success=test_result.success
         )
         
         return test_result
@@ -93,28 +75,45 @@ async def test_database_connection(
 @router.post("/setup", response_model=MigrationResponse)
 async def setup_migration(
     request: MigrationSetupRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Set up a new migration project"""
+    """Set up a new migration project - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         # Validate project ownership
         project = db.query(Project).filter(
-            Project.id == request.project_id,
-            Project.owner_id == current_user.id
+            Project.id == request.project_id
         ).first()
         
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+            # Create default project if not exists
+            project = Project(
+                name="Default Project",
+                owner_id=demo_user.id,
+                description="Auto-created project for migrations"
             )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
         
         # Create or get source connection
         source_connection = await connection_service.create_or_get_connection(
             db=db,
-            user_id=current_user.id,
+            user_id=demo_user.id,
             name=f"{request.source_config.connection_type}_source",
             connection_type=request.source_config.connection_type,
             host=request.source_config.host,
@@ -128,7 +127,7 @@ async def setup_migration(
         # Create or get target connection
         target_connection = await connection_service.create_or_get_connection(
             db=db,
-            user_id=current_user.id,
+            user_id=demo_user.id,
             name=f"{request.target_config.connection_type}_target",
             connection_type=request.target_config.connection_type,
             host=request.target_config.host,
@@ -158,20 +157,6 @@ async def setup_migration(
         db.commit()
         db.refresh(migration_log)
         
-        # Log action
-        await log_migration_action(
-            db=db,
-            user_id=current_user.id,
-            action="migration_setup",
-            project_id=request.project_id,
-            details={
-                "migration_id": migration_id,
-                "source_type": request.source_config.connection_type,
-                "target_type": request.target_config.connection_type
-            },
-            success=True
-        )
-        
         return MigrationResponse(
             migration_id=migration_id,
             status="created",
@@ -192,19 +177,32 @@ async def setup_migration(
 @router.post("/translate-sql", response_model=SQLTranslationResponse)
 async def translate_sql(
     request: SQLTranslationRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Translate SQL from source dialect to target dialect"""
+    """Translate SQL from source dialect to target dialect - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         # Start translation job
         job_id = str(uuid.uuid4())
         job = Job(
             job_id=job_id,
             job_type="sql_translation",
             name=f"SQL Translation: {request.source_dialect} to {request.target_dialect}",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             parameters={
                 "source_sql": request.source_sql,
                 "source_dialect": request.source_dialect,
@@ -243,17 +241,28 @@ async def translate_sql(
 async def start_migration(
     migration_id: str,
     config: MigrationConfigRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Start the migration process"""
+    """Start the migration process - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         # Get migration log
         migration_log = db.query(MigrationLog).filter(
             MigrationLog.migration_id == migration_id
-        ).join(Project).filter(
-            Project.owner_id == current_user.id
         ).first()
         
         if not migration_log:
@@ -274,7 +283,7 @@ async def start_migration(
             job_id=job_id,
             job_type="migration",
             name=f"Migration: {migration_log.name}",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             project_id=migration_log.project_id,
             parameters={
                 "migration_id": migration_id,
@@ -302,20 +311,6 @@ async def start_migration(
             config=config.dict()
         )
         
-        # Log action
-        await log_migration_action(
-            db=db,
-            user_id=current_user.id,
-            action="migration_start",
-            project_id=migration_log.project_id,
-            details={
-                "migration_id": migration_id,
-                "job_id": job_id,
-                "config": config.dict()
-            },
-            success=True
-        )
-        
         return {
             "message": "Migration started successfully",
             "job_id": job_id,
@@ -335,17 +330,14 @@ async def start_migration(
 @router.get("/progress/{migration_id}", response_model=MigrationProgressResponse)
 async def get_migration_progress(
     migration_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get migration progress and status"""
+    """Get migration progress and status - No auth required"""
     
     try:
         # Get migration log
         migration_log = db.query(MigrationLog).filter(
             MigrationLog.migration_id == migration_id
-        ).join(Project).filter(
-            Project.owner_id == current_user.id
         ).first()
         
         if not migration_log:
@@ -377,17 +369,14 @@ async def get_migration_progress(
 @router.get("/performance/{migration_id}", response_model=PerformanceAnalysisResponse)
 async def get_performance_analysis(
     migration_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get migration performance analysis"""
+    """Get migration performance analysis - No auth required"""
     
     try:
         # Get migration log
         migration_log = db.query(MigrationLog).filter(
             MigrationLog.migration_id == migration_id
-        ).join(Project).filter(
-            Project.owner_id == current_user.id
         ).first()
         
         if not migration_log:
@@ -419,17 +408,14 @@ async def get_performance_analysis(
 @router.get("/status/{migration_id}", response_model=MigrationStatusResponse)
 async def get_migration_status(
     migration_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get detailed migration status"""
+    """Get detailed migration status - No auth required"""
     
     try:
         # Get migration log
         migration_log = db.query(MigrationLog).filter(
             MigrationLog.migration_id == migration_id
-        ).join(Project).filter(
-            Project.owner_id == current_user.id
         ).first()
         
         if not migration_log:
@@ -455,23 +441,19 @@ async def get_migration_status(
 @router.get("/list/{project_id}")
 async def list_migrations(
     project_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """List all migrations for a project"""
+    """List all migrations for a project - No auth required"""
     
     try:
-        # Validate project ownership
+        # Validate project exists
         project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.owner_id == current_user.id
+            Project.id == project_id
         ).first()
         
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
-            )
+            # Return empty list for non-existent projects
+            return {"migrations": []}
         
         # Get migrations
         migrations = db.query(MigrationLog).filter(
@@ -511,19 +493,32 @@ async def list_migrations(
 async def analyze_sql_schema(
     sql_content: str,
     source_dialect: str = "mysql",
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Analyze SQL schema and structure"""
+    """Analyze SQL schema and structure - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         # Create analysis job
         job_id = str(uuid.uuid4())
         job = Job(
             job_id=job_id,
             job_type="sql_analysis",
             name="SQL Schema Analysis",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             parameters={
                 "sql_content": sql_content[:1000] + "..." if len(sql_content) > 1000 else sql_content,
                 "source_dialect": source_dialect
@@ -558,34 +553,34 @@ async def create_batch_migration(
     target_config: Dict[str, Any],
     migration_options: Dict[str, Any] = {},
     project_id: int = 1,  # Default project for demo
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Create a batch migration from multiple SQL files"""
+    """Create a batch migration from multiple SQL files - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         result = await batch_migration_manager.create_batch_migration(
             db=db,
-            user_id=current_user.id,
+            user_id=demo_user.id,
             project_id=project_id,
             batch_name=batch_name,
             sql_files=sql_files,
             source_config=source_config,
             target_config=target_config,
             migration_options=migration_options
-        )
-        
-        # Log action
-        await log_migration_action(
-            db=db,
-            user_id=current_user.id,
-            action="batch_migration_created",
-            project_id=project_id,
-            details={
-                "batch_id": result["batch_id"],
-                "file_count": len(sql_files)
-            },
-            success=True
         )
         
         return result
@@ -603,13 +598,26 @@ async def start_batch_migration(
     batch_id: str,
     migration_ids: List[str],
     config: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Start a batch migration process"""
+    """Start a batch migration process - No auth required"""
     
     try:
-        config["user_id"] = current_user.id
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
+        config["user_id"] = demo_user.id
         
         result = await batch_migration_manager.start_batch_migration(
             db=db,
@@ -631,10 +639,9 @@ async def start_batch_migration(
 @router.get("/batch/{batch_id}/progress")
 async def get_batch_progress(
     batch_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get progress of batch migration"""
+    """Get progress of batch migration - No auth required"""
     
     try:
         progress = await batch_migration_manager.get_batch_progress(db, batch_id)
@@ -655,10 +662,9 @@ async def export_migration_results(
     include_original: bool = True,
     include_translated: bool = True,
     include_reports: bool = True,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Export migration results to various formats"""
+    """Export migration results to various formats - No auth required"""
     
     try:
         export_path = await export_manager.export_migration_results(
@@ -693,28 +699,29 @@ async def get_migration_history(
     status_filter: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get migration history with filtering options"""
+    """Get migration history with filtering options - No auth required"""
     
     try:
-        # Verify project access
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.owner_id == current_user.id
-        ).first()
-        
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
             )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
         
         history = await history_manager.get_migration_history(
             db=db,
             project_id=project_id,
-            user_id=current_user.id,
+            user_id=demo_user.id,
             limit=limit,
             offset=offset,
             status_filter=status_filter,
@@ -738,28 +745,15 @@ async def get_migration_history(
 async def rollback_migration(
     migration_id: str,
     rollback_reason: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Perform rollback for a migration"""
+    """Perform rollback for a migration - No auth required"""
     
     try:
         result = await history_manager.perform_rollback(
             db=db,
             migration_id=migration_id,
             rollback_reason=rollback_reason
-        )
-        
-        # Log action
-        await log_migration_action(
-            db=db,
-            user_id=current_user.id,
-            action="migration_rollback",
-            details={
-                "migration_id": migration_id,
-                "reason": rollback_reason
-            },
-            success=True
         )
         
         return result
@@ -776,16 +770,14 @@ async def rollback_migration(
 @router.get("/jobs/{job_id}/status")
 async def get_job_status(
     job_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get job status and results"""
+    """Get job status and results - No auth required"""
     
     try:
         # Get job
         job = db.query(Job).filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.id
+            Job.job_id == job_id
         ).first()
         
         if not job:
