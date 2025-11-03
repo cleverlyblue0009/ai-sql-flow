@@ -128,14 +128,16 @@ export default function SQLMigration() {
     };
   }, []);
 
-  // WebSocket integration for real-time progress (only when backend is online, no auth required)
+  // WebSocket integration for real-time progress (optional - only when explicitly needed)
+  // Removed auto-connection to prevent errors when backend is offline
   const {
     isConnected,
     connectionState,
     progressData,
     errors,
     subscribeToMigration,
-    unsubscribeFromMigration
+    unsubscribeFromMigration,
+    connect: connectWebSocket
   } = useMigrationProgress({
     onProgress: (progress) => {
       console.log('Migration progress:', progress);

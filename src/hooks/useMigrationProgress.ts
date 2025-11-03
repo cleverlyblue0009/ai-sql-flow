@@ -187,14 +187,13 @@ export const useMigrationProgress = (params: MigrationProgressHookParams = {}) =
     }
   }, []);
 
-  // Auto-connect on mount
+  // Don't auto-connect - let components explicitly connect when needed
+  // This prevents unnecessary WebSocket connection attempts
   useEffect(() => {
-    connect();
-
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [disconnect]);
 
   return {
     isConnected,
