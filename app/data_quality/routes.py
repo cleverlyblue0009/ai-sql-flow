@@ -35,18 +35,31 @@ async def upload_data_file(
     encoding: str = Form("utf-8"),
     has_header: bool = Form(True),
     sample_rows: Optional[int] = Form(1000),
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Upload and process data file for quality analysis"""
+    """Upload and process data file for quality analysis - No auth required"""
     
     try:
+        # Get or create a default user for demo purposes
+        demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+        if not demo_user:
+            demo_user = User(
+                email="demo@example.com",
+                username="demo",
+                firebase_uid="demo_uid",
+                full_name="Demo User",
+                role="admin"
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+        
         # Create default project if none specified
         if project_id is None:
             project = Project(
                 name=f"Data Quality Project - {file.filename}",
                 description=f"Auto-created project for {file.filename}",
-                owner_id=current_user.id,
+                owner_id=demo_user.id,
                 settings={}
             )
             db.add(project)
@@ -54,17 +67,23 @@ async def upload_data_file(
             db.refresh(project)
             project_id = project.id
         else:
-            # Validate project ownership
+            # Get project (no ownership validation)
             project = db.query(Project).filter(
-                Project.id == project_id,
-                Project.owner_id == current_user.id
+                Project.id == project_id
             ).first()
             
             if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Project not found"
+                # Create default project
+                project = Project(
+                    name=f"Data Quality Project - {file.filename}",
+                    description=f"Auto-created project for {file.filename}",
+                    owner_id=demo_user.id,
+                    settings={}
                 )
+                db.add(project)
+                db.commit()
+                db.refresh(project)
+                project_id = project.id
         
         # Validate file size
         file_content = await file.read()
@@ -79,7 +98,7 @@ async def upload_data_file(
         
         # Generate unique file path
         file_id = str(uuid.uuid4())
-        file_path = f"data/{current_user.id}/{project_id}/{file_id}_{file.filename}"
+        file_path = f"data/{demo_user.id}/{project_id}/{file_id}_{file.filename}"
         
         # Auto-detect file format if needed
         if file_format == "auto":
@@ -133,7 +152,7 @@ async def upload_data_file(
             job_id=job_id,
             job_type="data_upload",
             name=f"Upload and analyze {file.filename}",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             project_id=project_id,
             parameters={
                 "data_profile_id": data_profile.id,
@@ -177,16 +196,16 @@ async def upload_data_file(
 @router.post("/analyze", response_model=Dict[str, str])
 async def analyze_data_quality(
     request: DataAnalysisRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Start comprehensive data quality analysis"""
+    """Start comprehensive data quality analysis - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == request.data_profile_id,
-            Project.owner_id == current_user.id
+        demo_user = _get_demo_user(db)
+        
+        # Validate data profile exists
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == request.data_profile_id
         ).first()
         
         if not data_profile:
@@ -204,7 +223,7 @@ async def analyze_data_quality(
             job_id=job_id,
             job_type="data_analysis",
             name=f"Analyze {data_profile.source_name}",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             project_id=project_id,
             parameters={
                 "data_profile_id": request.data_profile_id,
@@ -242,19 +261,19 @@ async def analyze_data_quality(
 @router.get("/recent-uploads", response_model=List[Dict[str, Any]])
 async def get_recent_uploads(
     limit: int = 10,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get recent file uploads for the current user"""
+    """Get recent file uploads - No auth required"""
     
     try:
-        logger.info(f"Getting recent uploads for user {current_user.id}")
+        demo_user = _get_demo_user(db)
+        logger.info(f"Getting recent uploads for user {demo_user.id}")
         
         # Get recent data profiles for user's projects
         recent_profiles = (
             db.query(DataProfile)
             .join(Project)
-            .filter(Project.owner_id == current_user.id)
+            .filter(Project.owner_id == demo_user.id)
             .order_by(DataProfile.created_at.desc())
             .limit(limit)
             .all()
@@ -309,16 +328,14 @@ async def get_recent_uploads(
 @router.get("/quality-summary/{data_profile_id}", response_model=Dict[str, Any])
 async def get_quality_summary(
     data_profile_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get quality assessment summary for a data profile"""
+    """Get quality assessment summary for a data profile - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == data_profile_id,
-            Project.owner_id == current_user.id
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == data_profile_id
         ).first()
         
         if not data_profile:
@@ -421,16 +438,16 @@ async def get_quality_summary(
 @router.post("/clean", response_model=Dict[str, Any])
 async def start_data_cleaning(
     request: DataCleaningRequest,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Start data cleaning process"""
+    """Start data cleaning process - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == request.data_profile_id,
-            Project.owner_id == current_user.id
+        demo_user = _get_demo_user(db)
+        
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == request.data_profile_id
         ).first()
         
         if not data_profile:
@@ -448,7 +465,7 @@ async def start_data_cleaning(
             job_id=job_id,
             job_type="data_cleaning",
             name=f"Clean {data_profile.source_name}",
-            user_id=current_user.id,
+            user_id=demo_user.id,
             project_id=project_id,
             parameters={
                 "data_profile_id": request.data_profile_id,
@@ -486,15 +503,14 @@ async def start_data_cleaning(
 @router.get("/status/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(
     job_id: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get job status and progress"""
+    """Get job status and progress - No auth required"""
     
     try:
+        # Get job without user validation
         job = db.query(Job).filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.id
+            Job.job_id == job_id
         ).first()
         
         if not job:
@@ -529,16 +545,14 @@ async def get_job_status(
 async def get_issue_details(
     data_profile_id: int,
     issue_type: str,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get detailed information about specific issue type"""
+    """Get detailed information about specific issue type - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == data_profile_id,
-            Project.owner_id == current_user.id
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == data_profile_id
         ).first()
         
         if not data_profile:
@@ -647,16 +661,14 @@ async def get_issue_details(
 @router.get("/validation-results/{data_profile_id}", response_model=Dict[str, Any])
 async def get_validation_results(
     data_profile_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Get validation results showing before/after cleaning comparison"""
+    """Get validation results showing before/after cleaning comparison - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == data_profile_id,
-            Project.owner_id == current_user.id
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == data_profile_id
         ).first()
         
         if not data_profile:
@@ -730,6 +742,23 @@ async def get_validation_results(
 
 
 # Helper functions
+def _get_demo_user(db: Session) -> User:
+    """Get or create demo user for non-authenticated requests"""
+    demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+    if not demo_user:
+        demo_user = User(
+            email="demo@example.com",
+            username="demo",
+            firebase_uid="demo_uid",
+            full_name="Demo User",
+            role="admin"
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+    return demo_user
+
+
 async def _read_file(
     file_content: bytes, 
     file_format: str, 
@@ -1145,16 +1174,14 @@ async def _run_data_cleaning(data_profile_id: int, job_id: str, request: DataCle
 @router.get("/export-cleaned-data/{data_profile_id}")
 async def export_cleaned_data(
     data_profile_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
-    """Export cleaned data as CSV file"""
+    """Export cleaned data as CSV file - No auth required"""
     
     try:
-        # Validate data profile ownership
-        data_profile = db.query(DataProfile).join(Project).filter(
-            DataProfile.id == data_profile_id,
-            Project.owner_id == current_user.id
+        # Get data profile
+        data_profile = db.query(DataProfile).filter(
+            DataProfile.id == data_profile_id
         ).first()
         
         if not data_profile:
