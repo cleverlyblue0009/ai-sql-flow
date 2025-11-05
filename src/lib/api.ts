@@ -332,59 +332,37 @@ export const api = {
     }>('/monitoring/metrics/realtime'),
   },
   
-  // Settings endpoints
-  settings: {
-    getDatabaseConnections: () => apiRequest<{
-      status: string;
-      data: {
-        connections: Array<{
-          id: number;
-          name: string;
-          type: string;
-          host: string;
-          status: string;
-          lastTest: string;
-        }>;
-        total_count: number;
-      };
-    }>('/settings/database-connections'),
-    
-    testConnection: (connectionId: number) => apiRequest<{
+  // Smart Analytics endpoints
+  smartAnalytics: {
+    getQueryOptimizer: () => apiRequest<{
       status: string;
       data: any;
-    }>(`/settings/database-connections/${connectionId}/test`, {
-      method: 'POST',
-    }),
+    }>('/smart-analytics/query-optimizer'),
     
-    getUserManagement: () => apiRequest<{
-      status: string;
-      data: {
-        users: Array<{
-          id: number;
-          name: string;
-          email: string;
-          role: string;
-          status: string;
-          lastActive: string;
-        }>;
-        total_count: number;
-      };
-    }>('/settings/user-management'),
-    
-    getAIConfiguration: () => apiRequest<{
+    getAnomalyDetection: () => apiRequest<{
       status: string;
       data: any;
-    }>('/settings/ai-configuration'),
+    }>('/smart-analytics/anomaly-detection'),
     
-    getIntegrations: () => apiRequest<{
+    getActivityIntelligence: () => apiRequest<{
       status: string;
       data: any;
-    }>('/settings/integrations'),
+    }>('/smart-analytics/activity-intelligence'),
     
-    getSecuritySettings: () => apiRequest<{
+    getConversionIntelligence: () => apiRequest<{
       status: string;
       data: any;
-    }>('/settings/security'),
+    }>('/smart-analytics/conversion-intelligence'),
+    
+    getPerformanceInsights: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/performance-insights'),
+    
+    getOverview: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/overview'),
   },
 };
 

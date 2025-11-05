@@ -52,18 +52,11 @@ except ImportError:
     migration_router = APIRouter(prefix="/migration", tags=["Migration"])
 
 try:
-    from .monitoring.routes import router as monitoring_router
+    from .smart_analytics.routes import router as smart_analytics_router
 except ImportError:
-    print("Monitoring router not found, creating placeholder")
+    print("Smart Analytics router not found, creating placeholder")
     from fastapi import APIRouter
-    monitoring_router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
-
-try:
-    from .settings.routes import router as settings_router
-except ImportError:
-    print("Settings router not found, creating placeholder")
-    from fastapi import APIRouter
-    settings_router = APIRouter(prefix="/settings", tags=["Settings"])
+    smart_analytics_router = APIRouter(prefix="/smart-analytics", tags=["Smart Analytics"])
 
 try:
     from .websocket.routes import router as websocket_router
@@ -387,8 +380,7 @@ async def get_job_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get job status"
         )
-app.include_router(monitoring_router)
-app.include_router(settings_router)
+app.include_router(smart_analytics_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers
@@ -435,7 +427,8 @@ async def root():
         "endpoints": {
             "data_quality": "/data-quality",
             "sql_migration": "/migration",
-            "dashboard": "/dashboard"
+            "dashboard": "/dashboard",
+            "smart_analytics": "/smart-analytics"
         }
     }
 

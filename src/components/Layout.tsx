@@ -4,11 +4,10 @@ import {
   BarChart3, 
   Database, 
   GitBranch, 
-  Settings, 
   Menu, 
   X,
   Shield,
-  Activity
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,8 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Clean Data', href: '/data-quality', icon: Shield },
   { name: 'Convert SQL', href: '/sql-migration', icon: GitBranch },
-  { name: 'Activity', href: '/monitoring', icon: Activity },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Smart Analytics', href: '/smart-analytics', icon: Sparkles },
 ];
 
 export default function Layout() {

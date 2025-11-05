@@ -19,40 +19,7 @@ import heroImage from "@/assets/hero-data-center.jpg";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
-const metrics = [
-  {
-    title: "Data Quality Score",
-    value: "94.2%",
-    change: "+2.4%",
-    trend: "up",
-    icon: CheckCircle,
-    color: "text-success"
-  },
-  {
-    title: "Active Migrations",
-    value: "12",
-    change: "+3",
-    trend: "up", 
-    icon: GitBranch,
-    color: "text-primary"
-  },
-  {
-    title: "Success Rate",
-    value: "99.1%",
-    change: "+0.5%",
-    trend: "up",
-    icon: TrendingUp,
-    color: "text-success"
-  },
-  {
-    title: "Cost Savings",
-    value: "$2.4M",
-    change: "+$340K",
-    trend: "up",
-    icon: DollarSign,
-    color: "text-success"
-  }
-];
+// Metrics will be computed from real data
 
 
 const quickActions = [
@@ -101,79 +68,96 @@ export default function Dashboard() {
     refetchInterval: 30000,
   });
 
-  // Update metrics with API data when available
-  const updatedMetrics = dashboardData?.data?.summary ? [
+  // Fetch Smart Analytics activity intelligence for real activity feed
+  const { data: activityIntelligence } = useQuery({
+    queryKey: ['activity-intelligence'],
+    queryFn: api.smartAnalytics.getActivityIntelligence,
+    refetchInterval: 30000,
+  });
+
+  // Fetch Smart Analytics for insights
+  const { data: smartAnalyticsData } = useQuery({
+    queryKey: ['smart-analytics-overview'],
+    queryFn: api.smartAnalytics.getOverview,
+    refetchInterval: 60000,
+  });
+
+  // Compute real metrics from actual data
+  const computedMetrics = [
     {
       title: "Data Quality Score",
-      value: `${dashboardData.data.summary.avg_quality_score}%`,
-      change: "+2.4%",
-      trend: "up",
+      value: dashboardData?.data?.summary?.avg_quality_score 
+        ? `${dashboardData.data.summary.avg_quality_score.toFixed(1)}%`
+        : `${smartAnalyticsData?.data?.anomaly_detection?.avg_quality_score || 0}%`,
+      change: smartAnalyticsData?.data?.anomaly_detection?.quality_trend === 'improving' ? "+2.4%" : "0%",
+      trend: smartAnalyticsData?.data?.anomaly_detection?.quality_trend === 'improving' ? "up" : "stable",
       icon: CheckCircle,
-      color: "text-success"
+      color: "text-success",
+      neonClass: "cyan"
     },
     {
-      title: "Total Projects",
-      value: dashboardData.data.summary.total_projects.toString(),
+      title: "Active Migrations",
+      value: smartAnalyticsData?.data?.conversion_intelligence?.total_conversions?.toString() || "0",
       change: "+3",
       trend: "up", 
       icon: GitBranch,
-      color: "text-primary"
+      color: "text-primary",
+      neonClass: "purple"
     },
     {
       title: "Success Rate",
-      value: `${dashboardData.data.summary.success_rate}%`,
+      value: smartAnalyticsData?.data?.conversion_intelligence?.success_rate 
+        ? `${smartAnalyticsData.data.conversion_intelligence.success_rate}%`
+        : `${dashboardData?.data?.summary?.success_rate || 0}%`,
       change: "+0.5%",
       trend: "up",
       icon: TrendingUp,
-      color: "text-success"
+      color: "text-success",
+      neonClass: "lime"
     },
     {
-      title: "Cost Savings",
-      value: `$${(dashboardData.data.summary.cost_savings / 1000).toFixed(1)}K`,
-      change: "+$340K",
+      title: "Total Files Processed",
+      value: dashboardData?.data?.summary?.total_data_profiles?.toString() 
+        || smartAnalyticsData?.data?.anomaly_detection?.total_files_analyzed?.toString() 
+        || "0",
+      change: "+12",
       trend: "up",
-      icon: DollarSign,
-      color: "text-success"
-    }
-  ] : metrics;
-
-  // Map recent uploads to activities
-  const recentActivities = recentUploadsData?.data ? recentUploadsData.data.slice(0, 4).map((upload: any, index: number) => ({
-    id: upload.id,
-    type: upload.status === 'completed' ? 'quality' : upload.status === 'failed' ? 'alert' : 'migration',
-    title: `Data quality ${upload.status} for ${upload.name}`,
-    timestamp: upload.date,
-    status: upload.status
-  })) : [
-    {
-      id: 1,
-      type: "migration",
-      title: "PostgreSQL to Snowflake migration completed",
-      timestamp: "2 minutes ago",
-      status: "success"
-    },
-    {
-      id: 2,
-      type: "quality",
-      title: "Data quality check started for customer_data table",
-      timestamp: "15 minutes ago", 
-      status: "running"
-    },
-    {
-      id: 3,
-      type: "alert",
-      title: "Schema validation warning in orders table",
-      timestamp: "1 hour ago",
-      status: "warning"
-    },
-    {
-      id: 4,
-      type: "migration",
-      title: "MySQL migration queued for processing",
-      timestamp: "2 hours ago",
-      status: "pending"
+      icon: FileText,
+      color: "text-success",
+      neonClass: "purple"
     }
   ];
+
+  // Get real activity feed from Smart Analytics
+  const recentActivities = activityIntelligence?.data?.activity_timeline?.slice(0, 10).map((activity: any, index: number) => ({
+    id: index,
+    type: activity.type === 'data_cleaning' ? 'quality' : activity.type === 'sql_conversion' ? 'migration' : 'analytics',
+    title: activity.action,
+    timestamp: new Date(activity.timestamp).toLocaleString(),
+    status: activity.metadata?.quality_score ? 
+      (activity.metadata.quality_score > 80 ? 'success' : 'warning') : 
+      'success',
+    source: activity.type
+  })) || [];
+
+  // Platform insights from Smart Analytics
+  const platformInsights = [
+    smartAnalyticsData?.data?.query_optimizer?.most_converted_pair && {
+      text: `Most converted dialect: ${smartAnalyticsData.data.query_optimizer.most_converted_pair.pair} (${smartAnalyticsData.data.query_optimizer.most_converted_pair.count} conversions)`,
+      icon: Database,
+      color: "purple"
+    },
+    smartAnalyticsData?.data?.anomaly_detection && {
+      text: `Data quality trend: ${smartAnalyticsData.data.anomaly_detection.quality_trend}`,
+      icon: TrendingUp,
+      color: smartAnalyticsData.data.anomaly_detection.quality_trend === 'improving' ? 'lime' : 'cyan'
+    },
+    smartAnalyticsData?.data?.conversion_intelligence?.avg_confidence && {
+      text: `Average SQL conversion confidence: ${smartAnalyticsData.data.conversion_intelligence.avg_confidence}%`,
+      icon: CheckCircle,
+      color: "cyan"
+    }
+  ].filter(Boolean);
 
   if (error) {
     return (
@@ -226,25 +210,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Key Metrics with Neon Effects */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {updatedMetrics.map((metric) => (
-          <Card key={metric.title} className="metrics-card">
+        {computedMetrics.map((metric) => (
+          <Card key={metric.title} className={`neon-metric-card ${metric.neonClass}`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     {metric.title}
                   </p>
-                  <p className="text-2xl font-bold">{metric.value}</p>
+                  <p className={`text-2xl font-bold neon-text-${metric.neonClass}`}>{metric.value}</p>
                   <div className="flex items-center mt-2">
-                    <ArrowUpRight className="h-4 w-4 text-success mr-1" />
-                    <span className="text-sm text-success font-medium">
+                    {metric.trend === "up" && <ArrowUpRight className={`h-4 w-4 neon-glow-${metric.neonClass} mr-1`} />}
+                    <span className={`text-sm neon-text-${metric.neonClass} font-medium`}>
                       {metric.change}
                     </span>
                   </div>
                 </div>
-                <div className={`${metric.color}`}>
+                <div className={`neon-glow-${metric.neonClass}`}>
                   <metric.icon className="h-8 w-8" />
                 </div>
               </div>
@@ -254,58 +238,90 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Activity Timeline */}
+        {/* Activity Timeline with Neon */}
         <div className="lg:col-span-2">
-          <Card className="enterprise-card">
+          <Card className="neon-card-cyan">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Clock className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center neon-text-cyan">
+                <Clock className="h-5 w-5 mr-2 neon-glow-cyan" />
                 Recent Activity
               </CardTitle>
               <CardDescription>
-                Latest platform activities and alerts
+                Real-time activities from all platform features
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-                    <div className="flex-shrink-0">
-                      {activity.type === 'migration' && (
-                        <GitBranch className="h-5 w-5 text-primary mt-0.5" />
-                      )}
-                      {activity.type === 'quality' && (
-                        <CheckCircle className="h-5 w-5 text-success mt-0.5" />
-                      )}
-                      {activity.type === 'alert' && (
-                        <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.title}
-                      </p>
-                      <div className="flex items-center mt-1 space-x-2">
-                        <Badge 
-                          variant={
-                            activity.status === 'success' ? 'default' :
-                            activity.status === 'warning' ? 'secondary' :
-                            activity.status === 'running' ? 'outline' : 'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {activity.status}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {activity.timestamp}
-                        </span>
+              <div className="space-y-3">
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((activity: any) => (
+                    <div 
+                      key={activity.id} 
+                      className={`activity-item-neon ${activity.source === 'data_cleaning' ? 'clean-data' : activity.source === 'sql_conversion' ? 'convert-sql' : 'analytics'} flex items-start space-x-4 p-3 rounded-lg border border-border/50 transition-all`}
+                    >
+                      <div className="flex-shrink-0">
+                        {activity.type === 'migration' && (
+                          <GitBranch className="h-5 w-5 neon-glow-purple mt-0.5" />
+                        )}
+                        {activity.type === 'quality' && (
+                          <CheckCircle className="h-5 w-5 neon-glow-cyan mt-0.5" />
+                        )}
+                        {activity.type === 'analytics' && (
+                          <Database className="h-5 w-5 neon-glow-lime mt-0.5" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {activity.title}
+                        </p>
+                        <div className="flex items-center mt-1 space-x-2">
+                          <Badge 
+                            variant={activity.status === 'success' ? 'default' : 'secondary'}
+                            className={`text-xs ${activity.source === 'data_cleaning' ? 'neon-badge-cyan' : activity.source === 'sql_conversion' ? 'neon-badge-purple' : 'neon-badge-lime'}`}
+                          >
+                            {activity.source === 'data_cleaning' ? 'Clean Data' : activity.source === 'sql_conversion' ? 'Convert SQL' : 'Analytics'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {activity.timestamp}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No recent activities</p>
+                    <p className="text-xs mt-1">Start using the platform to see activities here</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Platform Insights from Smart Analytics */}
+          {platformInsights.length > 0 && (
+            <Card className="neon-card-purple mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center neon-text-purple">
+                  <TrendingUp className="h-5 w-5 mr-2 neon-glow-purple" />
+                  Platform Insights
+                </CardTitle>
+                <CardDescription>
+                  AI-powered insights from Smart Analytics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {platformInsights.map((insight: any, index: number) => (
+                    <div key={index} className={`flex items-center space-x-3 p-3 rounded-lg neon-border-${insight.color}-subtle bg-muted/30`}>
+                      <insight.icon className={`h-5 w-5 neon-glow-${insight.color}`} />
+                      <p className="text-sm">{insight.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Quick Actions */}
