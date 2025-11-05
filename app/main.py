@@ -69,6 +69,13 @@ except ImportError:
     from fastapi import APIRouter
     websocket_router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
+try:
+    from .monitoring.routes import router as monitoring_router
+except ImportError:
+    print("Monitoring router not found, creating placeholder")
+    from fastapi import APIRouter
+    monitoring_router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
+
 # Setup basic logging
 logging.basicConfig(
     level=getattr(settings, 'log_level', 'INFO'),
@@ -336,6 +343,7 @@ app.include_router(data_quality_router)
 app.include_router(dashboard_router)
 app.include_router(migration_router)
 app.include_router(smart_analytics_router)
+app.include_router(monitoring_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers
@@ -348,7 +356,7 @@ async def not_found_handler(request: Request, exc):
             "error": "Not Found",
             "message": f"The requested resource was not found: {request.url.path}",
             "available_endpoints": [
-                "/docs", "/health", "/info", "/data-quality/*", "/migration/*", "/smart-analytics/*"
+                "/docs", "/health", "/info", "/data-quality/*", "/migration/*", "/smart-analytics/*", "/monitoring/*"
             ]
         }
     )
@@ -383,7 +391,8 @@ async def root():
             "data_quality": "/data-quality",
             "sql_migration": "/migration",
             "dashboard": "/dashboard",
-            "smart_analytics": "/smart-analytics"
+            "smart_analytics": "/smart-analytics",
+            "monitoring": "/monitoring"
         }
     }
 
