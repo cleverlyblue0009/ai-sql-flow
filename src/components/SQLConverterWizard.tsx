@@ -418,8 +418,8 @@ export default function SQLConverterWizard() {
   return (
     <div className="space-y-6" ref={scrollRef}>
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">SQL Converter</h1>
+      <div className="neon-header">
+        <h1 className="text-3xl font-bold mb-2 neon-text">SQL Converter</h1>
         <p className="text-muted-foreground">
           Convert SQL files between database dialects with AI-powered detection
         </p>
@@ -430,10 +430,10 @@ export default function SQLConverterWizard() {
 
       {/* Step 1: Upload & Auto-Detect */}
       {currentStep === 1 && (
-        <Card className="border-2 border-primary/20">
+        <Card className="neon-card">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Upload className="h-5 w-5 mr-2" />
+            <CardTitle className="flex items-center neon-text">
+              <Upload className="h-5 w-5 mr-2 neon-glow" />
               Step 1: Upload & Auto-Detect
             </CardTitle>
             <CardDescription>
@@ -446,8 +446,8 @@ export default function SQLConverterWizard() {
               {...getRootProps()}
               className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all ${
                 isDragActive 
-                  ? 'border-primary bg-primary/5 scale-105' 
-                  : 'border-border hover:border-primary/50 hover:bg-muted/30'
+                  ? 'border-cyan-500 bg-cyan-500/5 scale-105' 
+                  : 'neon-border-subtle hover:border-cyan-500 hover:bg-cyan-500/5'
               }`}
             >
               <input {...getInputProps()} />
@@ -459,7 +459,7 @@ export default function SQLConverterWizard() {
                 <p className="text-muted-foreground mb-4">
                   or click to browse (.sql, .ddl files up to 50MB)
                 </p>
-                <Button>
+                <Button className="neon-button">
                   <Upload className="h-4 w-4 mr-2" />
                   Browse Files
                 </Button>

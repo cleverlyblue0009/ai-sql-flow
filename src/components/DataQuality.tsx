@@ -93,23 +93,29 @@ export default function DataQuality() {
   const { data: uploadsData, isLoading, error } = useQuery({
     queryKey: ['recent-uploads'],
     queryFn: api.dataQuality.getRecentUploads,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // Fetch quality summary for current data profile
   const { data: qualitySummary, isLoading: isLoadingQuality } = useQuery({
     queryKey: ['quality-summary', currentDataProfile],
     queryFn: () => currentDataProfile ? api.dataQuality.getQualitySummary(currentDataProfile) : null,
-    enabled: !!currentDataProfile,
-    refetchInterval: 5000, // Refresh every 5 seconds when analyzing
+    enabled: !!currentDataProfile && !error,
+    refetchInterval: (query) => query.state.error ? false : 5000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // Fetch validation results for current data profile
   const { data: validationData, isLoading: isLoadingValidation } = useQuery({
     queryKey: ['validation-results', currentDataProfile],
     queryFn: () => currentDataProfile ? api.dataQuality.getValidationResults(currentDataProfile) : null,
-    enabled: !!currentDataProfile,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    enabled: !!currentDataProfile && !error,
+    refetchInterval: (query) => query.state.error ? false : 10000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // File upload mutation
@@ -424,8 +430,8 @@ export default function DataQuality() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Data Quality Management</h1>
+      <div className="neon-header">
+        <h1 className="text-3xl font-bold mb-2 neon-text">Data Quality Management</h1>
         <p className="text-muted-foreground">
           Upload, analyze, and clean your data with AI-powered quality assessment
         </p>
@@ -441,10 +447,10 @@ export default function DataQuality() {
 
         <TabsContent value="upload" className="space-y-6">
           {/* Upload Interface */}
-          <Card className="enterprise-card">
+          <Card className="neon-card">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Upload className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center neon-text">
+                <Upload className="h-5 w-5 mr-2 neon-glow" />
                 Data Upload
               </CardTitle>
               <CardDescription>
@@ -453,7 +459,7 @@ export default function DataQuality() {
             </CardHeader>
             <CardContent>
               <div 
-                className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                className="border-2 border-dashed neon-border-subtle rounded-lg p-12 text-center hover:border-cyan-500 transition-colors cursor-pointer"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
@@ -464,7 +470,7 @@ export default function DataQuality() {
                   Supports CSV, Excel, JSON, and database exports up to 500MB
                 </p>
                 <Button 
-                  className="enterprise-button-primary"
+                  className="neon-button"
                   disabled={uploadMutation.isPending}
                 >
                   {uploadMutation.isPending ? (
@@ -503,9 +509,9 @@ export default function DataQuality() {
           </Card>
 
           {/* Recent Uploads */}
-          <Card className="enterprise-card">
+          <Card className="neon-card">
             <CardHeader>
-              <CardTitle>Recent Uploads</CardTitle>
+              <CardTitle className="neon-text">Recent Uploads</CardTitle>
               <CardDescription>Files uploaded in the last 30 days</CardDescription>
             </CardHeader>
             <CardContent>
