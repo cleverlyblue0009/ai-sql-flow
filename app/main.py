@@ -53,10 +53,14 @@ except ImportError:
 
 try:
     from .smart_analytics.routes import router as smart_analytics_router
-except ImportError:
-    print("Smart Analytics router not found, creating placeholder")
+    print(f"✅ Smart Analytics router loaded successfully with {len(smart_analytics_router.routes)} routes")
+except ImportError as e:
+    print(f"❌ Smart Analytics router import failed: {e}")
+    import traceback
+    traceback.print_exc()
     from fastapi import APIRouter
     smart_analytics_router = APIRouter(prefix="/smart-analytics", tags=["Smart Analytics"])
+    print("⚠️ Created empty placeholder smart_analytics_router")
 
 try:
     from .websocket.routes import router as websocket_router
