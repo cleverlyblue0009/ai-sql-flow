@@ -1,17 +1,15 @@
 /* Neon UI Design System - DataFlow AI Platform */
+/* MINIMALIST CYAN ONLY THEME */
 
 /* ===========================
-   NEON COLOR VARIABLES
+   NEON COLOR VARIABLES - CYAN ONLY
    =========================== */
 :root {
-  /* Primary Neon Colors */
+  /* Primary Neon Color - CYAN ONLY */
   --neon-cyan: #00D9FF;
-  --neon-purple: #D946EF;
-  --neon-lime: #84FF00;
-  --neon-pink: #FF1493;
   
   /* Dark Background Colors */
-  --neon-bg-dark: #0F1419;
+  --neon-bg-dark: #0A0E1A;
   --neon-bg-neutral: #1A1F2E;
   
   /* Glow Intensities */
@@ -23,156 +21,69 @@
 /* ===========================
    NEON TEXT EFFECTS
    =========================== */
+.neon-text,
 .neon-text-cyan {
   color: var(--neon-cyan);
   text-shadow: 
-    0 0 10px rgba(0, 217, 255, 0.8),
-    0 0 20px rgba(0, 217, 255, 0.4);
-}
-
-.neon-text-purple {
-  color: var(--neon-purple);
-  text-shadow: 
-    0 0 10px rgba(217, 70, 239, 0.8),
-    0 0 20px rgba(217, 70, 239, 0.4);
-}
-
-.neon-text-lime {
-  color: var(--neon-lime);
-  text-shadow: 
-    0 0 10px rgba(132, 255, 0, 0.8),
-    0 0 20px rgba(132, 255, 0, 0.4);
-}
-
-.neon-text-pink {
-  color: var(--neon-pink);
-  text-shadow: 
-    0 0 10px rgba(255, 20, 147, 0.8),
-    0 0 20px rgba(255, 20, 147, 0.4);
+    0 0 10px rgba(0, 217, 255, var(--glow-medium)),
+    0 0 20px rgba(0, 217, 255, var(--glow-subtle));
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 /* ===========================
    NEON CARD EFFECTS
    =========================== */
+.neon-card,
 .neon-card-cyan {
-  border: 2px solid rgba(0, 217, 255, 0.3);
+  border: 1px solid rgba(0, 217, 255, 0.3);
   box-shadow: 
-    0 0 20px rgba(0, 217, 255, 0.2),
-    inset 0 0 20px rgba(0, 217, 255, 0.05);
+    0 0 15px rgba(0, 217, 255, 0.2),
+    inset 0 0 15px rgba(0, 217, 255, 0.05);
   transition: all 0.3s ease;
+  border-radius: 8px;
+  background: rgba(10, 14, 26, 0.5);
 }
 
+.neon-card:hover,
 .neon-card-cyan:hover {
   box-shadow: 
-    0 0 30px rgba(0, 217, 255, 0.4),
-    inset 0 0 30px rgba(0, 217, 255, 0.1);
+    0 0 25px rgba(0, 217, 255, 0.4),
+    inset 0 0 25px rgba(0, 217, 255, 0.1);
   transform: translateY(-2px);
-}
-
-.neon-card-purple {
-  border: 2px solid rgba(217, 70, 239, 0.3);
-  box-shadow: 
-    0 0 20px rgba(217, 70, 239, 0.2),
-    inset 0 0 20px rgba(217, 70, 239, 0.05);
-  transition: all 0.3s ease;
-}
-
-.neon-card-purple:hover {
-  box-shadow: 
-    0 0 30px rgba(217, 70, 239, 0.4),
-    inset 0 0 30px rgba(217, 70, 239, 0.1);
-  transform: translateY(-2px);
-}
-
-.neon-card-lime {
-  border: 2px solid rgba(132, 255, 0, 0.3);
-  box-shadow: 
-    0 0 20px rgba(132, 255, 0, 0.2),
-    inset 0 0 20px rgba(132, 255, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-.neon-card-lime:hover {
-  box-shadow: 
-    0 0 30px rgba(132, 255, 0, 0.4),
-    inset 0 0 30px rgba(132, 255, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.neon-card-pink {
-  border: 2px solid rgba(255, 20, 147, 0.3);
-  box-shadow: 
-    0 0 20px rgba(255, 20, 147, 0.2),
-    inset 0 0 20px rgba(255, 20, 147, 0.05);
-  transition: all 0.3s ease;
-}
-
-.neon-card-pink:hover {
-  box-shadow: 
-    0 0 30px rgba(255, 20, 147, 0.4),
-    inset 0 0 30px rgba(255, 20, 147, 0.1);
-  transform: translateY(-2px);
+  border-color: rgba(0, 217, 255, 0.6);
 }
 
 /* ===========================
    NEON BORDER EFFECTS
    =========================== */
+.neon-border,
+.neon-border-cyan {
+  border: 1px solid rgba(0, 217, 255, 0.5);
+}
+
+.neon-border-subtle,
 .neon-border-cyan-subtle {
   border: 1px solid rgba(0, 217, 255, 0.3);
-}
-
-.neon-border-purple-subtle {
-  border: 1px solid rgba(217, 70, 239, 0.3);
-}
-
-.neon-border-lime-subtle {
-  border: 1px solid rgba(132, 255, 0, 0.3);
-}
-
-.neon-border-pink {
-  border: 2px solid rgba(255, 20, 147, 0.5);
 }
 
 /* ===========================
    NEON GLOW EFFECTS
    =========================== */
+.neon-glow,
 .neon-glow-cyan {
   filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.8));
 }
 
-.neon-glow-purple {
-  filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.8));
-}
-
-.neon-glow-lime {
-  filter: drop-shadow(0 0 8px rgba(132, 255, 0, 0.8));
-}
-
-.neon-glow-pink {
-  filter: drop-shadow(0 0 8px rgba(255, 20, 147, 0.8));
-}
-
-/* Subtle Glow Variants */
+.neon-glow-subtle,
 .neon-glow-cyan-subtle {
   box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
-}
-
-.neon-glow-purple-subtle {
-  box-shadow: 0 0 15px rgba(217, 70, 239, 0.3);
-}
-
-.neon-glow-lime-subtle {
-  box-shadow: 0 0 15px rgba(132, 255, 0, 0.3);
-}
-
-.neon-glow-pink-subtle {
-  box-shadow: 0 0 15px rgba(255, 20, 147, 0.3);
 }
 
 /* ===========================
    NEON PULSE ANIMATIONS
    =========================== */
-@keyframes neon-pulse-cyan {
+@keyframes neon-pulse {
   0%, 100% { 
     box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
   }
@@ -181,114 +92,80 @@
   }
 }
 
-@keyframes neon-pulse-purple {
+@keyframes neon-pulse-subtle {
   0%, 100% { 
-    box-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
   }
   50% { 
-    box-shadow: 0 0 30px rgba(217, 70, 239, 1);
+    box-shadow: 0 0 25px rgba(0, 217, 255, 0.5);
   }
 }
 
-@keyframes neon-pulse-lime {
-  0%, 100% { 
-    box-shadow: 0 0 10px rgba(132, 255, 0, 0.5);
-  }
-  50% { 
-    box-shadow: 0 0 30px rgba(132, 255, 0, 1);
-  }
+.neon-pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
 }
 
-@keyframes neon-pulse-pink {
-  0%, 100% { 
-    box-shadow: 0 0 10px rgba(255, 20, 147, 0.5);
-  }
-  50% { 
-    box-shadow: 0 0 30px rgba(255, 20, 147, 1);
-  }
-}
-
-.neon-pulse-cyan {
-  animation: neon-pulse-cyan 2s ease-in-out infinite;
-}
-
-.neon-pulse-purple {
-  animation: neon-pulse-purple 2s ease-in-out infinite;
-}
-
-.neon-pulse-lime {
-  animation: neon-pulse-lime 2s ease-in-out infinite;
-}
-
-.neon-pulse-pink {
-  animation: neon-pulse-pink 2s ease-in-out infinite;
-}
-
-/* Subtle pulse variants */
-.neon-pulse-cyan-subtle {
-  animation: neon-pulse-cyan 3s ease-in-out infinite;
-}
-
-.neon-pulse-purple-subtle {
-  animation: neon-pulse-purple 3s ease-in-out infinite;
-}
-
-.neon-pulse-pink-subtle {
-  animation: neon-pulse-pink 3s ease-in-out infinite;
+.neon-pulse-subtle {
+  animation: neon-pulse-subtle 3s ease-in-out infinite;
 }
 
 /* ===========================
    NEON BUTTON EFFECTS
    =========================== */
-.neon-button-cyan {
-  border: 2px solid var(--neon-cyan);
+.neon-button,
+.neon-button-cyan,
+.neon-btn {
+  background: transparent;
+  border: 1px solid var(--neon-cyan);
   color: var(--neon-cyan);
   box-shadow: 
     0 0 10px rgba(0, 217, 255, 0.4),
     inset 0 0 10px rgba(0, 217, 255, 0.1);
   transition: all 0.3s ease;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.neon-button-cyan:hover {
+.neon-button:hover,
+.neon-button-cyan:hover,
+.neon-btn:hover {
   background: rgba(0, 217, 255, 0.1);
   box-shadow: 
-    0 0 20px rgba(0, 217, 255, 0.6),
+    0 0 20px rgba(0, 217, 255, 0.8),
     inset 0 0 20px rgba(0, 217, 255, 0.2);
   transform: translateY(-2px);
 }
 
-.neon-button-purple {
-  border: 2px solid var(--neon-purple);
-  color: var(--neon-purple);
+.neon-button:disabled,
+.neon-button-cyan:disabled,
+.neon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===========================
+   NEON INPUT EFFECTS
+   =========================== */
+.neon-input {
+  background: rgba(10, 14, 26, 0.8);
+  border: 1px solid var(--neon-cyan);
+  color: #FFFFFF;
   box-shadow: 
-    0 0 10px rgba(217, 70, 239, 0.4),
-    inset 0 0 10px rgba(217, 70, 239, 0.1);
+    0 0 10px rgba(0, 217, 255, 0.2),
+    inset 0 0 5px rgba(0, 217, 255, 0.05);
+  border-radius: 6px;
+  padding: 10px 15px;
   transition: all 0.3s ease;
 }
 
-.neon-button-purple:hover {
-  background: rgba(217, 70, 239, 0.1);
+.neon-input:focus {
+  outline: none;
   box-shadow: 
-    0 0 20px rgba(217, 70, 239, 0.6),
-    inset 0 0 20px rgba(217, 70, 239, 0.2);
-  transform: translateY(-2px);
-}
-
-.neon-button-lime {
-  border: 2px solid var(--neon-lime);
-  color: var(--neon-lime);
-  box-shadow: 
-    0 0 10px rgba(132, 255, 0, 0.4),
-    inset 0 0 10px rgba(132, 255, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.neon-button-lime:hover {
-  background: rgba(132, 255, 0, 0.1);
-  box-shadow: 
-    0 0 20px rgba(132, 255, 0, 0.6),
-    inset 0 0 20px rgba(132, 255, 0, 0.2);
-  transform: translateY(-2px);
+    0 0 20px rgba(0, 217, 255, 0.6),
+    inset 0 0 10px rgba(0, 217, 255, 0.1);
+  border-color: var(--neon-cyan);
 }
 
 /* ===========================
@@ -298,7 +175,7 @@
   position: relative;
   padding: 2rem;
   border-radius: 0.5rem;
-  background: linear-gradient(135deg, rgba(0, 217, 255, 0.05) 0%, rgba(217, 70, 239, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.05) 0%, rgba(0, 217, 255, 0.01) 100%);
   border: 1px solid rgba(0, 217, 255, 0.2);
   margin-bottom: 2rem;
 }
@@ -309,7 +186,7 @@
   inset: 0;
   border-radius: 0.5rem;
   padding: 2px;
-  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+  background: var(--neon-cyan);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -320,68 +197,34 @@
 /* ===========================
    NEON PROGRESS BAR
    =========================== */
+.neon-progress [data-state="complete"],
 .neon-progress-cyan [data-state="complete"] {
   background: linear-gradient(90deg, var(--neon-cyan) 0%, rgba(0, 217, 255, 0.5) 100%);
   box-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
 }
 
-.neon-progress-purple [data-state="complete"] {
-  background: linear-gradient(90deg, var(--neon-purple) 0%, rgba(217, 70, 239, 0.5) 100%);
-  box-shadow: 0 0 10px rgba(217, 70, 239, 0.6);
-}
-
-.neon-progress-lime [data-state="complete"] {
-  background: linear-gradient(90deg, var(--neon-lime) 0%, rgba(132, 255, 0, 0.5) 100%);
-  box-shadow: 0 0 10px rgba(132, 255, 0, 0.6);
-}
-
 /* ===========================
    NEON BADGE EFFECTS
    =========================== */
+.neon-badge,
 .neon-badge-cyan {
   background: rgba(0, 217, 255, 0.1);
   border: 1px solid rgba(0, 217, 255, 0.5);
   color: var(--neon-cyan);
   box-shadow: 0 0 5px rgba(0, 217, 255, 0.3);
-}
-
-.neon-badge-purple {
-  background: rgba(217, 70, 239, 0.1);
-  border: 1px solid rgba(217, 70, 239, 0.5);
-  color: var(--neon-purple);
-  box-shadow: 0 0 5px rgba(217, 70, 239, 0.3);
-}
-
-.neon-badge-lime {
-  background: rgba(132, 255, 0, 0.1);
-  border: 1px solid rgba(132, 255, 0, 0.5);
-  color: var(--neon-lime);
-  box-shadow: 0 0 5px rgba(132, 255, 0, 0.3);
-}
-
-.neon-badge-pink {
-  background: rgba(255, 20, 147, 0.1);
-  border: 1px solid rgba(255, 20, 147, 0.5);
-  color: var(--neon-pink);
-  box-shadow: 0 0 5px rgba(255, 20, 147, 0.3);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 /* ===========================
    NEON ACCENT BARS
    =========================== */
-.neon-accent-bar-cyan {
+.neon-accent-bar {
   border-left: 3px solid var(--neon-cyan);
   box-shadow: -3px 0 10px rgba(0, 217, 255, 0.5);
-}
-
-.neon-accent-bar-purple {
-  border-left: 3px solid var(--neon-purple);
-  box-shadow: -3px 0 10px rgba(217, 70, 239, 0.5);
-}
-
-.neon-accent-bar-lime {
-  border-left: 3px solid var(--neon-lime);
-  box-shadow: -3px 0 10px rgba(132, 255, 0, 0.5);
+  padding-left: 1rem;
 }
 
 /* ===========================
@@ -390,40 +233,21 @@
 .neon-metric-card {
   position: relative;
   transition: all 0.3s ease;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.05) 0%, rgba(0, 217, 255, 0.01) 100%);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 8px;
 }
 
 .neon-metric-card:hover {
   transform: translateY(-4px);
-}
-
-.neon-metric-card.cyan {
-  background: linear-gradient(135deg, rgba(0, 217, 255, 0.05) 0%, rgba(0, 217, 255, 0.01) 100%);
-  border: 1px solid rgba(0, 217, 255, 0.3);
-}
-
-.neon-metric-card.cyan:hover {
   box-shadow: 0 0 25px rgba(0, 217, 255, 0.3);
   border-color: rgba(0, 217, 255, 0.6);
 }
 
-.neon-metric-card.purple {
-  background: linear-gradient(135deg, rgba(217, 70, 239, 0.05) 0%, rgba(217, 70, 239, 0.01) 100%);
-  border: 1px solid rgba(217, 70, 239, 0.3);
-}
-
-.neon-metric-card.purple:hover {
-  box-shadow: 0 0 25px rgba(217, 70, 239, 0.3);
-  border-color: rgba(217, 70, 239, 0.6);
-}
-
-.neon-metric-card.lime {
-  background: linear-gradient(135deg, rgba(132, 255, 0, 0.05) 0%, rgba(132, 255, 0, 0.01) 100%);
-  border: 1px solid rgba(132, 255, 0, 0.3);
-}
-
-.neon-metric-card.lime:hover {
-  box-shadow: 0 0 25px rgba(132, 255, 0, 0.3);
-  border-color: rgba(132, 255, 0, 0.6);
+.neon-metric {
+  color: var(--neon-cyan);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.5);
 }
 
 /* ===========================
@@ -432,25 +256,74 @@
 .activity-item-neon {
   position: relative;
   padding-left: 1rem;
-  border-left: 2px solid transparent;
+  border-left: 2px solid var(--neon-cyan);
   transition: all 0.3s ease;
 }
 
-.activity-item-neon.clean-data {
-  border-left-color: var(--neon-cyan);
-}
-
-.activity-item-neon.convert-sql {
-  border-left-color: var(--neon-purple);
-}
-
-.activity-item-neon.analytics {
-  border-left-color: var(--neon-lime);
-}
-
 .activity-item-neon:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 217, 255, 0.05);
   box-shadow: -3px 0 15px rgba(0, 217, 255, 0.2);
+}
+
+/* ===========================
+   ICON EFFECTS
+   =========================== */
+.neon-icon {
+  color: var(--neon-cyan);
+  filter: drop-shadow(0 0 5px rgba(0, 217, 255, 0.6));
+}
+
+/* ===========================
+   TABLE NEON STYLING
+   =========================== */
+.neon-table {
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.neon-table thead {
+  background: rgba(0, 217, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 217, 255, 0.3);
+}
+
+.neon-table th {
+  color: var(--neon-cyan);
+  font-weight: 600;
+  padding: 12px 16px;
+}
+
+.neon-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 217, 255, 0.1);
+}
+
+.neon-table tbody tr:hover {
+  background: rgba(0, 217, 255, 0.05);
+}
+
+/* ===========================
+   DIVIDER
+   =========================== */
+.neon-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  opacity: 0.3;
+  margin: 2rem 0;
+}
+
+/* ===========================
+   SECTION TITLE
+   =========================== */
+.neon-section-title {
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* ===========================
@@ -461,12 +334,29 @@
     padding: 1.5rem;
   }
   
-  .neon-text-cyan,
-  .neon-text-purple,
-  .neon-text-lime,
-  .neon-text-pink {
+  .neon-text,
+  .neon-text-cyan {
     text-shadow: 
-      0 0 5px currentColor,
-      0 0 10px currentColor;
+      0 0 5px rgba(0, 217, 255, 0.6),
+      0 0 10px rgba(0, 217, 255, 0.3);
   }
+  
+  .neon-metric-card:hover {
+    transform: none;
+  }
+}
+
+/* ===========================
+   UTILITY CLASSES
+   =========================== */
+.neon-bg-dark {
+  background-color: var(--neon-bg-dark);
+}
+
+.neon-bg-neutral {
+  background-color: var(--neon-bg-neutral);
+}
+
+.text-neon {
+  color: var(--neon-cyan);
 }
