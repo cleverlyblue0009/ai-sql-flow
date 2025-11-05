@@ -344,7 +344,7 @@ async def not_found_handler(request: Request, exc):
             "error": "Not Found",
             "message": f"The requested resource was not found: {request.url.path}",
             "available_endpoints": [
-                "/docs", "/health", "/info", "/data-quality/*", "/migration/*"
+                "/docs", "/health", "/info", "/data-quality/*", "/migration/*", "/smart-analytics/*"
             ]
         }
     )
