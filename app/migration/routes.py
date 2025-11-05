@@ -15,6 +15,7 @@ from .schemas import (
 )
 from .services import MigrationService, SQLTranslationService, ConnectionService
 from .enterprise_features import batch_migration_manager, export_manager, history_manager
+from .batch_sql_converter import batch_converter
 from ..tasks.migration_tasks import start_migration_task_wrapper, translate_sql_task_wrapper, analyze_sql_schema_task_wrapper
 from ..utils.audit import log_migration_action
 
@@ -763,6 +764,95 @@ async def rollback_migration(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to perform rollback"
+        )
+
+
+# Batch SQL Converter endpoint (NEW - Wizard-style conversion)
+@router.post("/convert-sql-batch")
+async def convert_sql_batch(
+    files: List[Dict[str, Any]],
+    target_dialect: str,
+    conversion_options: Optional[Dict[str, Any]] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Batch SQL conversion with automatic dialect detection
+    
+    Request body:
+    {
+        "files": [
+            {
+                "filename": "script.sql",
+                "content": "CREATE TABLE...",
+                "source_dialect": "mysql" (optional - will auto-detect if not provided)
+            }
+        ],
+        "target_dialect": "snowflake",
+        "conversion_options": {
+            "optimization_level": "standard",
+            "convert_schema": true,
+            "convert_data": true,
+            "keep_constraints": true,
+            "optimize_code": true
+        }
+    }
+    """
+    
+    try:
+        logger.info(f"Starting batch SQL conversion: {len(files)} files to {target_dialect}")
+        
+        # Perform batch conversion
+        result = await batch_converter.convert_batch(
+            files=files,
+            target_dialect=target_dialect,
+            conversion_options=conversion_options or {}
+        )
+        
+        logger.info(f"Batch conversion completed: {result['success_count']} succeeded, {result['failure_count']} failed")
+        
+        return {
+            "success": True,
+            "message": f"Converted {result['success_count']} files successfully",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Batch SQL conversion failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch conversion failed: {str(e)}"
+        )
+
+
+@router.post("/detect-dialect")
+async def detect_sql_dialect(
+    sql_content: str,
+    filename: str = "unknown.sql"
+):
+    """
+    Detect SQL dialect from content
+    
+    Returns:
+    {
+        "dialect": "mysql",
+        "confidence": 85,
+        "features": ["AUTO_INCREMENT", "ENGINE=InnoDB"],
+        "reasoning": "Detected MySQL-specific syntax"
+    }
+    """
+    
+    try:
+        result = await batch_converter.detect_sql_dialect(sql_content, filename)
+        return {
+            "success": True,
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Dialect detection failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Dialect detection failed: {str(e)}"
         )
 
 
