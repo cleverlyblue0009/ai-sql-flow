@@ -20,34 +20,48 @@ import { api } from "@/lib/api";
 
 export default function SmartAnalytics() {
   // Fetch all analytics data
-  const { data: queryOptimizerData, refetch: refetchOptimizer } = useQuery({
+  const { data: queryOptimizerData, refetch: refetchOptimizer, error: optimizerError } = useQuery({
     queryKey: ['smart-analytics-query-optimizer'],
     queryFn: api.smartAnalytics.getQueryOptimizer,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   const { data: anomalyData, refetch: refetchAnomalies } = useQuery({
     queryKey: ['smart-analytics-anomalies'],
     queryFn: api.smartAnalytics.getAnomalyDetection,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !optimizerError,
   });
 
   const { data: activityData, refetch: refetchActivity } = useQuery({
     queryKey: ['smart-analytics-activity'],
     queryFn: api.smartAnalytics.getActivityIntelligence,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !optimizerError,
   });
 
   const { data: conversionData } = useQuery({
     queryKey: ['smart-analytics-conversion'],
     queryFn: api.smartAnalytics.getConversionIntelligence,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !optimizerError,
   });
 
   const { data: performanceData } = useQuery({
     queryKey: ['smart-analytics-performance'],
     queryFn: api.smartAnalytics.getPerformanceInsights,
-    refetchInterval: 30000,
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !optimizerError,
   });
 
   const handleRefreshAll = () => {

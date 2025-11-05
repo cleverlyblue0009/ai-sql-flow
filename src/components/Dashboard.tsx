@@ -51,35 +51,60 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading, error } = useQuery({
     queryKey: ['dashboard-overview'],
     queryFn: api.dashboard.getOverview,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: (query) => {
+      // Stop refetching if there's an error (backend is down)
+      return query.state.error ? false : 30000;
+    },
+    retry: 1, // Only retry once instead of default 3 times
+    retryDelay: 5000, // Wait 5 seconds before retry
   });
 
   // Fetch system metrics
   const { data: systemData } = useQuery({
     queryKey: ['system-metrics'],
     queryFn: api.monitoring.getSystemMetrics,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: (query) => {
+      return query.state.error ? false : 10000;
+    },
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !error, // Don't fetch if main query failed
   });
 
   // Fetch recent uploads for activity
   const { data: recentUploadsData } = useQuery({
     queryKey: ['recent-uploads'],
     queryFn: api.dataQuality.getRecentUploads,
-    refetchInterval: 30000,
+    refetchInterval: (query) => {
+      return query.state.error ? false : 30000;
+    },
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !error, // Don't fetch if main query failed
   });
 
   // Fetch Smart Analytics activity intelligence for real activity feed
   const { data: activityIntelligence } = useQuery({
     queryKey: ['activity-intelligence'],
     queryFn: api.smartAnalytics.getActivityIntelligence,
-    refetchInterval: 30000,
+    refetchInterval: (query) => {
+      return query.state.error ? false : 30000;
+    },
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !error, // Don't fetch if main query failed
   });
 
   // Fetch Smart Analytics for insights
   const { data: smartAnalyticsData } = useQuery({
     queryKey: ['smart-analytics-overview'],
     queryFn: api.smartAnalytics.getOverview,
-    refetchInterval: 60000,
+    refetchInterval: (query) => {
+      return query.state.error ? false : 60000;
+    },
+    retry: 1,
+    retryDelay: 5000,
+    enabled: !error, // Don't fetch if main query failed
   });
 
   // Compute real metrics from actual data
@@ -164,14 +189,22 @@ export default function Dashboard() {
       <div className="space-y-8">
         <Card className="border-destructive">
           <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <div>
-                <p className="font-medium text-destructive">Unable to connect to backend</p>
-                <p className="text-sm text-muted-foreground">
-                  Make sure the backend is running on http://localhost:8000
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <div>
+                  <p className="font-medium text-destructive">Unable to connect to backend</p>
+                  <p className="text-sm text-muted-foreground">
+                    Make sure the backend is running on http://localhost:8000
+                  </p>
+                </div>
               </div>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+              >
+                Retry Connection
+              </Button>
             </div>
           </CardContent>
         </Card>

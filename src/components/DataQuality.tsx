@@ -93,23 +93,29 @@ export default function DataQuality() {
   const { data: uploadsData, isLoading, error } = useQuery({
     queryKey: ['recent-uploads'],
     queryFn: api.dataQuality.getRecentUploads,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: (query) => query.state.error ? false : 30000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // Fetch quality summary for current data profile
   const { data: qualitySummary, isLoading: isLoadingQuality } = useQuery({
     queryKey: ['quality-summary', currentDataProfile],
     queryFn: () => currentDataProfile ? api.dataQuality.getQualitySummary(currentDataProfile) : null,
-    enabled: !!currentDataProfile,
-    refetchInterval: 5000, // Refresh every 5 seconds when analyzing
+    enabled: !!currentDataProfile && !error,
+    refetchInterval: (query) => query.state.error ? false : 5000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // Fetch validation results for current data profile
   const { data: validationData, isLoading: isLoadingValidation } = useQuery({
     queryKey: ['validation-results', currentDataProfile],
     queryFn: () => currentDataProfile ? api.dataQuality.getValidationResults(currentDataProfile) : null,
-    enabled: !!currentDataProfile,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    enabled: !!currentDataProfile && !error,
+    refetchInterval: (query) => query.state.error ? false : 10000,
+    retry: 1,
+    retryDelay: 5000,
   });
 
   // File upload mutation
