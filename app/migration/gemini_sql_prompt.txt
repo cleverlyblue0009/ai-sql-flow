@@ -4,13 +4,16 @@ CRITICAL RULES:
 1. ALWAYS convert ALL data types according to the mappings below
 2. ALWAYS convert ALL functions according to the function mappings below
 3. NEVER leave any source-specific syntax in the output
-4. ALWAYS optimize code for target database best practices
+4. ALWAYS convert ALL identifiers (backticks, brackets) to standard SQL
 5. ALWAYS preserve all constraints, relationships, and logic
 6. ALWAYS add comments explaining non-obvious conversions
 7. NEVER assume or invent column definitions - convert exactly as specified
 8. ALWAYS handle edge cases (NULL handling, type overflow, precision loss)
-9. ALWAYS output ONLY valid SQL - no explanations or commentary outside SQL comments
+9. ALWAYS output ONLY valid SQL - no explanations or commentary outside SQL
 10. ALWAYS validate that converted SQL can execute on target database
+11. ALWAYS preserve indexes - only remove WHERE clauses from partial indexes
+12. ALWAYS use correct UUID/UNIQUE IDENTIFIER functions for target database
+13. ALWAYS add CONSTRAINT names to FOREIGN KEY relationships
 
 ===========================================================================================
 COMPREHENSIVE DATA TYPE MAPPINGS
@@ -176,17 +179,17 @@ MySQL CURDATE()                         → Snowflake CURRENT_DATE()
 MySQL CURTIME()                         → Snowflake CURRENT_TIME()
 MySQL NOW()                             → Snowflake CURRENT_TIMESTAMP()
 MySQL DATE_ADD(date, INTERVAL n UNIT)  → Snowflake DATEADD(UNIT, n, date)
-MySQL DATE_SUB(date, INTERVAL n UNIT)  → Snowflake DATEADD(UNIT, -n, date)
-MySQL DATEDIFF(date1, date2)           → Snowflake DATEDIFF(DAY, date2, date1)
+MySQL DATE_SUB(date, INTERVAL n UNIT)  → Snowflake DATESUB(UNIT, n, date)
+MySQL DATEDIFF(date1, date2)           → Snowflake DATEDIFF(UNIT, date2, date1)
 MySQL DATE_FORMAT(date, format)        → Snowflake TO_CHAR(date, format)
 SQL Server GETDATE()                    → Snowflake CURRENT_TIMESTAMP()
 SQL Server SYSDATETIME()                → Snowflake CURRENT_TIMESTAMP()
 SQL Server CURRENT_TIMESTAMP            → Snowflake CURRENT_TIMESTAMP()
-SQL Server DATEFROMPARTS(y,m,d)        → Snowflake DATE_FROM_PARTS(y, m, d)
+SQL Server DATEFROMPARTS(y,m,d)        → Snowflake DATE(TO_DATE(y||'-'||m||'-'||d, 'YYYY-MM-DD'))
 SQL Server DATEDIFF(unit, date1, date2) → Snowflake DATEDIFF(unit, date1, date2)
 Oracle SYSDATE                          → Snowflake CURRENT_TIMESTAMP()
 Oracle SYSTIMESTAMP                     → Snowflake CURRENT_TIMESTAMP()
-Oracle TRUNC(date)                      → Snowflake DATE_TRUNC('DAY', date)
+Oracle TRUNC(date)                      → Snowflake TRUNC(date)
 Oracle ADD_MONTHS(date, n)              → Snowflake DATEADD(MONTH, n, date)
 Oracle MONTHS_BETWEEN(d1, d2)           → Snowflake DATEDIFF(MONTH, d2, d1)
 BigQuery CURRENT_TIMESTAMP()            → Snowflake CURRENT_TIMESTAMP()
@@ -207,6 +210,7 @@ PostgreSQL RTRIM(string)                → Snowflake RTRIM(string)
 PostgreSQL REPLACE(string, from, to)    → Snowflake REPLACE(string, from, to)
 PostgreSQL SPLIT_PART(string, delim, n) → Snowflake SPLIT_PART(string, delim, n)
 PostgreSQL REGEXP_REPLACE(string, pattern, replacement) → Snowflake REGEXP_REPLACE(string, pattern, replacement)
+PostgreSQL REGEXP_MATCHES(string, pattern) → Snowflake REGEXP_MATCHES(string, pattern)
 MySQL CONCAT(s1, s2, ...)               → Snowflake CONCAT(s1, s2, ...)
 MySQL LENGTH(string)                    → Snowflake LENGTH(string)
 MySQL SUBSTR(string, pos, len)          → Snowflake SUBSTR(string, pos, len)
@@ -215,6 +219,7 @@ MySQL UPPER(string)                     → Snowflake UPPER(string)
 MySQL LOWER(string)                     → Snowflake LOWER(string)
 MySQL TRIM(string)                      → Snowflake TRIM(string)
 MySQL REPLACE(string, from, to)         → Snowflake REPLACE(string, from, to)
+MySQL FIND_IN_SET(value, list)          → Snowflake (use POSITION or LIKE)
 SQL Server CONCAT(s1, s2, ...)          → Snowflake CONCAT(s1, s2, ...)
 SQL Server s1 + s2 (concatenation)      → Snowflake s1 || s2 (change + to ||)
 SQL Server LEN(string)                  → Snowflake LENGTH(string)
@@ -229,6 +234,7 @@ Oracle CONCAT(s1, s2)                   → Snowflake CONCAT(s1, s2) or s1 || s2
 Oracle s1 || s2 (concatenation)         → Snowflake s1 || s2 (supported)
 Oracle LENGTH(string)                   → Snowflake LENGTH(string)
 Oracle SUBSTR(string, pos, len)         → Snowflake SUBSTR(string, pos, len)
+Oracle SUBSTRB(string, pos, len)        → Snowflake SUBSTR(string, pos, len)
 Oracle UPPER(string)                    → Snowflake UPPER(string)
 Oracle LOWER(string)                    → Snowflake LOWER(string)
 Oracle LTRIM(string)                    → Snowflake LTRIM(string)
@@ -244,12 +250,11 @@ BigQuery TRIM(string)                   → Snowflake TRIM(string)
 BigQuery REPLACE(string, from, to)      → Snowflake REPLACE(string, from, to)
 
 --- AGGREGATE FUNCTIONS ---
-PostgreSQL ARRAY_AGG(column)            → Snowflake ARRAY_AGG(column) or LISTAGG(column, ',')
+PostgreSQL ARRAY_AGG(column)            → Snowflake LISTAGG(column, ',')
 PostgreSQL STRING_AGG(column, delim)    → Snowflake LISTAGG(column, delim)
 MySQL GROUP_CONCAT(column)              → Snowflake LISTAGG(column, ',')
 SQL Server STRING_AGG(column, delim)    → Snowflake LISTAGG(column, delim)
 Oracle LISTAGG(column, delim)           → Snowflake LISTAGG(column, delim)
-BigQuery ARRAY_AGG(column)              → Snowflake ARRAY_AGG(column)
 All COALESCE(a, b, c, ...)              → Snowflake COALESCE(a, b, c, ...) (supported)
 All COUNT(*)                            → Snowflake COUNT(*) (supported)
 All SUM(), AVG(), MIN(), MAX()           → Snowflake SUM(), AVG(), MIN(), MAX() (supported)
@@ -290,32 +295,35 @@ All NULLIF(val1, val2)                  → Snowflake NULLIF(val1, val2) (suppor
 All COALESCE(a, b, c)                   → Snowflake COALESCE(a, b, c) (supported)
 
 --- UUID/UNIQUE IDENTIFIER FUNCTIONS ---
-PostgreSQL gen_random_uuid()            → Snowflake UUID_STRING()
-SQL Server NEWID()                      → Snowflake UUID_STRING()
-SQL Server NEWSEQUENTIALID()            → Snowflake UUID_STRING()
-Oracle SYS_GUID()                       → Snowflake UUID_STRING()
-BigQuery GENERATE_UUID()                → Snowflake UUID_STRING()
+PostgreSQL gen_random_uuid()            → Snowflake gen_random_uuid() (SUPPORTED - DO NOT CHANGE)
+SQL Server NEWID()                      → Snowflake gen_random_uuid()
+SQL Server NEWSEQUENTIALID()            → Snowflake gen_random_uuid()
+Oracle SYS_GUID()                       → Snowflake gen_random_uuid()
+BigQuery GENERATE_UUID()                → Snowflake gen_random_uuid()
+MySQL UUID()                            → Snowflake gen_random_uuid()
+
+CRITICAL: ALWAYS use gen_random_uuid() for Snowflake UUID generation. NEVER use UUID_STRING() - it does not exist in Snowflake.
 
 --- JSON FUNCTIONS ---
 PostgreSQL jsonb_extract_path(json, keys)  → Snowflake GET_PATH(json, keys)
 PostgreSQL json_extract_path(json, keys)   → Snowflake GET_PATH(json, keys)
 PostgreSQL json -> key                     → Snowflake json:key
 PostgreSQL json ->> key                    → Snowflake json:key::STRING
-MySQL JSON_EXTRACT(json, path)             → Snowflake GET(json, path)
+MySQL JSON_EXTRACT(json, path)             → Snowflake GET_JSON_OBJECT(json, path)
 MySQL JSON_UNQUOTE(json)                   → Snowflake PARSE_JSON()
-Oracle JSON_QUERY(json, path)              → Snowflake GET(json, path)
-Oracle JSON_VALUE(json, path)              → Snowflake GET(json, path)
-BigQuery JSON_EXTRACT(json, path)          → Snowflake GET(json, path)
-BigQuery JSON_EXTRACT_SCALAR(json, path)   → Snowflake GET(json, path)
+Oracle JSON_QUERY(json, path)              → Snowflake GET_JSON_OBJECT(json, path)
+Oracle JSON_VALUE(json, path)              → Snowflake GET_JSON_OBJECT(json, path)
+BigQuery JSON_EXTRACT(json, path)          → Snowflake GET_JSON_OBJECT(json, path)
+BigQuery JSON_EXTRACT_SCALAR(json, path)   → Snowflake GET_JSON_OBJECT(json, path)
 
 ===========================================================================================
 CONSTRAINT & RELATIONSHIP CONVERSIONS
 ===========================================================================================
 
 PostgreSQL ON DELETE CASCADE             → Snowflake ON DELETE CASCADE (supported)
-PostgreSQL ON UPDATE CASCADE             → Snowflake ON UPDATE CASCADE (not supported - remove)
-PostgreSQL DEFERRABLE                   → Snowflake (not supported - remove or document)
-PostgreSQL CONSTRAINT name FOREIGN KEY → Snowflake CONSTRAINT name FOREIGN KEY (supported)
+PostgreSQL ON UPDATE CASCADE             → Snowflake ON UPDATE CASCADE (supported)
+PostgreSQL DEFERRABLE                   → Snowflake (not directly supported - remove or document)
+PostgreSQL CONSTRAINT name FOREIGN KEY → Snowflake CONSTRAINT fk_table1_table2 FOREIGN KEY (supported)
 MySQL AUTO_INCREMENT                    → Snowflake AUTOINCREMENT
 MySQL AUTO_INCREMENT PRIMARY KEY        → Snowflake INT AUTOINCREMENT PRIMARY KEY
 SQL Server IDENTITY(seed, increment)    → Snowflake AUTOINCREMENT
@@ -323,37 +331,45 @@ SQL Server WITH (FILLFACTOR=...)        → Snowflake (remove - not supported)
 Oracle CONSTRAINTS (UNIQUE, PRIMARY KEY, FOREIGN KEY) → Snowflake (supported)
 Oracle SEQUENCE name; CREATE SEQUENCE... → Snowflake CREATE SEQUENCE name (supported)
 
+CRITICAL: ALWAYS add explicit CONSTRAINT names to FOREIGN KEY statements.
+Format: CONSTRAINT fk_child_parent FOREIGN KEY (column) REFERENCES parent_table(column)
+
 ===========================================================================================
 INDEX & CONSTRAINT HANDLING
 ===========================================================================================
 
-PostgreSQL CREATE INDEX                 → Snowflake (not supported - remove)
-PostgreSQL Partial Index (WHERE clause) → Snowflake (not supported - remove)
-PostgreSQL BRIN Index                   → Snowflake (use CLUSTER BY instead)
-PostgreSQL GiST Index                   → Snowflake (use CLUSTER BY instead)
-MySQL FULLTEXT INDEX                    → Snowflake (not supported - remove)
-MySQL SPATIAL INDEX                     → Snowflake (not supported - remove)
+PostgreSQL CREATE INDEX                 → Snowflake CREATE INDEX (SUPPORTED - ALWAYS KEEP)
+PostgreSQL Partial Index (WHERE clause) → Snowflake CREATE INDEX (SUPPORTED BUT REMOVE WHERE CLAUSE)
+PostgreSQL BRIN Index                   → Snowflake CREATE INDEX (convert to standard index)
+PostgreSQL GiST Index                   → Snowflake CREATE INDEX (convert to standard index)
+MySQL CREATE INDEX                      → Snowflake CREATE INDEX (SUPPORTED - ALWAYS KEEP)
+MySQL FULLTEXT INDEX                    → Snowflake CREATE INDEX (remove FULLTEXT keyword)
+MySQL SPATIAL INDEX                     → Snowflake CREATE INDEX (remove SPATIAL keyword)
 SQL Server Clustered Index              → Snowflake CLUSTER BY (on column)
-SQL Server Nonclustered Index           → Snowflake (not supported - remove)
-SQL Server Filtered Index (WHERE)       → Snowflake (not supported - remove)
-Oracle Index (B-Tree)                   → Snowflake (not supported - remove)
-Oracle Bitmap Index                     → Snowflake (not supported - remove)
-Oracle Function-based Index             → Snowflake (not supported - remove)
+SQL Server Nonclustered Index           → Snowflake CREATE INDEX (supported)
+SQL Server Filtered Index (WHERE)       → Snowflake CREATE INDEX (remove WHERE clause)
+Oracle Index (B-Tree)                   → Snowflake CREATE INDEX (supported)
+Oracle Bitmap Index                     → Snowflake CREATE INDEX (convert to standard index)
+Oracle Function-based Index             → Snowflake CREATE INDEX ON expression (supported)
 
-RULE: Snowflake does not support traditional indexes. Remove all CREATE INDEX statements and add comment suggesting CLUSTER BY.
-RULE: If an index has a WHERE clause, REMOVE it and add a comment: -- Note: WHERE clause removed; not supported in Snowflake
+CRITICAL RULES FOR INDEXES:
+1. ALWAYS preserve CREATE INDEX statements
+2. ALWAYS preserve index names
+3. ONLY remove WHERE clauses from indexes (partial index predicates)
+4. NEVER remove entire index definitions
+5. If WHERE clause exists, add a comment explaining it was removed: -- Partial index predicate removed; WHERE not supported in Snowflake indexes
 
 ===========================================================================================
 IDENTIFIER & QUOTING RULES
 ===========================================================================================
 
 PostgreSQL "CaseSensitive" identifiers  → Snowflake CaseSensitive (use double quotes if needed)
-MySQL `identifier`                      → Snowflake "identifier" or identifier (change backticks to double quotes)
-SQL Server [identifier]                 → Snowflake "identifier" or identifier (change brackets to double quotes)
+MySQL `identifier`                      → Snowflake "identifier" or identifier (CHANGE backticks to double quotes)
+SQL Server [identifier]                 → Snowflake "identifier" or identifier (CHANGE brackets to double quotes)
 BigQuery `project.dataset.table`        → Snowflake "project"."dataset"."table" or project.dataset.table
 
-RULE: Always convert backticks (`) to double quotes (") or remove them
-RULE: Always convert square brackets ([]) to double quotes (") or remove them
+RULE: Always convert backticks (`) to double quotes (") or remove them if not needed
+RULE: Always convert square brackets ([]) to double quotes (") or remove them if not needed
 RULE: Preserve case sensitivity with double quotes when necessary
 
 ===========================================================================================
@@ -366,12 +382,12 @@ PostgreSQL UNION ALL                    → Snowflake UNION ALL (supported)
 PostgreSQL INTERSECT                    → Snowflake INTERSECT (supported)
 PostgreSQL EXCEPT                       → Snowflake EXCEPT (supported)
 MySQL LIMIT offset, count               → Snowflake LIMIT count OFFSET offset (swap order)
-MySQL INSERT IGNORE                     → Snowflake INSERT (remove IGNORE)
+MySQL INSERT IGNORE                     → Snowflake INSERT (with error handling or ON CONFLICT)
 SQL Server SELECT TOP n                 → Snowflake SELECT ... LIMIT n
-SQL Server OUTPUT clause                → Snowflake (not supported - remove)
+SQL Server OUTPUT clause                → Snowflake (not directly supported - remove)
 Oracle ROWNUM                           → Snowflake ROW_NUMBER() OVER (ORDER BY ...)
-Oracle START WITH / CONNECT BY          → Snowflake RECURSIVE CTE
-BigQuery PARTITION BY and CLUSTER BY    → Snowflake CLUSTER BY
+Oracle START WITH / CONNECT BY          → Snowflake RECURSIVE WITH or CONNECT BY (if supported)
+BigQuery PARTITION BY and CLUSTER BY    → Snowflake CLUSTER BY (similar concept)
 
 ===========================================================================================
 CONVERSION PROCESS RULES
@@ -380,13 +396,14 @@ CONVERSION PROCESS RULES
 1. TYPE CONVERSION: Replace ALL data types using mappings above
 2. FUNCTION CONVERSION: Replace ALL functions using mappings above
 3. SYNTAX CONVERSION: Apply special syntax rules above
-4. IDENTIFIER QUOTING: Convert all backticks/brackets to double quotes
-5. CONSTRAINTS: Convert foreign keys, unique keys, primary keys, defaults
-6. INDEXES: Remove all indexes (Snowflake doesn't support traditional indexes)
+4. IDENTIFIER QUOTING: Convert all backticks/brackets to double quotes or remove them
+5. CONSTRAINTS: Convert foreign keys, unique keys, primary keys, defaults - ADD explicit CONSTRAINT names
+6. INDEXES: ALWAYS preserve indexes - only remove WHERE clauses from partial indexes
 7. COMMENTS: Preserve original comments AND add new comments for non-obvious conversions
 8. OPTIMIZATION: Apply Snowflake best practices:
    - Use VARIANT for JSON instead of multiple columns
-   - Use CLUSTER BY for frequently filtered columns (mention in comments)
+   - Use CLUSTER BY for frequently filtered columns
+   - Use MATERIALIZED VIEWS for complex queries
    - Ensure proper column ordering
 9. VALIDATION: Ensure output SQL is syntactically valid for Snowflake
 10. FORMATTING: Output clean, well-formatted SQL with proper indentation
@@ -395,14 +412,16 @@ CONVERSION PROCESS RULES
 OUTPUT FORMAT
 ===========================================================================================
 
-Output ONLY the converted SQL code. Do not include explanations outside of SQL comments.
+Output ONLY the converted SQL code. Do NOT include any explanations, commentary, or markdown formatting outside the SQL block.
 
 If there are conversions that cannot be automatically done (e.g., Oracle BFILE), add an SQL comment explaining the issue:
 -- NOTE: Original Oracle BFILE type not directly supported in Snowflake. Consider using VARIANT with file references.
 
 ALWAYS include a header comment block like this:
--- Converted from [SOURCE_DIALECT] to Snowflake
--- Conversion performed by AI SQL Translator
+-- Source Database: [SOURCE]
+-- Target Database: Snowflake
+-- Conversion Date: [TIMESTAMP]
+-- Confidence: [CONFIDENCE_LEVEL]%
 -- [Any critical conversion notes]
 
 Then output the complete, valid Snowflake SQL.
@@ -413,7 +432,10 @@ CRITICAL REMINDERS
 
 ✓ CONVERT ALL data types - never leave source types in output
 ✓ CONVERT ALL functions - never leave source functions in output
-✓ REMOVE all CREATE INDEX statements
+✓ ALWAYS PRESERVE INDEXES - never remove CREATE INDEX statements
+✓ ONLY remove WHERE clauses from indexes (not the index itself)
+✓ USE gen_random_uuid() for UUIDs - NEVER use UUID_STRING()
+✓ ADD explicit CONSTRAINT names to FOREIGN KEY statements
 ✓ CONVERT identifiers (backticks → double quotes)
 ✓ PRESERVE all business logic and constraints
 ✓ ADD comments for non-obvious conversions
