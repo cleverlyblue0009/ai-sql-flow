@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { Outlet, useLocation, NavLink } from "react-router-dom";
 import { 
-  BarChart3, 
   Database, 
   GitBranch, 
   Menu, 
   X,
-  Shield,
-  Sparkles
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: BarChart3 },
-  { name: 'Clean Data', href: '/data-quality', icon: Shield },
+  { name: 'Clean Data', href: '/', icon: Shield },
   { name: 'Convert SQL', href: '/sql-migration', icon: GitBranch },
-  { name: 'Smart Analytics', href: '/smart-analytics', icon: Sparkles },
 ];
 
 export default function Layout() {

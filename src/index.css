@@ -67,33 +67,33 @@
   }
 
   .dark {
-    --background: 221 39% 11%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 215 25% 14%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 215 25% 14%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
 
     --primary: 217 91% 60%;
-    --primary-foreground: 221 39% 11%;
+    --primary-foreground: 0 0% 0%;
     --primary-glow: 217 91% 60%;
 
-    --secondary: 215 25% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 25% 16%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 215 25% 18%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 18%;
-    --input: 215 25% 18%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
     --ring: 217 91% 60%;
 
     --success: 142 69% 58%;
@@ -106,13 +106,13 @@
     --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
     --gradient-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
 
-    --sidebar-background: 221 39% 8%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 221 39% 11%;
-    --sidebar-accent: 215 25% 16%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 215 25% 18%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%;
     --sidebar-ring: 217 91% 60%;
   }
 }
@@ -156,5 +156,19 @@
 
   .glow-effect {
     box-shadow: var(--gradient-glow);
+  }
+}
+
+@layer utilities {
+  /* Neon heading styles */
+  h1, h2, h3, h4, h5, h6, .neon-heading {
+    @apply text-white;
+    text-shadow: 
+      0 0 10px rgba(255, 255, 255, 0.8),
+      0 0 20px rgba(255, 255, 255, 0.6),
+      0 0 30px rgba(255, 255, 255, 0.4),
+      0 0 40px rgba(59, 130, 246, 0.6),
+      0 0 70px rgba(59, 130, 246, 0.4),
+      0 0 80px rgba(59, 130, 246, 0.3);
   }
 }

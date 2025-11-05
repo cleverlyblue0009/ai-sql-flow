@@ -36,12 +36,6 @@ except ImportError:
     from fastapi import APIRouter
     data_quality_router = APIRouter(prefix="/data-quality", tags=["Data Quality"])
 
-try:
-    from .dashboard.routes import router as dashboard_router
-except ImportError:
-    print("Dashboard router not found, creating placeholder")
-    from fastapi import APIRouter
-    dashboard_router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 # Import migration and other routers
 try:
@@ -51,16 +45,6 @@ except ImportError:
     from fastapi import APIRouter
     migration_router = APIRouter(prefix="/migration", tags=["Migration"])
 
-try:
-    from .smart_analytics.routes import router as smart_analytics_router
-    print(f"✅ Smart Analytics router loaded successfully with {len(smart_analytics_router.routes)} routes")
-except ImportError as e:
-    print(f"❌ Smart Analytics router import failed: {e}")
-    import traceback
-    traceback.print_exc()
-    from fastapi import APIRouter
-    smart_analytics_router = APIRouter(prefix="/smart-analytics", tags=["Smart Analytics"])
-    print("⚠️ Created empty placeholder smart_analytics_router")
 
 try:
     from .websocket.routes import router as websocket_router
@@ -333,9 +317,7 @@ LIMIT 100;""",
 
 # Include routers with API prefix
 app.include_router(data_quality_router)
-app.include_router(dashboard_router)
 app.include_router(migration_router)
-app.include_router(smart_analytics_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers
@@ -348,7 +330,7 @@ async def not_found_handler(request: Request, exc):
             "error": "Not Found",
             "message": f"The requested resource was not found: {request.url.path}",
             "available_endpoints": [
-                "/docs", "/health", "/info", "/data-quality/*", "/migration/*", "/smart-analytics/*"
+                "/docs", "/health", "/info", "/data-quality/*", "/migration/*"
             ]
         }
     )
@@ -381,9 +363,7 @@ async def root():
         "info": "/info",
         "endpoints": {
             "data_quality": "/data-quality",
-            "sql_migration": "/migration",
-            "dashboard": "/dashboard",
-            "smart_analytics": "/smart-analytics"
+            "sql_migration": "/migration"
         }
     }
 
