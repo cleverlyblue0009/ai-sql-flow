@@ -5,11 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
-import Dashboard from "./components/Dashboard";
+import DashboardReal from "./components/DashboardReal";
 import DataQuality from "./components/DataQuality";
 import SQLConverterWizard from "./components/SQLConverterWizard";
-import Monitoring from "./components/Monitoring";
-import Settings from "./components/Settings";
+import SmartAnalytics from "./components/SmartAnalytics";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -27,11 +26,10 @@ const App = () => (
               <Routes>
                 {/* All routes are now public - authentication is optional */}
                 <Route path="/" element={<Layout />}>
-                  <Route index element={<Dashboard />} />
+                  <Route index element={<DashboardReal />} />
                   <Route path="data-quality" element={<DataQuality />} />
                   <Route path="sql-migration" element={<SQLConverterWizard />} />
-                  <Route path="monitoring" element={<Monitoring />} />
-                  <Route path="settings" element={<Settings />} />
+                  <Route path="smart-analytics" element={<SmartAnalytics />} />
                 </Route>
                 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

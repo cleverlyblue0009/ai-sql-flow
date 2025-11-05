@@ -1,0 +1,456 @@
+/**
+ * Neon Aesthetic Styling System
+ * Modern, eye-catching neon effects for DataFlow AI Platform
+ */
+
+/* Neon Color Variables */
+:root {
+  --neon-cyan: #00D9FF;
+  --neon-purple: #D946EF;
+  --neon-lime: #84FF00;
+  --neon-pink: #FF1493;
+  --neon-blue: #0088FF;
+  --neon-orange: #FF6B35;
+  --dark-bg: #0F1419;
+  --dark-surface: #1A1F2E;
+}
+
+/* Neon Glow Text */
+.neon-text {
+  color: var(--neon-cyan);
+  text-shadow: 
+    0 0 10px rgba(0, 217, 255, 0.8),
+    0 0 20px rgba(217, 70, 239, 0.4),
+    0 0 30px rgba(0, 217, 255, 0.2);
+}
+
+.neon-text-purple {
+  color: var(--neon-purple);
+  text-shadow: 
+    0 0 10px rgba(217, 70, 239, 0.8),
+    0 0 20px rgba(217, 70, 239, 0.4);
+}
+
+.neon-text-lime {
+  color: var(--neon-lime);
+  text-shadow: 
+    0 0 10px rgba(132, 255, 0, 0.8),
+    0 0 20px rgba(132, 255, 0, 0.4);
+}
+
+.neon-text-pink {
+  color: var(--neon-pink);
+  text-shadow: 
+    0 0 10px rgba(255, 20, 147, 0.8),
+    0 0 20px rgba(255, 20, 147, 0.4);
+}
+
+/* Neon Gradient Text */
+.neon-gradient-text {
+  background: linear-gradient(90deg, var(--neon-cyan) 0%, var(--neon-purple) 50%, var(--neon-pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(0, 217, 255, 0.5));
+}
+
+/* Neon Borders */
+.neon-border {
+  border: 2px solid var(--neon-cyan);
+  box-shadow: 
+    0 0 20px rgba(0, 217, 255, 0.5),
+    inset 0 0 20px rgba(0, 217, 255, 0.1);
+}
+
+.neon-border-purple {
+  border: 2px solid var(--neon-purple);
+  box-shadow: 
+    0 0 20px rgba(217, 70, 239, 0.5),
+    inset 0 0 20px rgba(217, 70, 239, 0.1);
+}
+
+.neon-border-lime {
+  border: 2px solid var(--neon-lime);
+  box-shadow: 
+    0 0 20px rgba(132, 255, 0, 0.5),
+    inset 0 0 20px rgba(132, 255, 0, 0.1);
+}
+
+.neon-border-pink {
+  border: 2px solid var(--neon-pink);
+  box-shadow: 
+    0 0 20px rgba(255, 20, 147, 0.5),
+    inset 0 0 20px rgba(255, 20, 147, 0.1);
+}
+
+/* Neon Cards */
+.neon-card {
+  background: rgba(26, 31, 46, 0.8);
+  border: 2px solid var(--neon-cyan);
+  border-radius: 12px;
+  box-shadow: 
+    0 0 20px rgba(0, 217, 255, 0.5),
+    inset 0 0 20px rgba(0, 217, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.neon-card:hover {
+  box-shadow: 
+    0 0 30px rgba(0, 217, 255, 0.8),
+    inset 0 0 30px rgba(0, 217, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.neon-card-purple {
+  border-color: var(--neon-purple);
+  box-shadow: 
+    0 0 20px rgba(217, 70, 239, 0.5),
+    inset 0 0 20px rgba(217, 70, 239, 0.05);
+}
+
+.neon-card-purple:hover {
+  box-shadow: 
+    0 0 30px rgba(217, 70, 239, 0.8),
+    inset 0 0 30px rgba(217, 70, 239, 0.15);
+}
+
+.neon-card-lime {
+  border-color: var(--neon-lime);
+  box-shadow: 
+    0 0 20px rgba(132, 255, 0, 0.5),
+    inset 0 0 20px rgba(132, 255, 0, 0.05);
+}
+
+.neon-card-lime:hover {
+  box-shadow: 
+    0 0 30px rgba(132, 255, 0, 0.8),
+    inset 0 0 30px rgba(132, 255, 0, 0.15);
+}
+
+/* Neon Pulse Animation */
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(217, 70, 239, 1);
+  }
+}
+
+@keyframes neon-pulse-cyan {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 217, 255, 1);
+  }
+}
+
+@keyframes neon-pulse-lime {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(132, 255, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(132, 255, 0, 1);
+  }
+}
+
+.neon-pulse {
+  animation: neon-pulse 2s infinite;
+}
+
+.neon-pulse-cyan {
+  animation: neon-pulse-cyan 2s infinite;
+}
+
+.neon-pulse-lime {
+  animation: neon-pulse-lime 2s infinite;
+}
+
+/* Neon Alert/Warning */
+.neon-alert {
+  border: 2px solid var(--neon-pink);
+  background: rgba(255, 20, 147, 0.1);
+  box-shadow: 
+    0 0 20px rgba(255, 20, 147, 0.5),
+    inset 0 0 20px rgba(255, 20, 147, 0.1);
+  animation: neon-pulse 2s infinite;
+}
+
+/* Neon Button */
+.neon-button {
+  background: transparent;
+  border: 2px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+}
+
+.neon-button:hover {
+  background: rgba(0, 217, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+.neon-button:active {
+  transform: translateY(0);
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.6);
+}
+
+/* Neon Progress Bar */
+.neon-progress {
+  background: rgba(26, 31, 46, 0.8);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 
+    0 0 10px rgba(0, 217, 255, 0.3),
+    inset 0 0 10px rgba(0, 217, 255, 0.1);
+}
+
+.neon-progress-bar {
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.8);
+  transition: width 0.3s ease;
+}
+
+/* Neon Badge */
+.neon-badge {
+  background: rgba(0, 217, 255, 0.2);
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+.neon-badge-purple {
+  background: rgba(217, 70, 239, 0.2);
+  border-color: var(--neon-purple);
+  color: var(--neon-purple);
+  box-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+}
+
+.neon-badge-lime {
+  background: rgba(132, 255, 0, 0.2);
+  border-color: var(--neon-lime);
+  color: var(--neon-lime);
+  box-shadow: 0 0 10px rgba(132, 255, 0, 0.5);
+}
+
+/* Neon Accent Bar (for activity feed) */
+.neon-accent-bar {
+  width: 4px;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+}
+
+.neon-accent-bar-purple {
+  background: var(--neon-purple);
+  box-shadow: 0 0 10px rgba(217, 70, 239, 0.8);
+}
+
+.neon-accent-bar-lime {
+  background: var(--neon-lime);
+  box-shadow: 0 0 10px rgba(132, 255, 0, 0.8);
+}
+
+/* Neon Icon Glow */
+.neon-icon {
+  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.8));
+}
+
+.neon-icon-purple {
+  filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.8));
+}
+
+.neon-icon-lime {
+  filter: drop-shadow(0 0 8px rgba(132, 255, 0, 0.8));
+}
+
+.neon-icon-pink {
+  filter: drop-shadow(0 0 8px rgba(255, 20, 147, 0.8));
+}
+
+/* Animated Flow Lines (for data lineage) */
+@keyframes flow {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.neon-flow-line {
+  stroke: var(--neon-lime);
+  stroke-width: 2;
+  fill: none;
+  filter: drop-shadow(0 0 5px rgba(132, 255, 0, 0.8));
+  stroke-dasharray: 10 5;
+  animation: flow 2s linear infinite;
+}
+
+/* Neon Divider */
+.neon-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+/* Neon Backdrop */
+.neon-backdrop {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 217, 255, 0.1) 0%,
+    rgba(217, 70, 239, 0.05) 50%,
+    transparent 100%
+  );
+}
+
+/* Neon Title with Underline */
+.neon-title {
+  position: relative;
+  display: inline-block;
+}
+
+.neon-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+  border-radius: 999px;
+}
+
+/* Neon Metric Card */
+.neon-metric-card {
+  background: rgba(26, 31, 46, 0.6);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.neon-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.neon-metric-card:hover::before {
+  opacity: 1;
+}
+
+.neon-metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 10px 40px rgba(0, 217, 255, 0.3),
+    0 0 0 1px rgba(0, 217, 255, 0.2);
+}
+
+/* Neon Gauge/Performance Indicator */
+.neon-gauge {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--neon-lime) 0deg,
+    var(--neon-cyan) 120deg,
+    var(--neon-purple) 240deg,
+    var(--neon-pink) 360deg
+  );
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+  animation: neon-pulse-cyan 3s infinite;
+}
+
+/* Neon Loading Spinner */
+@keyframes neon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.neon-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 217, 255, 0.2);
+  border-top-color: var(--neon-cyan);
+  border-radius: 50%;
+  animation: neon-spin 1s linear infinite;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+/* Activity Feed Item with Neon Accent */
+.neon-activity-item {
+  position: relative;
+  padding-left: 1rem;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.neon-activity-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.neon-activity-item:hover::before {
+  opacity: 1;
+}
+
+.neon-activity-item:hover {
+  background: rgba(0, 217, 255, 0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .neon-text {
+    font-size: 1.5rem;
+  }
+  
+  .neon-card {
+    padding: 1rem;
+  }
+  
+  .neon-gauge {
+    width: 80px;
+    height: 80px;
+  }
+}
