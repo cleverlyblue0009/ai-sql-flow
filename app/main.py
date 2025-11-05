@@ -66,6 +66,13 @@ except ImportError:
     settings_router = APIRouter(prefix="/settings", tags=["Settings"])
 
 try:
+    from .smart_analytics.routes import router as smart_analytics_router
+except ImportError:
+    print("Smart Analytics router not found, creating placeholder")
+    from fastapi import APIRouter
+    smart_analytics_router = APIRouter(prefix="/smart-analytics", tags=["Smart Analytics"])
+
+try:
     from .websocket.routes import router as websocket_router
 except ImportError:
     print("WebSocket router not found, creating placeholder")
@@ -389,6 +396,7 @@ async def get_job_status(
         )
 app.include_router(monitoring_router)
 app.include_router(settings_router)
+app.include_router(smart_analytics_router)
 app.include_router(websocket_router)  # WebSocket routes don't need /api prefix
 
 # Error handlers

@@ -332,59 +332,66 @@ export const api = {
     }>('/monitoring/metrics/realtime'),
   },
   
-  // Settings endpoints
-  settings: {
-    getDatabaseConnections: () => apiRequest<{
+  // Smart Analytics endpoints
+  smartAnalytics: {
+    getQueryOptimizer: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/query-optimizer'),
+    
+    getAnomalies: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/anomalies'),
+    
+    getActivityIntelligence: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/activity-intelligence'),
+    
+    getPerformanceInsights: () => apiRequest<{
+      status: string;
+      data: any;
+    }>('/smart-analytics/performance-insights'),
+  },
+  
+  // Dashboard real data endpoints
+  dashboardReal: {
+    getStats: () => apiRequest<{
       status: string;
       data: {
-        connections: Array<{
-          id: number;
-          name: string;
-          type: string;
-          host: string;
-          status: string;
-          lastTest: string;
-        }>;
-        total_count: number;
+        data_quality_score: number;
+        active_migrations: number;
+        success_rate: number;
+        total_files: number;
+        trends: {
+          quality: number;
+          migrations: number;
+        };
       };
-    }>('/settings/database-connections'),
+    }>('/dashboard/real-stats'),
     
-    testConnection: (connectionId: number) => apiRequest<{
+    getActivity: () => apiRequest<{
       status: string;
-      data: any;
-    }>(`/settings/database-connections/${connectionId}/test`, {
-      method: 'POST',
-    }),
+      data: Array<{
+        id: string;
+        type: string;
+        action: string;
+        timestamp: string;
+        icon: string;
+        metadata: any;
+      }>;
+    }>('/dashboard/real-activity'),
     
-    getUserManagement: () => apiRequest<{
+    getInsights: () => apiRequest<{
       status: string;
-      data: {
-        users: Array<{
-          id: number;
-          name: string;
-          email: string;
-          role: string;
-          status: string;
-          lastActive: string;
-        }>;
-        total_count: number;
-      };
-    }>('/settings/user-management'),
-    
-    getAIConfiguration: () => apiRequest<{
-      status: string;
-      data: any;
-    }>('/settings/ai-configuration'),
-    
-    getIntegrations: () => apiRequest<{
-      status: string;
-      data: any;
-    }>('/settings/integrations'),
-    
-    getSecuritySettings: () => apiRequest<{
-      status: string;
-      data: any;
-    }>('/settings/security'),
+      data: Array<{
+        title: string;
+        value: string;
+        metric: string;
+        source: string;
+      }>;
+    }>('/dashboard/platform-insights'),
   },
 };
 

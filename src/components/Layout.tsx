@@ -4,11 +4,10 @@ import {
   BarChart3, 
   Database, 
   GitBranch, 
-  Settings, 
   Menu, 
   X,
   Shield,
-  Activity
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,8 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Clean Data', href: '/data-quality', icon: Shield },
   { name: 'Convert SQL', href: '/sql-migration', icon: GitBranch },
-  { name: 'Activity', href: '/monitoring', icon: Activity },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Smart Analytics', href: '/smart-analytics', icon: Sparkles },
 ];
 
 export default function Layout() {
@@ -92,18 +90,26 @@ function SidebarContent() {
       <nav className="mt-8 flex-1 px-2 space-y-1">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
+          const isSmartAnalytics = item.name === 'Smart Analytics';
           return (
             <NavLink
               key={item.name}
               to={item.href}
               className={cn(
-                "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200",
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? isSmartAnalytics 
+                    ? "neon-card-purple text-white" 
+                    : "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : isSmartAnalytics
+                    ? "text-sidebar-foreground hover:neon-card-purple hover:text-white border border-transparent hover:border-purple-500/30"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               )}
             >
-              <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+              <item.icon className={cn(
+                "mr-3 h-5 w-5 flex-shrink-0",
+                isSmartAnalytics && isActive && "neon-icon-purple"
+              )} />
               {item.name}
             </NavLink>
           );
