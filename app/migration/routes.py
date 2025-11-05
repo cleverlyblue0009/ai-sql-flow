@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 from ..database import get_db, User, Project, Connection, MigrationLog, Job
-from ..auth import get_current_verified_user
+from ..database.models import UserRole
 from .schemas import (
     MigrationSetupRequest, MigrationResponse, ConnectionTestRequest,
     ConnectionTestResponse, SQLTranslationRequest, SQLTranslationResponse,
@@ -90,7 +90,7 @@ async def setup_migration(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -192,7 +192,7 @@ async def translate_sql(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -256,7 +256,7 @@ async def start_migration(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -508,7 +508,7 @@ async def analyze_sql_schema(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -568,7 +568,7 @@ async def create_batch_migration(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -613,7 +613,7 @@ async def start_batch_migration(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()
@@ -714,7 +714,7 @@ async def get_migration_history(
                 username="demo",
                 firebase_uid="demo_uid",
                 full_name="Demo User",
-                role="admin"
+                role=UserRole.ADMIN
             )
             db.add(demo_user)
             db.commit()

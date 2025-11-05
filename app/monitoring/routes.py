@@ -8,7 +8,6 @@ from typing import Dict, List, Any
 import logging
 
 from ..database import get_db, User
-from ..auth import get_current_verified_user
 from .monitoring_service import MonitoringService
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring"])
@@ -17,11 +16,28 @@ logger = logging.getLogger(__name__)
 # Initialize monitoring service
 monitoring_service = MonitoringService()
 
+def _get_demo_user(db: Session) -> User:
+    """Get or create demo user - No auth required"""
+    from ..database.models import UserRole
+    demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+    if not demo_user:
+        demo_user = User(
+            email="demo@example.com",
+            username="demo",
+            firebase_uid="demo_uid",
+            full_name="Demo User",
+            role=UserRole.ADMIN
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+    return demo_user
+
+
+
 
 @router.get("/system", response_model=Dict[str, Any])
-async def get_system_metrics(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_system_metrics():
     """Get system performance metrics"""
     
     try:
@@ -41,7 +57,6 @@ async def get_system_metrics(
 
 @router.get("/application", response_model=Dict[str, Any])
 async def get_application_metrics(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get application performance metrics"""
@@ -62,9 +77,7 @@ async def get_application_metrics(
 
 
 @router.get("/services", response_model=Dict[str, Any])
-async def get_service_status(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_service_status():
     """Get status of all platform services"""
     
     try:
@@ -84,7 +97,6 @@ async def get_service_status(
 
 @router.get("/alerts", response_model=Dict[str, Any])
 async def get_active_alerts(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get all active alerts"""
@@ -112,9 +124,7 @@ async def get_active_alerts(
 
 @router.post("/alerts", response_model=Dict[str, Any])
 async def create_alert(
-    alert_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user)
-):
+    alert_data: Dict[str, Any]):
     """Create a new alert"""
     
     try:
@@ -151,9 +161,7 @@ async def create_alert(
 
 @router.post("/alerts/{alert_id}/acknowledge", response_model=Dict[str, Any])
 async def acknowledge_alert(
-    alert_id: str,
-    current_user: User = Depends(get_current_verified_user)
-):
+    alert_id: str):
     """Acknowledge an alert"""
     
     try:
@@ -230,7 +238,6 @@ async def get_health_summary():
 
 @router.get("/metrics/realtime", response_model=Dict[str, Any])
 async def get_realtime_metrics(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get real-time metrics for dashboard"""

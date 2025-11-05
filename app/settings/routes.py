@@ -8,7 +8,7 @@ from typing import Dict, List, Any
 import logging
 
 from ..database import get_db, User
-from ..auth import get_current_verified_user
+from ..database.models import UserRole
 from .settings_service import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -18,12 +18,29 @@ logger = logging.getLogger(__name__)
 settings_service = SettingsService()
 
 
+def _get_demo_user(db: Session) -> User:
+    """Get or create demo user - No auth required"""
+    demo_user = db.query(User).filter(User.email == "demo@example.com").first()
+    if not demo_user:
+        demo_user = User(
+            email="demo@example.com",
+            username="demo",
+            firebase_uid="demo_uid",
+            full_name="Demo User",
+            role=UserRole.ADMIN
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+    return demo_user
+
+
 @router.get("/database-connections", response_model=Dict[str, Any])
 async def get_database_connections(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get all database connections for the user"""
+    current_user = _get_demo_user(db)
     
     try:
         connections = await settings_service.get_user_connections(current_user.id, db)
@@ -46,10 +63,10 @@ async def get_database_connections(
 @router.post("/database-connections", response_model=Dict[str, Any])
 async def create_database_connection(
     connection_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Create a new database connection"""
+    current_user = _get_demo_user(db)
     
     try:
         connection = await settings_service.create_connection(current_user.id, connection_data, db)
@@ -70,7 +87,6 @@ async def create_database_connection(
 async def update_database_connection(
     connection_id: int,
     connection_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Update an existing database connection"""
@@ -95,7 +111,6 @@ async def update_database_connection(
 @router.delete("/database-connections/{connection_id}", response_model=Dict[str, Any])
 async def delete_database_connection(
     connection_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Delete a database connection"""
@@ -126,7 +141,6 @@ async def delete_database_connection(
 @router.post("/database-connections/{connection_id}/test", response_model=Dict[str, Any])
 async def test_database_connection(
     connection_id: int,
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Test a database connection"""
@@ -148,7 +162,6 @@ async def test_database_connection(
 
 @router.get("/user-management", response_model=Dict[str, Any])
 async def get_user_management_settings(
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Get user management settings (admin only)"""
@@ -183,7 +196,6 @@ async def get_user_management_settings(
 async def update_user_role(
     user_id: int,
     role_data: Dict[str, str],
-    current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
     """Update user role (admin only)"""
@@ -221,9 +233,7 @@ async def update_user_role(
 
 
 @router.get("/ai-configuration", response_model=Dict[str, Any])
-async def get_ai_configuration(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_ai_configuration():
     """Get AI model configuration settings"""
     
     try:
@@ -243,11 +253,10 @@ async def get_ai_configuration(
 
 @router.put("/ai-configuration", response_model=Dict[str, Any])
 async def update_ai_configuration(
-    config_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user)
-):
+    config_data: Dict[str, Any]):
     """Update AI model configuration settings (admin only)"""
     
+    current_user = _get_demo_user(db)
     try:
         if not current_user.is_admin:
             raise HTTPException(
@@ -272,11 +281,10 @@ async def update_ai_configuration(
 
 
 @router.get("/integrations", response_model=Dict[str, Any])
-async def get_integrations(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_integrations():
     """Get external integrations configuration"""
     
+    current_user = _get_demo_user(db)
     try:
         integrations = await settings_service.get_integrations()
         return {
@@ -295,11 +303,10 @@ async def get_integrations(
 @router.put("/integrations/{integration_name}", response_model=Dict[str, Any])
 async def update_integration(
     integration_name: str,
-    integration_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user)
-):
+    integration_data: Dict[str, Any]):
     """Update integration configuration (admin only)"""
     
+    current_user = _get_demo_user(db)
     try:
         if not current_user.is_admin:
             raise HTTPException(
@@ -330,11 +337,10 @@ async def update_integration(
 
 
 @router.get("/security", response_model=Dict[str, Any])
-async def get_security_settings(
-    current_user: User = Depends(get_current_verified_user)
-):
+async def get_security_settings():
     """Get security and compliance settings"""
     
+    current_user = _get_demo_user(db)
     try:
         if not current_user.is_admin:
             raise HTTPException(
@@ -360,11 +366,10 @@ async def get_security_settings(
 
 @router.put("/security", response_model=Dict[str, Any])
 async def update_security_settings(
-    security_data: Dict[str, Any],
-    current_user: User = Depends(get_current_verified_user)
-):
+    security_data: Dict[str, Any]):
     """Update security and compliance settings (admin only)"""
     
+    current_user = _get_demo_user(db)
     try:
         if not current_user.is_admin:
             raise HTTPException(
