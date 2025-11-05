@@ -25,6 +25,18 @@ class AITranslationEngine:
         from ..database.config import settings
         self.gemini_model = None
         self.use_api = False
+        self.system_prompt = None
+        
+        # Load comprehensive system prompt for SQL translation
+        try:
+            import os
+            prompt_path = os.path.join(os.path.dirname(__file__), 'gemini_sql_prompt.txt')
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                self.system_prompt = f.read()
+            logger.info("Loaded comprehensive SQL translation system prompt")
+        except Exception as e:
+            logger.warning(f"Failed to load system prompt: {str(e)}")
+            self.system_prompt = None
         
         # Check for Gemini API key (try both possible env var names)
         api_key = getattr(settings, 'gemini_api_key', None) or getattr(settings, 'google_api_key', None)
@@ -336,44 +348,53 @@ Please also apply standard performance optimizations:
 - Use dialect-specific best practices
 """
             
-            # Construct the prompt - Gemini uses a single prompt string
-            prompt = f"""You are an expert SQL database engineer specializing in SQL dialect translation. 
-Your task is to accurately translate SQL from {source_dialect} to {target_dialect} while preserving:
-1. Exact functionality and semantics
-2. Data types with proper conversions
-3. Functions and their equivalents
-4. Constraints and relationships
-5. Performance characteristics
+            # Construct the prompt using the comprehensive system prompt
+            if self.system_prompt:
+                # Use the comprehensive system prompt as the base
+                base_prompt = self.system_prompt
+            else:
+                # Fallback to a basic prompt if system prompt failed to load
+                base_prompt = """You are an expert SQL database engineer specializing in SQL dialect translation. 
+Your task is to accurately translate SQL from one dialect to another while preserving functionality."""
+            
+            # Build the specific translation request
+            prompt = f"""{base_prompt}
 
-You must:
-- Handle dialect-specific features (AUTO_INCREMENT, SERIAL, IDENTITY, etc.)
-- Convert syntax (backticks, quotes, brackets)
-- Translate functions to their equivalents (NOW(), GETDATE(), CURRENT_TIMESTAMP, etc.)
-- Preserve data integrity constraints
-- Apply best practices for the target dialect
-{optimization_instructions}
+===========================================================================================
+CURRENT TRANSLATION REQUEST
+===========================================================================================
 
-Output ONLY valid SQL for {target_dialect}. Do not include explanations in the SQL itself.
-After the SQL, provide optimization suggestions as a separate section.
-
-Translate this {source_dialect} SQL to {target_dialect}:
-
-{source_sql}
+Source Dialect: {source_dialect.upper()}
+Target Dialect: {target_dialect.upper()}
+Optimization Level: {optimization_level}
 
 {chr(10).join(context_info) if context_info else ""}
 
-Please provide:
-1. The translated SQL (valid {target_dialect} syntax only)
-2. A section labeled "OPTIMIZATION_SUGGESTIONS:" with specific recommendations
+{optimization_instructions}
 
-Format your response exactly as:
+SOURCE SQL TO TRANSLATE:
+{source_sql}
+
+===========================================================================================
+OUTPUT INSTRUCTIONS
+===========================================================================================
+
+Please provide your response in exactly this format:
+
 TRANSLATED_SQL:
-[your translated SQL here]
+[your translated {target_dialect} SQL here - ONLY valid SQL, with comments inside the SQL]
 
 OPTIMIZATION_SUGGESTIONS:
 - suggestion 1
 - suggestion 2
 - etc.
+
+Remember: 
+- Convert ALL data types according to the mappings
+- Convert ALL functions according to the mappings
+- Remove unsupported features (like indexes for Snowflake)
+- Add comments for non-obvious conversions
+- Output ONLY valid {target_dialect} SQL in the TRANSLATED_SQL section
 """
             
             # Call Gemini API
