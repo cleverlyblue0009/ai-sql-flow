@@ -10,7 +10,6 @@ import logging
 
 from ..database.config import get_db
 from ..database.models import User, Project, DataProfile, Job, JobStatus, UserRole
-from ..auth.dependencies import get_current_verified_user
 from .schemas import (
     DataUploadRequest, DataAnalysisRequest, DataCleaningRequest,
     DataProfileResponse, DataCleaningResult, JobStatusResponse, DataQualityReport

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..database import get_db, User, Project, DataProfile, Job, MigrationLog, AuditLog
-from ..auth import get_current_verified_user
+from ..database.models import UserRole
 from .schemas import (
     DashboardMetrics, ActivityItem, QuickStats, SystemStatus,
     DashboardResponse, ActivityResponse
@@ -29,7 +29,7 @@ def _get_demo_user(db: Session) -> User:
             username="demo",
             firebase_uid="demo_uid",
             full_name="Demo User",
-            role="admin"
+            role=UserRole.ADMIN
         )
         db.add(demo_user)
         db.commit()
