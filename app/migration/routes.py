@@ -11,7 +11,8 @@ from .schemas import (
     MigrationSetupRequest, MigrationResponse, ConnectionTestRequest,
     ConnectionTestResponse, SQLTranslationRequest, SQLTranslationResponse,
     MigrationProgressResponse, PerformanceAnalysisResponse, DatabaseListResponse,
-    MigrationConfigRequest, MigrationStatusResponse
+    MigrationConfigRequest, MigrationStatusResponse, BatchSQLConversionRequest,
+    BatchSQLConversionResponse, DialectDetectionRequest, DialectDetectionResponse
 )
 from .services import MigrationService, SQLTranslationService, ConnectionService
 from .enterprise_features import batch_migration_manager, export_manager, history_manager
@@ -768,11 +769,9 @@ async def rollback_migration(
 
 
 # Batch SQL Converter endpoint (NEW - Wizard-style conversion)
-@router.post("/convert-sql-batch")
+@router.post("/convert-sql-batch", response_model=BatchSQLConversionResponse)
 async def convert_sql_batch(
-    files: List[Dict[str, Any]],
-    target_dialect: str,
-    conversion_options: Optional[Dict[str, Any]] = None,
+    request: BatchSQLConversionRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -799,22 +798,37 @@ async def convert_sql_batch(
     """
     
     try:
-        logger.info(f"Starting batch SQL conversion: {len(files)} files to {target_dialect}")
+        logger.info(f"Starting batch SQL conversion: {len(request.files)} files to {request.target_dialect}")
+        
+        # Convert files to dict format expected by batch_converter
+        files_data = [
+            {
+                "filename": file.filename,
+                "content": file.content,
+                "source_dialect": file.source_dialect
+            }
+            for file in request.files
+        ]
+        
+        # Convert conversion_options to dict
+        conversion_options = {}
+        if request.conversion_options:
+            conversion_options = request.conversion_options.dict()
         
         # Perform batch conversion
         result = await batch_converter.convert_batch(
-            files=files,
-            target_dialect=target_dialect,
-            conversion_options=conversion_options or {}
+            files=files_data,
+            target_dialect=request.target_dialect,
+            conversion_options=conversion_options
         )
         
         logger.info(f"Batch conversion completed: {result['success_count']} succeeded, {result['failure_count']} failed")
         
-        return {
-            "success": True,
-            "message": f"Converted {result['success_count']} files successfully",
-            "data": result
-        }
+        return BatchSQLConversionResponse(
+            success=True,
+            message=f"Converted {result['success_count']} files successfully",
+            data=result
+        )
         
     except Exception as e:
         logger.error(f"Batch SQL conversion failed: {str(e)}", exc_info=True)
@@ -824,10 +838,9 @@ async def convert_sql_batch(
         )
 
 
-@router.post("/detect-dialect")
+@router.post("/detect-dialect", response_model=DialectDetectionResponse)
 async def detect_sql_dialect(
-    sql_content: str,
-    filename: str = "unknown.sql"
+    request: DialectDetectionRequest
 ):
     """
     Detect SQL dialect from content
@@ -842,11 +855,14 @@ async def detect_sql_dialect(
     """
     
     try:
-        result = await batch_converter.detect_sql_dialect(sql_content, filename)
-        return {
-            "success": True,
-            "data": result
-        }
+        result = await batch_converter.detect_sql_dialect(
+            request.sql_content, 
+            request.filename or "unknown.sql"
+        )
+        return DialectDetectionResponse(
+            success=True,
+            data=result
+        )
         
     except Exception as e:
         logger.error(f"Dialect detection failed: {str(e)}")
