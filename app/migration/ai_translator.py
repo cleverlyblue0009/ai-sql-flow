@@ -45,7 +45,7 @@ class AITranslationEngine:
             try:
                 genai.configure(api_key=api_key)
                 # Use Gemini 1.5 Pro for best SQL translation quality
-                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
                 self.use_api = True
                 logger.info("Google Gemini API initialized successfully for SQL translation")
             except Exception as e:
