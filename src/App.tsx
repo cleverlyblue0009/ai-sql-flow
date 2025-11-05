@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import DataQuality from "./components/DataQuality";
-import SQLMigration from "./components/SQLMigration";
+import SQLConverterWizard from "./components/SQLConverterWizard";
 import Monitoring from "./components/Monitoring";
 import Settings from "./components/Settings";
 import NotFound from "./pages/NotFound";
@@ -27,7 +27,7 @@ const App = () => (
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="data-quality" element={<DataQuality />} />
-                <Route path="sql-migration" element={<SQLMigration />} />
+                <Route path="sql-migration" element={<SQLConverterWizard />} />
                 <Route path="monitoring" element={<Monitoring />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
