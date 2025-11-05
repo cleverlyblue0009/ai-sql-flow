@@ -581,6 +581,11 @@ Remember:
                 if target_dialect == "snowflake":
                     if "CLUSTER BY" not in translated_sql.upper() and "ORDER BY" in translated_sql.upper():
                         validation_result["warnings"].append("Consider adding clustering keys for Snowflake")
+                    
+                    # Validate critical conversion rules
+                    critical_issues = self._validate_snowflake_conversion(translated_sql, source_dialect)
+                    validation_result["errors"].extend(critical_issues.get("errors", []))
+                    validation_result["warnings"].extend(critical_issues.get("warnings", []))
                 
             except Exception as e:
                 validation_result["syntax_valid"] = False
@@ -590,6 +595,55 @@ Remember:
         
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, _validate)
+    
+    def _validate_snowflake_conversion(self, sql: str, source_dialect: str) -> Dict[str, Any]:
+        """Validate that Snowflake conversion followed key rules"""
+        issues = {
+            "errors": [],
+            "warnings": []
+        }
+        
+        # Check for unconverted source-specific keywords
+        if source_dialect.upper() == "POSTGRESQL":
+            if re.search(r"\bSERIAL\b", sql, re.IGNORECASE) and "AUTOINCREMENT" not in sql.upper():
+                issues["warnings"].append("WARNING: SERIAL may not have been converted to AUTOINCREMENT")
+            if re.search(r"\bJSONB\b", sql, re.IGNORECASE) or re.search(r"\bHSTORE\b", sql, re.IGNORECASE):
+                if "VARIANT" not in sql.upper():
+                    issues["warnings"].append("WARNING: JSONB/HSTORE may not have been converted to VARIANT")
+            if re.search(r"\bUUID\b", sql, re.IGNORECASE) and "VARCHAR" not in sql.upper() and "gen_random_uuid()" not in sql:
+                issues["warnings"].append("WARNING: UUID type may not have been converted properly")
+        
+        # Check for incorrect UUID function usage
+        if "UUID_STRING()" in sql:
+            issues["errors"].append("ERROR: UUID_STRING() found - should be gen_random_uuid()")
+        
+        # Check for preserved indexes (if source had indexes)
+        if source_dialect.upper() in ["POSTGRESQL", "MYSQL", "ORACLE", "SQLSERVER"]:
+            # Check if CREATE INDEX is present when it should be
+            source_has_index = re.search(r"\bCREATE\s+INDEX\b", sql, re.IGNORECASE)
+            if not source_has_index:
+                # This is just informational - we can't be sure if source had indexes
+                pass
+        
+        # Check for FOREIGN KEY constraints without explicit names
+        fk_pattern = r"\bFOREIGN\s+KEY\b(?!\s+\()"
+        matches = re.finditer(fk_pattern, sql, re.IGNORECASE)
+        unnamed_fks = []
+        for match in matches:
+            # Look backwards to see if there's a CONSTRAINT name
+            before = sql[:match.start()].split('\n')[-1]
+            if not re.search(r"\bCONSTRAINT\s+\w+", before, re.IGNORECASE):
+                unnamed_fks.append(match.group())
+        
+        if unnamed_fks:
+            issues["warnings"].append(f"WARNING: Found {len(unnamed_fks)} FOREIGN KEY(s) without explicit CONSTRAINT names")
+        
+        # Check for WHERE clauses in CREATE INDEX (should be removed but index preserved)
+        index_with_where = re.findall(r"CREATE\s+INDEX.*WHERE", sql, re.IGNORECASE)
+        if index_with_where:
+            issues["warnings"].append("WARNING: Found CREATE INDEX with WHERE clause - ensure WHERE was removed but index preserved")
+        
+        return issues
     
     def _calculate_confidence_score(self, analysis: Dict[str, Any], validation_result: Dict[str, Any]) -> float:
         """Calculate confidence score for the translation"""

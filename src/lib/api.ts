@@ -7,28 +7,36 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Get Firebase ID token for authenticated requests
+ * Returns null if user is not authenticated (which is ok - backend handles demo users)
  */
 async function getAuthToken(): Promise<string | null> {
   try {
+    // Check if Firebase auth is initialized
+    if (!auth) {
+      return null;
+    }
+    
     const currentUser = auth.currentUser;
     if (currentUser) {
       return await currentUser.getIdToken();
     }
     return null;
   } catch (error) {
-    console.error('Failed to get Firebase token:', error);
+    // Silent failure - authentication is optional
+    console.debug('No Firebase token available (this is ok):', error);
     return null;
   }
 }
 
 /**
- * Generic API fetch wrapper with error handling and Firebase authentication
+ * Generic API fetch wrapper with error handling and optional Firebase authentication
+ * Authentication is optional - backend uses demo users if no token is provided
  */
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
   try {
-    // Get Firebase token for authentication
+    // Get Firebase token for authentication (optional)
     const token = await getAuthToken();
     
     const response = await fetch(url, {
@@ -41,7 +49,8 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} ${response.statusText}. ${errorText}`);
     }
 
     const data = await response.json();
