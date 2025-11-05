@@ -180,3 +180,32 @@ class MigrationStatusResponse(BaseModel):
     current_phase: Optional[str]
     error_log: Optional[List[Dict[str, Any]]] = None
     performance_metrics: Optional[Dict[str, Any]] = None
+
+
+class SQLFileInput(BaseModel):
+    """Input for a single SQL file in batch conversion"""
+    filename: str
+    content: str
+    source_dialect: Optional[str] = None
+
+
+class BatchConversionOptions(BaseModel):
+    """Options for batch SQL conversion"""
+    optimization_level: str = "standard"
+    convert_schema: bool = True
+    convert_data: bool = True
+    keep_constraints: bool = True
+    optimize_code: bool = True
+
+
+class BatchSQLConversionRequest(BaseModel):
+    """Request for batch SQL conversion"""
+    files: List[SQLFileInput]
+    target_dialect: str
+    conversion_options: Optional[BatchConversionOptions] = None
+
+
+class SQLDialectDetectionRequest(BaseModel):
+    """Request for SQL dialect detection"""
+    sql_content: str
+    filename: str = "unknown.sql"
