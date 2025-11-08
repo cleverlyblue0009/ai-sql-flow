@@ -62,3 +62,15 @@ python-dotenv
 aiofiles
 jinja2
 email-validator
+
+# Benchmarking and Testing
+faker
+scipy
+matplotlib
+plotly
+seaborn
+sqlparse
+python-docx
+reportlab
+weasyprint
+tabulate
