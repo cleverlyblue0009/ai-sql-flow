@@ -83,7 +83,7 @@ class DataQualityBenchmark:
                 f"{self.api_base_url}/data-quality/analyze",
                 json={
                     "data_profile_id": profile_id,
-                    "analysis_types": ["all"],
+                    "analysis_types": ["completeness", "accuracy", "consistency", "validity", "uniqueness", "outliers", "duplicates", "patterns"],
                     "ai_enabled": True,
                     "sample_size": None
                 },

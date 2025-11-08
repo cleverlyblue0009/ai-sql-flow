@@ -51,7 +51,12 @@ class DataAnalysisRequest(BaseModel):
     
     @validator('analysis_types')
     def validate_analysis_types(cls, v):
-        valid_types = {"completeness", "accuracy", "consistency", "validity", "uniqueness", "outliers", "duplicates", "patterns"}
+        valid_types = {"completeness", "accuracy", "consistency", "validity", "uniqueness", "outliers", "duplicates", "patterns", "all"}
+        
+        # If "all" is specified, expand it to all analysis types
+        if "all" in v:
+            return ["completeness", "accuracy", "consistency", "validity", "uniqueness", "outliers", "duplicates", "patterns"]
+        
         invalid_types = set(v) - valid_types
         if invalid_types:
             raise ValueError(f'Invalid analysis types: {invalid_types}')

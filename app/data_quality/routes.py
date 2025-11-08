@@ -88,7 +88,7 @@ async def upload_data_file(
         file_content = await file.read()
         file_size = len(file_content)
         
-        max_size = 100 * 1024 * 1024  # 100MB
+        max_size = 500 * 1024 * 1024  # 500MB (increased for benchmarking)
         if file_size > max_size:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

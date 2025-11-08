@@ -36,6 +36,13 @@ pip install aiohttp psutil scipy sqlparse openpyxl
 pip install python-docx reportlab
 ```
 
+**Important Configuration Notes:**
+
+- **File Size Limits**: The backend is configured to accept files up to 500MB for benchmarking purposes. This allows testing with large datasets (up to 2M rows).
+- **Analysis Types**: The data quality API accepts either individual analysis types or `"all"` as a shorthand for all available analyses:
+  - Individual: `["completeness", "accuracy", "consistency", "validity", "uniqueness", "outliers", "duplicates", "patterns"]`
+  - Shorthand: `["all"]` (automatically expands to all types)
+
 ### 2. Start the Backend
 
 ```bash
