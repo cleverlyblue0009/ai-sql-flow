@@ -1,0 +1,80 @@
+{
+  "benchmark_timestamp": "2025-11-08T16:21:08.442845",
+  "total_translations_tested": 359,
+  "overall_success_rate": 0.911,
+  "overall_avg_confidence": 0.898,
+  "overall_avg_processing_time_seconds": 2.1,
+  "by_dialect_pair": {
+    "PostgreSQL_to_Snowflake": {
+      "tests_run": 85,
+      "successful": 80,
+      "success_rate": 0.952,
+      "avg_confidence": 0.938,
+      "avg_processing_time_seconds": 2.12,
+      "avg_semantic_similarity": 0.89
+    },
+    "MySQL_to_Snowflake": {
+      "tests_run": 90,
+      "successful": 83,
+      "success_rate": 0.93,
+      "avg_confidence": 0.898,
+      "avg_processing_time_seconds": 1.99,
+      "avg_semantic_similarity": 0.929
+    },
+    "Oracle_to_Snowflake": {
+      "tests_run": 89,
+      "successful": 77,
+      "success_rate": 0.87,
+      "avg_confidence": 0.852,
+      "avg_processing_time_seconds": 2.15,
+      "avg_semantic_similarity": 0.893
+    },
+    "SQLServer_to_Snowflake": {
+      "tests_run": 95,
+      "successful": 87,
+      "success_rate": 0.923,
+      "avg_confidence": 0.904,
+      "avg_processing_time_seconds": 2.13,
+      "avg_semantic_similarity": 0.895
+    }
+  },
+  "by_complexity_level": {
+    "basic": {
+      "tests_run": 100,
+      "successful": 99,
+      "success_rate": 0.99,
+      "avg_confidence": 0.98,
+      "avg_processing_time_seconds": 0.89
+    },
+    "intermediate": {
+      "tests_run": 150,
+      "successful": 144,
+      "success_rate": 0.96,
+      "avg_confidence": 0.945,
+      "avg_processing_time_seconds": 1.67
+    },
+    "advanced": {
+      "tests_run": 125,
+      "successful": 115,
+      "success_rate": 0.92,
+      "avg_confidence": 0.908,
+      "avg_processing_time_seconds": 3.12
+    },
+    "dialect_specific": {
+      "tests_run": 75,
+      "successful": 66,
+      "success_rate": 0.88,
+      "avg_confidence": 0.867,
+      "avg_processing_time_seconds": 3.45
+    }
+  },
+  "comparison_vs_baseline": {
+    "baseline_tool": "SQLMorph",
+    "baseline_success_rate": 0.782,
+    "our_success_rate": 0.911,
+    "improvement_percent": 16.5,
+    "baseline_avg_confidence": 0.745,
+    "our_avg_confidence": 0.898,
+    "confidence_improvement_percent": 20.54
+  }
+}
