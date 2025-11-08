@@ -526,6 +526,24 @@ MYSQL_QUERIES = {
             "sql": "SELECT * FROM products ORDER BY created_at DESC LIMIT 10 OFFSET 20;",
             "complexity": 20,
             "difficulty": "easy"
+        },
+        {
+            "name": "inner_join",
+            "sql": "SELECT u.name, o.order_id FROM users u INNER JOIN orders o ON u.id = o.user_id;",
+            "complexity": 20,
+            "difficulty": "easy"
+        },
+        {
+            "name": "aggregate_count",
+            "sql": "SELECT category, COUNT(*) as product_count FROM products GROUP BY category;",
+            "complexity": 20,
+            "difficulty": "easy"
+        },
+        {
+            "name": "where_in",
+            "sql": "SELECT * FROM orders WHERE status IN ('pending', 'processing', 'shipped');",
+            "complexity": 15,
+            "difficulty": "easy"
         }
     ],
     "intermediate": [
@@ -546,9 +564,66 @@ MYSQL_QUERIES = {
             "sql": "SELECT DATE_FORMAT(order_date, '%Y-%m') as month, SUM(amount) FROM orders GROUP BY DATE_FORMAT(order_date, '%Y-%m');",
             "complexity": 40,
             "difficulty": "medium"
+        },
+        {
+            "name": "subquery_in_select",
+            "sql": "SELECT u.name, (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as order_count FROM users u;",
+            "complexity": 45,
+            "difficulty": "medium"
+        },
+        {
+            "name": "left_join_with_aggregation",
+            "sql": "SELECT c.name, COALESCE(SUM(o.amount), 0) as total_spent FROM customers c LEFT JOIN orders o ON c.id = o.customer_id GROUP BY c.id, c.name;",
+            "complexity": 50,
+            "difficulty": "medium"
+        },
+        {
+            "name": "case_when",
+            "sql": "SELECT name, CASE WHEN salary > 100000 THEN 'High' WHEN salary > 50000 THEN 'Medium' ELSE 'Low' END as salary_band FROM employees;",
+            "complexity": 35,
+            "difficulty": "medium"
         }
     ],
-    "advanced": [],
+    "advanced": [
+        {
+            "name": "window_function_row_number",
+            "sql": """SELECT name, department, salary,
+    ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as dept_rank
+FROM employees;""",
+            "complexity": 60,
+            "difficulty": "hard"
+        },
+        {
+            "name": "recursive_cte",
+            "sql": """WITH RECURSIVE category_tree AS (
+    SELECT id, name, parent_id, 1 as level
+    FROM categories
+    WHERE parent_id IS NULL
+    UNION ALL
+    SELECT c.id, c.name, c.parent_id, ct.level + 1
+    FROM categories c
+    INNER JOIN category_tree ct ON c.parent_id = ct.id
+)
+SELECT * FROM category_tree;""",
+            "complexity": 75,
+            "difficulty": "hard"
+        },
+        {
+            "name": "complex_join_aggregation",
+            "sql": """SELECT p.name, 
+    COUNT(DISTINCT o.id) as order_count,
+    SUM(oi.quantity) as total_quantity,
+    AVG(oi.price) as avg_price
+FROM products p
+LEFT JOIN order_items oi ON p.id = oi.product_id
+LEFT JOIN orders o ON oi.order_id = o.id
+WHERE o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+GROUP BY p.id, p.name
+HAVING order_count > 10;""",
+            "complexity": 70,
+            "difficulty": "hard"
+        }
+    ],
     "dialect_specific": [
         {
             "name": "fulltext_search",
@@ -566,6 +641,13 @@ ON DUPLICATE KEY UPDATE
     total_spent = total_spent + 99.99;""",
             "complexity": 55,
             "dialect_features": ["ON DUPLICATE KEY UPDATE"],
+            "difficulty": "hard"
+        },
+        {
+            "name": "insert_ignore",
+            "sql": "INSERT IGNORE INTO users (email, name) VALUES ('test@example.com', 'Test User');",
+            "complexity": 20,
+            "dialect_features": ["INSERT IGNORE"],
             "difficulty": "hard"
         }
     ]
@@ -592,14 +674,95 @@ SQLSERVER_QUERIES = {
             "difficulty": "easy"
         }
     ],
-    "intermediate": [],
-    "advanced": [],
+    "intermediate": [
+        {
+            "name": "top_with_offset",
+            "sql": "SELECT * FROM products ORDER BY created_at DESC OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY;",
+            "complexity": 30,
+            "difficulty": "medium"
+        },
+        {
+            "name": "try_convert",
+            "sql": "SELECT id, TRY_CONVERT(INT, price_string) as price FROM raw_data WHERE TRY_CONVERT(INT, price_string) IS NOT NULL;",
+            "complexity": 35,
+            "difficulty": "medium"
+        },
+        {
+            "name": "string_split",
+            "sql": "SELECT value FROM STRING_SPLIT('apple,banana,cherry', ',');",
+            "complexity": 25,
+            "difficulty": "medium"
+        },
+        {
+            "name": "format_function",
+            "sql": "SELECT FORMAT(order_date, 'yyyy-MM-dd') as formatted_date, FORMAT(amount, 'C', 'en-US') as formatted_amount FROM orders;",
+            "complexity": 35,
+            "difficulty": "medium"
+        },
+        {
+            "name": "iif_function",
+            "sql": "SELECT name, IIF(status = 1, 'Active', 'Inactive') as status_text FROM users;",
+            "complexity": 25,
+            "difficulty": "medium"
+        }
+    ],
+    "advanced": [
+        {
+            "name": "cte_with_ranking",
+            "sql": """WITH RankedOrders AS (
+    SELECT customer_id, order_date, amount,
+        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC) as rn
+    FROM orders
+)
+SELECT * FROM RankedOrders WHERE rn <= 5;""",
+            "complexity": 65,
+            "difficulty": "hard"
+        },
+        {
+            "name": "pivot_table",
+            "sql": """SELECT * FROM (
+    SELECT category, month, sales
+    FROM monthly_sales
+) src
+PIVOT (
+    SUM(sales) FOR month IN ([Jan], [Feb], [Mar], [Apr])
+) piv;""",
+            "complexity": 70,
+            "difficulty": "hard"
+        },
+        {
+            "name": "merge_statement",
+            "sql": """MERGE INTO target_table AS t
+USING source_table AS s
+ON t.id = s.id
+WHEN MATCHED THEN
+    UPDATE SET t.value = s.value, t.updated_at = GETDATE()
+WHEN NOT MATCHED THEN
+    INSERT (id, value, created_at) VALUES (s.id, s.value, GETDATE());""",
+            "complexity": 75,
+            "difficulty": "hard"
+        }
+    ],
     "dialect_specific": [
         {
             "name": "xml_operations",
             "sql": "SELECT id, data.value('(/root/customer)[1]', 'NVARCHAR(100)') as customer FROM orders;",
             "complexity": 60,
             "dialect_features": ["XML"],
+            "difficulty": "hard"
+        },
+        {
+            "name": "json_operations",
+            "sql": "SELECT id, JSON_VALUE(data, '$.customer.name') as customer_name FROM orders WHERE JSON_VALUE(data, '$.status') = 'completed';",
+            "complexity": 55,
+            "dialect_features": ["JSON_VALUE"],
+            "difficulty": "hard"
+        },
+        {
+            "name": "temporal_table",
+            "sql": "SELECT * FROM employees FOR SYSTEM_TIME AS OF '2024-01-01';",
+            "complexity": 50,
+            "dialect_features": ["SYSTEM_TIME"],
             "difficulty": "hard"
         }
     ]
@@ -612,10 +775,78 @@ ORACLE_QUERIES = {
             "sql": "SELECT * FROM (SELECT * FROM users ORDER BY created_at DESC) WHERE ROWNUM <= 10;",
             "complexity": 25,
             "difficulty": "easy"
+        },
+        {
+            "name": "sequence_nextval",
+            "sql": "INSERT INTO orders (id, customer_id, amount) VALUES (order_seq.NEXTVAL, 123, 99.99);",
+            "complexity": 20,
+            "difficulty": "easy"
+        },
+        {
+            "name": "sysdate",
+            "sql": "SELECT * FROM orders WHERE order_date >= SYSDATE - 7;",
+            "complexity": 15,
+            "difficulty": "easy"
+        },
+        {
+            "name": "dual_table",
+            "sql": "SELECT SYSDATE FROM DUAL;",
+            "complexity": 10,
+            "difficulty": "easy"
         }
     ],
-    "intermediate": [],
-    "advanced": [],
+    "intermediate": [
+        {
+            "name": "decode_function",
+            "sql": "SELECT name, DECODE(status, 1, 'Active', 2, 'Inactive', 'Unknown') as status_text FROM users;",
+            "complexity": 35,
+            "difficulty": "medium"
+        },
+        {
+            "name": "nvl_function",
+            "sql": "SELECT name, NVL(phone, 'No phone') as contact_phone FROM customers;",
+            "complexity": 25,
+            "difficulty": "medium"
+        },
+        {
+            "name": "to_char_date",
+            "sql": "SELECT TO_CHAR(order_date, 'YYYY-MM') as month, SUM(amount) FROM orders GROUP BY TO_CHAR(order_date, 'YYYY-MM');",
+            "complexity": 40,
+            "difficulty": "medium"
+        },
+        {
+            "name": "row_number_pagination",
+            "sql": """SELECT * FROM (
+    SELECT a.*, ROW_NUMBER() OVER (ORDER BY created_at DESC) as rn
+    FROM articles a
+) WHERE rn BETWEEN 11 AND 20;""",
+            "complexity": 50,
+            "difficulty": "medium"
+        }
+    ],
+    "advanced": [
+        {
+            "name": "analytical_functions",
+            "sql": """SELECT name, salary, department,
+    RANK() OVER (PARTITION BY department ORDER BY salary DESC) as dept_rank,
+    DENSE_RANK() OVER (ORDER BY salary DESC) as overall_rank,
+    LEAD(salary) OVER (PARTITION BY department ORDER BY salary) as next_salary
+FROM employees;""",
+            "complexity": 75,
+            "difficulty": "hard"
+        },
+        {
+            "name": "pivot_unpivot",
+            "sql": """SELECT * FROM (
+    SELECT year, quarter, revenue
+    FROM quarterly_sales
+) PIVOT (
+    SUM(revenue) FOR quarter IN ('Q1' as Q1, 'Q2' as Q2, 'Q3' as Q3, 'Q4' as Q4)
+);""",
+            "complexity": 70,
+            "difficulty": "hard"
+        }
+    ],
     "dialect_specific": [
         {
             "name": "connect_by",
@@ -633,6 +864,13 @@ CONNECT BY PRIOR id = manager_id;""",
             "complexity": 50,
             "dialect_features": ["LISTAGG"],
             "difficulty": "hard"
+        },
+        {
+            "name": "sys_context",
+            "sql": "SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') as current_user FROM DUAL;",
+            "complexity": 30,
+            "dialect_features": ["SYS_CONTEXT"],
+            "difficulty": "hard"
         }
     ]
 }
@@ -644,10 +882,84 @@ SNOWFLAKE_QUERIES = {
             "sql": "SELECT * FROM users WHERE age > 18;",
             "complexity": 10,
             "difficulty": "easy"
+        },
+        {
+            "name": "limit_offset",
+            "sql": "SELECT * FROM products ORDER BY created_at DESC LIMIT 10 OFFSET 20;",
+            "complexity": 20,
+            "difficulty": "easy"
+        },
+        {
+            "name": "create_table",
+            "sql": """CREATE TABLE customers (
+    id NUMBER AUTOINCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);""",
+            "complexity": 35,
+            "difficulty": "easy"
+        },
+        {
+            "name": "insert_values",
+            "sql": "INSERT INTO orders (customer_id, amount, order_date) VALUES (123, 99.99, CURRENT_TIMESTAMP());",
+            "complexity": 20,
+            "difficulty": "easy"
         }
     ],
-    "intermediate": [],
-    "advanced": [],
+    "intermediate": [
+        {
+            "name": "flatten_array",
+            "sql": "SELECT f.value::STRING as tag FROM products, LATERAL FLATTEN(input => tags) f;",
+            "complexity": 55,
+            "difficulty": "medium"
+        },
+        {
+            "name": "try_cast",
+            "sql": "SELECT id, TRY_CAST(price_string AS NUMBER) as price FROM raw_data WHERE TRY_CAST(price_string AS NUMBER) IS NOT NULL;",
+            "complexity": 40,
+            "difficulty": "medium"
+        },
+        {
+            "name": "qualify_clause",
+            "sql": """SELECT name, salary, department
+FROM employees
+QUALIFY ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) = 1;""",
+            "complexity": 60,
+            "difficulty": "medium"
+        },
+        {
+            "name": "iff_function",
+            "sql": "SELECT name, IFF(status = 1, 'Active', 'Inactive') as status_text FROM users;",
+            "complexity": 25,
+            "difficulty": "medium"
+        }
+    ],
+    "advanced": [
+        {
+            "name": "stream_processing",
+            "sql": """CREATE STREAM orders_stream ON TABLE orders
+APPEND_ONLY = TRUE;
+SELECT * FROM orders_stream WHERE METADATA$ACTION = 'INSERT';""",
+            "complexity": 70,
+            "difficulty": "hard"
+        },
+        {
+            "name": "cte_with_window",
+            "sql": """WITH monthly_sales AS (
+    SELECT DATE_TRUNC('month', order_date) as month, 
+           SUM(amount) as total,
+           LAG(SUM(amount)) OVER (ORDER BY DATE_TRUNC('month', order_date)) as prev_month
+    FROM orders
+    GROUP BY DATE_TRUNC('month', order_date)
+)
+SELECT month, total, prev_month,
+       ((total - prev_month) / prev_month * 100) as growth_percent
+FROM monthly_sales;""",
+            "complexity": 80,
+            "difficulty": "hard"
+        }
+    ],
     "dialect_specific": [
         {
             "name": "variant_json",
@@ -661,6 +973,20 @@ SNOWFLAKE_QUERIES = {
             "sql": "SELECT * FROM orders AT(TIMESTAMP => '2024-01-01 00:00:00'::TIMESTAMP);",
             "complexity": 40,
             "dialect_features": ["TIME TRAVEL"],
+            "difficulty": "hard"
+        },
+        {
+            "name": "clone_table",
+            "sql": "CREATE TABLE orders_backup CLONE orders;",
+            "complexity": 20,
+            "dialect_features": ["CLONE"],
+            "difficulty": "hard"
+        },
+        {
+            "name": "array_construct",
+            "sql": "SELECT ARRAY_CONSTRUCT('red', 'green', 'blue') as colors FROM DUAL;",
+            "complexity": 30,
+            "dialect_features": ["ARRAY_CONSTRUCT"],
             "difficulty": "hard"
         }
     ]

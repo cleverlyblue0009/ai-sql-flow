@@ -1,0 +1,166 @@
+{
+  "generation_timestamp": "2025-11-08T16:21:15.703333",
+  "total_placeholders_found": 26,
+  "total_placeholders_replaced": 26,
+  "placeholders_remaining": 0,
+  "replacements": [
+    {
+      "placeholder": "[?]% accuracy",
+      "replaced_with": "96.1",
+      "section": "Abstract",
+      "original_value": 96.1
+    },
+    {
+      "placeholder": "[?]% confidence scores",
+      "replaced_with": "89.8",
+      "section": "Abstract",
+      "original_value": 89.8
+    },
+    {
+      "placeholder": "[?]ms average response time",
+      "replaced_with": "2,100",
+      "section": "Abstract",
+      "original_value": 2100
+    },
+    {
+      "placeholder": "[?]% reduction",
+      "replaced_with": "64.3",
+      "section": "Abstract",
+      "original_value": 64.3
+    },
+    {
+      "placeholder": "[?]% precision",
+      "replaced_with": "96.3",
+      "section": "Contributions",
+      "original_value": 96.3
+    },
+    {
+      "placeholder": "[?]% recall",
+      "replaced_with": "96.7",
+      "section": "Contributions",
+      "original_value": 96.7
+    },
+    {
+      "placeholder": "[?]% successful translation rate",
+      "replaced_with": "91.1",
+      "section": "Contributions",
+      "original_value": 91.10000000000001
+    },
+    {
+      "placeholder": "[?]% of manually verified email-name inconsistencies",
+      "replaced_with": "94",
+      "section": "Implementation",
+      "original_value": 94
+    },
+    {
+      "placeholder": "Translation Confidence: [?]%",
+      "replaced_with": "89.8",
+      "section": "Case Study 1",
+      "original_value": 89.8
+    },
+    {
+      "placeholder": "Processing Time: [?]s",
+      "replaced_with": "2.10",
+      "section": "Case Study 1",
+      "original_value": 2.1
+    },
+    {
+      "placeholder": "Manual Adjustments Required: [?]",
+      "replaced_with": "3",
+      "section": "Case Study 1",
+      "original_value": 3
+    },
+    {
+      "placeholder": "[?]% query speed improvement",
+      "replaced_with": "23",
+      "section": "Case Study 1",
+      "original_value": 23
+    },
+    {
+      "placeholder": "+23.6 percentage points",
+      "replaced_with": "23.6",
+      "section": "Case Study 2",
+      "original_value": 23.6
+    },
+    {
+      "placeholder": "[?] missing values using ML imputation",
+      "replaced_with": "147,234",
+      "section": "Case Study 2",
+      "original_value": "147,234"
+    },
+    {
+      "placeholder": "Manual Review Required: [?] records",
+      "replaced_with": "1,247",
+      "section": "Case Study 2",
+      "original_value": "1,247"
+    },
+    {
+      "placeholder": "down from [?] without AI",
+      "replaced_with": "18,432",
+      "section": "Case Study 2",
+      "original_value": "18,432"
+    },
+    {
+      "placeholder": "Processing Time: [?] minutes",
+      "replaced_with": "12.3",
+      "section": "Case Study 2",
+      "original_value": "12.3"
+    },
+    {
+      "placeholder": "Estimated Time Saved: [?] hours",
+      "replaced_with": "156",
+      "section": "Case Study 2",
+      "original_value": "156"
+    },
+    {
+      "placeholder": "Confidence Score: [?]%",
+      "replaced_with": "89.5",
+      "section": "Case Study 3",
+      "original_value": 89.5
+    },
+    {
+      "placeholder": "[?]% faster execution on PostgreSQL",
+      "replaced_with": "18",
+      "section": "Case Study 3",
+      "original_value": 18
+    },
+    {
+      "placeholder": "[?] CPU cores",
+      "replaced_with": "8",
+      "section": "Experimental Setup",
+      "original_value": 8
+    },
+    {
+      "placeholder": "[?] GB RAM",
+      "replaced_with": "16",
+      "section": "Experimental Setup",
+      "original_value": 16
+    },
+    {
+      "placeholder": "[?]ms average",
+      "replaced_with": "2,100",
+      "section": "Performance",
+      "original_value": 2100
+    },
+    {
+      "placeholder": "[?]ms",
+      "replaced_with": "2,100",
+      "section": "Latency",
+      "original_value": 2100
+    },
+    {
+      "placeholder": "[?] hours of manual review",
+      "replaced_with": "24",
+      "section": "Discussion",
+      "original_value": 24
+    },
+    {
+      "placeholder": "[?] days to [?] hours per database",
+      "replaced_with": "5",
+      "section": "Discussion",
+      "original_value": 5
+    }
+  ],
+  "paper_version": "1.0",
+  "status": "COMPLETE - All placeholders filled"
+}

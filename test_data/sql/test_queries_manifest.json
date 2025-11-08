@@ -1,0 +1,76 @@
+{
+  "generated_at": "2025-11-08T16:15:41.747665",
+  "total_queries": 115,
+  "dialects": {
+    "postgresql": {
+      "total": 55,
+      "by_level": {
+        "basic": 20,
+        "intermediate": 20,
+        "advanced": 10,
+        "dialect_specific": 5
+      },
+      "by_difficulty": {
+        "easy": 20,
+        "medium": 20,
+        "hard": 15
+      }
+    },
+    "mysql": {
+      "total": 20,
+      "by_level": {
+        "basic": 8,
+        "intermediate": 6,
+        "advanced": 3,
+        "dialect_specific": 3
+      },
+      "by_difficulty": {
+        "easy": 8,
+        "medium": 6,
+        "hard": 6
+      }
+    },
+    "sqlserver": {
+      "total": 13,
+      "by_level": {
+        "basic": 2,
+        "intermediate": 5,
+        "advanced": 3,
+        "dialect_specific": 3
+      },
+      "by_difficulty": {
+        "easy": 2,
+        "medium": 5,
+        "hard": 6
+      }
+    },
+    "oracle": {
+      "total": 13,
+      "by_level": {
+        "basic": 4,
+        "intermediate": 4,
+        "advanced": 2,
+        "dialect_specific": 3
+      },
+      "by_difficulty": {
+        "easy": 4,
+        "medium": 4,
+        "hard": 5
+      }
+    },
+    "snowflake": {
+      "total": 14,
+      "by_level": {
+        "basic": 4,
+        "intermediate": 4,
+        "advanced": 2,
+        "dialect_specific": 4
+      },
+      "by_difficulty": {
+        "easy": 4,
+        "medium": 4,
+        "hard": 6
+      }
+    }
+  }
+}

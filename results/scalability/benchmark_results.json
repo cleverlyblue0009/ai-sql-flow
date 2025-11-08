@@ -1,0 +1,40 @@
+{
+  "benchmark_timestamp": "2025-11-08T16:21:08.443032",
+  "test_details": [
+    {
+      "dataset_size_rows": 1000,
+      "columns": 10,
+      "processing_time_seconds": 0.15,
+      "memory_usage_mb": 75.0,
+      "cpu_usage_percent": 17.0,
+      "throughput_rows_per_second": 6667.0
+    },
+    {
+      "dataset_size_rows": 10000,
+      "columns": 10,
+      "processing_time_seconds": 0.86,
+      "memory_usage_mb": 173.0,
+      "cpu_usage_percent": 23.0,
+      "throughput_rows_per_second": 11628.0
+    },
+    {
+      "dataset_size_rows": 100000,
+      "columns": 10,
+      "processing_time_seconds": 6.1,
+      "memory_usage_mb": 1258.0,
+      "cpu_usage_percent": 30.0,
+      "throughput_rows_per_second": 16393.0
+    },
+    {
+      "dataset_size_rows": 1000000,
+      "columns": 10,
+      "processing_time_seconds": 42.62,
+      "memory_usage_mb": 12047.0,
+      "cpu_usage_percent": 37.0,
+      "throughput_rows_per_second": 23463.0
+    }
+  ],
+  "avg_throughput_rows_per_second": 14538.0,
+  "max_dataset_size_rows": 1000000,
+  "scaling_characteristic": "sub-linear"
+}
