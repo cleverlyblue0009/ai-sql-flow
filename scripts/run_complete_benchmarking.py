@@ -19,16 +19,22 @@ from datetime import datetime
 import subprocess
 import os
 
-# Configure logging
+# Configure logging with UTF-8 encoding to handle Unicode characters
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('results/benchmarking_log.txt'),
+        logging.FileHandler('results/benchmarking_log.txt', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
+
+# For Windows console compatibility, replace Unicode symbols
+import platform
+IS_WINDOWS = platform.system() == 'Windows'
+CHECK_MARK = '[OK]' if IS_WINDOWS else '✓'
+CROSS_MARK = '[FAIL]' if IS_WINDOWS else '✗'
 
 
 def print_header(text):
@@ -59,21 +65,21 @@ def run_script(script_name, description):
         )
         
         if result.returncode == 0:
-            logger.info(f"✓ {description} completed successfully")
+            logger.info(f"{CHECK_MARK} {description} completed successfully")
             if result.stdout:
                 logger.debug(result.stdout)
             return True, result.stdout
         else:
-            logger.error(f"✗ {description} failed with code {result.returncode}")
+            logger.error(f"{CROSS_MARK} {description} failed with code {result.returncode}")
             if result.stderr:
                 logger.error(f"Error: {result.stderr}")
             return False, result.stderr
             
     except subprocess.TimeoutExpired:
-        logger.error(f"✗ {description} timed out after 1 hour")
+        logger.error(f"{CROSS_MARK} {description} timed out after 1 hour")
         return False, "Timeout"
     except Exception as e:
-        logger.error(f"✗ {description} failed: {str(e)}")
+        logger.error(f"{CROSS_MARK} {description} failed: {str(e)}")
         return False, str(e)
 
 
@@ -215,10 +221,10 @@ def main():
     })
     
     if success:
-        logger.info("✓ Research paper updated successfully!")
+        logger.info(f"{CHECK_MARK} Research paper updated successfully!")
         logger.info("  Check results/research_paper_updated.md for the filled paper")
     else:
-        logger.error("✗ Research paper update failed")
+        logger.error(f"{CROSS_MARK} Research paper update failed")
     
     # Step 8: Generate Reports
     print_section("[8/8] Generating Final Reports")
@@ -233,7 +239,7 @@ def main():
     with open(summary_file, 'w') as f:
         json.dump(execution_summary, f, indent=2)
     
-    logger.info(f"✓ Execution summary saved to: {summary_file}")
+    logger.info(f"{CHECK_MARK} Execution summary saved to: {summary_file}")
     
     execution_summary["steps"].append({
         "step": 8,
@@ -251,7 +257,7 @@ def main():
     
     logger.info("Step Results:")
     for step in execution_summary["steps"]:
-        status = "✓" if step["success"] else "✗"
+        status = CHECK_MARK if step["success"] else CROSS_MARK
         logger.info(f"  {status} [{step['step']}/8] {step['name']}: {step['output_summary']}")
     
     logger.info("")

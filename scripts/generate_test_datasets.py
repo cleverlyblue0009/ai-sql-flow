@@ -3,13 +3,14 @@
 Generate Test Datasets for DataFlow AI Benchmarking
 
 This script generates 5 realistic Excel datasets with deliberate data quality issues:
-1. E-Commerce Customer Database (300,000 rows)
-2. Healthcare Patient Records (500,000 rows)
-3. Financial Transaction Records (1,000,000 rows)
-4. Sensor IoT Data (2,000,000 rows)
-5. Mixed Quality Dataset (100,000 rows)
+1. E-Commerce Customer Database (10,000 rows - reduced for faster generation)
+2. Healthcare Patient Records (15,000 rows - reduced for faster generation)
+3. Financial Transaction Records (20,000 rows - reduced for faster generation)
+4. Sensor IoT Data (25,000 rows - reduced for faster generation)
+5. Mixed Quality Dataset (5,000 rows - reduced for faster generation)
 
 Each dataset has specific, measurable quality issues for validation.
+Note: Dataset sizes have been reduced to enable faster benchmarking cycles.
 """
 
 import pandas as pd
@@ -88,7 +89,7 @@ def inject_fuzzy_duplicates(df, columns, count):
     return df, len(fuzzy_dups)
 
 
-def generate_ecommerce_dataset(rows=300000):
+def generate_ecommerce_dataset(rows=10000):
     """Generate E-Commerce Customer Database with known quality issues"""
     logger.info(f"Generating E-Commerce dataset with {rows} rows...")
     
@@ -216,7 +217,7 @@ def generate_ecommerce_dataset(rows=300000):
     return df, issues, metrics
 
 
-def generate_healthcare_dataset(rows=500000):
+def generate_healthcare_dataset(rows=15000):
     """Generate Healthcare Patient Records with known quality issues"""
     logger.info(f"Generating Healthcare dataset with {rows} rows...")
     
@@ -330,7 +331,7 @@ def generate_healthcare_dataset(rows=500000):
     return df, issues, metrics
 
 
-def generate_financial_dataset(rows=1000000):
+def generate_financial_dataset(rows=20000):
     """Generate Financial Transaction Records with known quality issues"""
     logger.info(f"Generating Financial dataset with {rows} rows...")
     
@@ -430,7 +431,7 @@ def generate_financial_dataset(rows=1000000):
     return df, issues, metrics
 
 
-def generate_iot_dataset(rows=2000000):
+def generate_iot_dataset(rows=25000):
     """Generate Sensor IoT Data with known quality issues"""
     logger.info(f"Generating IoT dataset with {rows} rows...")
     
@@ -524,7 +525,7 @@ def generate_iot_dataset(rows=2000000):
     return df, issues, metrics
 
 
-def generate_mixed_dataset(rows=100000):
+def generate_mixed_dataset(rows=5000):
     """Generate Mixed Quality Dataset for quick testing"""
     logger.info(f"Generating Mixed Quality dataset with {rows} rows...")
     
@@ -637,32 +638,40 @@ def generate_all_datasets():
     logger.info("=" * 80)
     logger.info("DataFlow AI: Test Dataset Generation")
     logger.info("=" * 80)
+    logger.info("Note: Dataset sizes have been optimized for faster generation")
+    logger.info("Total rows to generate: 75,000 (reduced from 3.9M)")
+    logger.info("=" * 80)
     
     datasets = []
     
-    # Dataset 1: E-Commerce (300K rows)
-    df1, issues1, metrics1 = generate_ecommerce_dataset(300000)
-    file1, meta1 = save_dataset(df1, 'ecommerce_customers_300k', issues1, metrics1)
+    # Dataset 1: E-Commerce (10K rows)
+    logger.info("\n[1/5] Generating E-Commerce dataset...")
+    df1, issues1, metrics1 = generate_ecommerce_dataset(10000)
+    file1, meta1 = save_dataset(df1, 'ecommerce_customers_10k', issues1, metrics1)
     datasets.append(meta1)
     
-    # Dataset 2: Healthcare (500K rows)
-    df2, issues2, metrics2 = generate_healthcare_dataset(500000)
-    file2, meta2 = save_dataset(df2, 'healthcare_patients_500k', issues2, metrics2)
+    # Dataset 2: Healthcare (15K rows)
+    logger.info("\n[2/5] Generating Healthcare dataset...")
+    df2, issues2, metrics2 = generate_healthcare_dataset(15000)
+    file2, meta2 = save_dataset(df2, 'healthcare_patients_15k', issues2, metrics2)
     datasets.append(meta2)
     
-    # Dataset 3: Financial (1M rows)
-    df3, issues3, metrics3 = generate_financial_dataset(1000000)
-    file3, meta3 = save_dataset(df3, 'financial_transactions_1m', issues3, metrics3)
+    # Dataset 3: Financial (20K rows)
+    logger.info("\n[3/5] Generating Financial dataset...")
+    df3, issues3, metrics3 = generate_financial_dataset(20000)
+    file3, meta3 = save_dataset(df3, 'financial_transactions_20k', issues3, metrics3)
     datasets.append(meta3)
     
-    # Dataset 4: IoT (2M rows)
-    df4, issues4, metrics4 = generate_iot_dataset(2000000)
-    file4, meta4 = save_dataset(df4, 'iot_sensor_data_2m', issues4, metrics4)
+    # Dataset 4: IoT (25K rows)
+    logger.info("\n[4/5] Generating IoT dataset...")
+    df4, issues4, metrics4 = generate_iot_dataset(25000)
+    file4, meta4 = save_dataset(df4, 'iot_sensor_data_25k', issues4, metrics4)
     datasets.append(meta4)
     
-    # Dataset 5: Mixed Quality (100K rows)
-    df5, issues5, metrics5 = generate_mixed_dataset(100000)
-    file5, meta5 = save_dataset(df5, 'mixed_quality_100k', issues5, metrics5)
+    # Dataset 5: Mixed Quality (5K rows)
+    logger.info("\n[5/5] Generating Mixed Quality dataset...")
+    df5, issues5, metrics5 = generate_mixed_dataset(5000)
+    file5, meta5 = save_dataset(df5, 'mixed_quality_5k', issues5, metrics5)
     datasets.append(meta5)
     
     # Save summary
