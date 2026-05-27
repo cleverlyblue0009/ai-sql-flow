@@ -1,0 +1,10 @@
+{
+  "n_original": 2000,
+  "injected": {
+    "type_mismatches": 300,
+    "low_conf_validated": 349,
+    "nulls_confidence": 100
+  },
+  "total_rows": 2000,
+  "total_anomalies": 749
+}

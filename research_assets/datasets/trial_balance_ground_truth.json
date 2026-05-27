@@ -1,0 +1,12 @@
+{
+  "n_original": 3000,
+  "injected": {
+    "nulls_debit": 120,
+    "nulls_credit": 120,
+    "negative_debit": 150,
+    "balance_mismatches": 200,
+    "exact_dupes": 120
+  },
+  "total_rows": 3120,
+  "total_anomalies": 710
+}
