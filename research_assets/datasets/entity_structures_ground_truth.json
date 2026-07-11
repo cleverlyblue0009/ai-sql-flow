@@ -1,9 +1,0 @@
-{
-  "n_original": 1000,
-  "injected": {
-    "country_currency_mismatches": 120,
-    "self_referencing_parents": 50
-  },
-  "total_rows": 1000,
-  "total_anomalies": 170
-}

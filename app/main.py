@@ -31,8 +31,8 @@ except ImportError as e:
 
 try:
     from .data_quality.routes import router as data_quality_router
-except ImportError:
-    print("Data quality router not found, creating placeholder")
+except ImportError as e:
+    print(f"Data quality router not found, creating placeholder: {e}")
     from fastapi import APIRouter
     data_quality_router = APIRouter(prefix="/data-quality", tags=["Data Quality"])
 
@@ -40,16 +40,16 @@ except ImportError:
 # Import migration and other routers
 try:
     from .migration.routes import router as migration_router
-except ImportError:
-    print("Migration router not found, creating placeholder")
+except ImportError as e:
+    print(f"Migration router not found, creating placeholder: {e}")
     from fastapi import APIRouter
     migration_router = APIRouter(prefix="/migration", tags=["Migration"])
 
 
 try:
     from .websocket.routes import router as websocket_router
-except ImportError:
-    print("WebSocket router not found, creating placeholder")
+except ImportError as e:
+    print(f"WebSocket router not found, creating placeholder: {e}")
     from fastapi import APIRouter
     websocket_router = APIRouter(prefix="/ws", tags=["WebSocket"])
 

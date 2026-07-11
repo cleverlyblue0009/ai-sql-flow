@@ -20,14 +20,12 @@ celery[redis]
 flower
 
 # AI/ML Libraries
-tensorflow
+
+google-generativeai
 torch
 scikit-learn
 numpy
 pandas
-transformers
-sentence-transformers
-google-generativeai
 
 # Data Processing
 pydantic

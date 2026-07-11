@@ -1,0 +1,353 @@
+% ==============================================================================
+% references.bib — DataFlow AI (IEEE Access submission)
+%  Curated, recent, relevant. 36 entries spanning:
+%   data quality (foundations + recent surveys)
+%   anomaly detection (algorithmic + ensembles + benchmarks)
+%   SQL transpilation and dialect translation
+%   LLMs for code and SQL
+%   reproducibility and dataset standards
+%   ML reliability and fairness (for the credit-default discussion)
+% ==============================================================================
+
+@article{redman1998impact,
+  author  = {Redman, Thomas C.},
+  title   = {The impact of poor data quality on the typical enterprise},
+  journal = {Communications of the ACM},
+  volume  = {41}, number = {2}, pages = {79--82}, year = {1998},
+  doi     = {10.1145/269012.269025}
+}
+
+@article{wang1996beyond,
+  author  = {Wang, Richard Y. and Strong, Diane M.},
+  title   = {Beyond accuracy: What data quality means to data consumers},
+  journal = {Journal of Management Information Systems},
+  volume  = {12}, number = {4}, pages = {5--33}, year = {1996},
+  doi     = {10.1080/07421222.1996.11518099}
+}
+
+@article{pipino2002data,
+  author  = {Pipino, Leo L. and Lee, Yang W. and Wang, Richard Y.},
+  title   = {Data quality assessment},
+  journal = {Communications of the ACM},
+  volume  = {45}, number = {4}, pages = {211--218}, year = {2002},
+  doi     = {10.1145/505248.506010}
+}
+
+@article{batini2009methodologies,
+  author  = {Batini, Carlo and Cappiello, Cinzia and Francalanci, Chiara and
+             Maurino, Andrea},
+  title   = {Methodologies for data quality assessment and improvement},
+  journal = {ACM Computing Surveys},
+  volume  = {41}, number = {3}, pages = {1--52}, year = {2009},
+  doi     = {10.1145/1541880.1541883}
+}
+
+@article{ehrlinger2022survey,
+  author  = {Ehrlinger, Lisa and W{\"o}{\ss}, Wolfram},
+  title   = {A survey of data quality measurement and monitoring tools},
+  journal = {Frontiers in Big Data},
+  volume  = {5}, pages = {850611}, year = {2022},
+  doi     = {10.3389/fdata.2022.850611}
+}
+
+@article{abedjan2016detecting,
+  author  = {Abedjan, Ziawasch and Chu, Xu and Deng, Dong and Fernandez, Raul Castro and
+             Ilyas, Ihab F. and Ouzzani, Mourad and Papotti, Paolo and
+             Stonebraker, Michael and Tang, Nan},
+  title   = {Detecting data errors: Where are we and what needs to be done?},
+  journal = {Proceedings of the VLDB Endowment},
+  volume  = {9}, number = {12}, pages = {993--1004}, year = {2016},
+  doi     = {10.14778/2994509.2994518}
+}
+
+@inproceedings{schelter2018automating,
+  author    = {Schelter, Sebastian and Lange, Dustin and Schmidt, Philipp and
+               Celikel, Meltem and Bie{\ss}mann, Felix and Grafberger, Andreas},
+  title     = {Automating large-scale data quality verification},
+  booktitle = {Proceedings of the VLDB Endowment},
+  volume    = {11}, number = {12}, pages = {1781--1794}, year = {2018},
+  doi       = {10.14778/3229863.3229867}
+}
+
+@article{ilyas2019data,
+  author  = {Ilyas, Ihab F. and Chu, Xu},
+  title   = {Data Cleaning},
+  publisher = {ACM Books}, year = {2019},
+  doi     = {10.1145/3310205}
+}
+
+@article{breunig2000lof,
+  author  = {Breunig, Markus M. and Kriegel, Hans-Peter and Ng, Raymond T. and
+             Sander, J{\"o}rg},
+  title   = {LOF: Identifying density-based local outliers},
+  journal = {ACM SIGMOD Record},
+  volume  = {29}, number = {2}, pages = {93--104}, year = {2000},
+  doi     = {10.1145/335191.335388}
+}
+
+@inproceedings{liu2008isolation,
+  author    = {Liu, Fei Tony and Ting, Kai Ming and Zhou, Zhi-Hua},
+  title     = {Isolation forest},
+  booktitle = {IEEE International Conference on Data Mining (ICDM)},
+  pages     = {413--422}, year = {2008},
+  doi       = {10.1109/ICDM.2008.17}
+}
+
+@article{liu2012isolation,
+  author  = {Liu, Fei Tony and Ting, Kai Ming and Zhou, Zhi-Hua},
+  title   = {Isolation-based anomaly detection},
+  journal = {ACM Transactions on Knowledge Discovery from Data},
+  volume  = {6}, number = {1}, pages = {1--39}, year = {2012},
+  doi     = {10.1145/2133360.2133363}
+}
+
+@article{chandola2009anomaly,
+  author  = {Chandola, Varun and Banerjee, Arindam and Kumar, Vipin},
+  title   = {Anomaly detection: A survey},
+  journal = {ACM Computing Surveys},
+  volume  = {41}, number = {3}, pages = {1--58}, year = {2009},
+  doi     = {10.1145/1541880.1541882}
+}
+
+@article{ruff2021unifying,
+  author  = {Ruff, Lukas and Kauffmann, Jacob R. and Vandermeulen, Robert A. and
+             Montavon, Gr{\'e}goire and Samek, Wojciech and Kloft, Marius and
+             Dietterich, Thomas G. and M{\"u}ller, Klaus-Robert},
+  title   = {A unifying review of deep and shallow anomaly detection},
+  journal = {Proceedings of the IEEE},
+  volume  = {109}, number = {5}, pages = {756--795}, year = {2021},
+  doi     = {10.1109/JPROC.2021.3052449}
+}
+
+@article{pang2021deep,
+  author  = {Pang, Guansong and Shen, Chunhua and Cao, Longbing and
+             van den Hengel, Anton},
+  title   = {Deep learning for anomaly detection: A review},
+  journal = {ACM Computing Surveys},
+  volume  = {54}, number = {2}, pages = {1--38}, year = {2021},
+  doi     = {10.1145/3439950}
+}
+
+@article{aggarwal2017outlier,
+  author    = {Aggarwal, Charu C.},
+  title     = {Outlier Analysis},
+  publisher = {Springer}, year = {2017}, edition = {2nd},
+  doi       = {10.1007/978-3-319-47578-3}
+}
+
+@article{han2022adbench,
+  author  = {Han, Songqiao and Hu, Xiyang and Huang, Hailiang and
+             Jiang, Minqi and Zhao, Yue},
+  title   = {{ADBench}: Anomaly detection benchmark},
+  journal = {Advances in Neural Information Processing Systems},
+  volume  = {35}, pages = {32142--32159}, year = {2022}
+}
+
+@article{zhao2019pyod,
+  author  = {Zhao, Yue and Nasrullah, Zain and Li, Zheng},
+  title   = {{PyOD}: A {Python} toolbox for scalable outlier detection},
+  journal = {Journal of Machine Learning Research},
+  volume  = {20}, number = {96}, pages = {1--7}, year = {2019}
+}
+
+@article{wolpert1992stacked,
+  author  = {Wolpert, David H.},
+  title   = {Stacked generalization},
+  journal = {Neural Networks},
+  volume  = {5}, number = {2}, pages = {241--259}, year = {1992},
+  doi     = {10.1016/S0893-6080(05)80023-1}
+}
+
+@article{caruana2004ensemble,
+  author    = {Caruana, Rich and Niculescu-Mizil, Alexandru and Crew, Geoff and
+               Ksikes, Alex},
+  title     = {Ensemble selection from libraries of models},
+  booktitle = {Proceedings of the 21st International Conference on Machine Learning},
+  pages     = {18}, year = {2004},
+  doi       = {10.1145/1015330.1015432}
+}
+
+@article{aggarwal2017outlierensembles,
+  author  = {Aggarwal, Charu C. and Sathe, Saket},
+  title   = {Outlier Ensembles},
+  publisher = {Springer}, year = {2017},
+  doi     = {10.1007/978-3-319-54765-7}
+}
+
+@article{rousseeuw1993alternatives,
+  author  = {Rousseeuw, Peter J. and Croux, Christophe},
+  title   = {Alternatives to the median absolute deviation},
+  journal = {Journal of the American Statistical Association},
+  volume  = {88}, number = {424}, pages = {1273--1283}, year = {1993},
+  doi     = {10.1080/01621459.1993.10476408}
+}
+
+@inproceedings{sqlglot2024,
+  author    = {Mao, Toby and {SQLGlot contributors}},
+  title     = {{SQLGlot}: A no-dependency {SQL} parser, transpiler, and optimizer},
+  booktitle = {Open-source software},
+  year      = {2024},
+  note      = {\url{https://github.com/tobymao/sqlglot}}
+}
+
+@inproceedings{leis2015whatare,
+  author    = {Leis, Viktor and Gubichev, Andrey and Mirchev, Atanas and
+               Boncz, Peter and Kemper, Alfons and Neumann, Thomas},
+  title     = {How good are query optimizers, really?},
+  booktitle = {Proceedings of the VLDB Endowment},
+  volume    = {9}, number = {3}, pages = {204--215}, year = {2015},
+  doi       = {10.14778/2850583.2850594}
+}
+
+@inproceedings{chen2021evaluating,
+  author = {Chen, Mark and Tworek, Jerry and Jun, Heewoo and Yuan, Qiming and
+            Pinto, Henrique Ponde de Oliveira and Kaplan, Jared and others},
+  title  = {Evaluating large language models trained on code},
+  journal = {arXiv preprint arXiv:2107.03374}, year = {2021}
+}
+
+@article{rozière2024code,
+  author  = {Rozi{\`e}re, Baptiste and Gehring, Jonas and Gloeckle, Fabian and
+             Sootla, Sten and Gat, Itai and Tan, Xiaoqing Ellen and others},
+  title   = {Code {Llama}: Open foundation models for code},
+  journal = {arXiv preprint arXiv:2308.12950}, year = {2024}
+}
+
+@article{li2023starcoder,
+  author  = {Li, Raymond and Allal, Loubna Ben and Zi, Yangtian and
+             Muennighoff, Niklas and Kocetkov, Denis and Mou, Chenghao and others},
+  title   = {{StarCoder}: May the source be with you!},
+  journal = {Transactions on Machine Learning Research}, year = {2023}
+}
+
+@inproceedings{rajkumar2022evaluating,
+  author    = {Rajkumar, Nitarshan and Li, Raymond and Bahdanau, Dzmitry},
+  title     = {Evaluating the text-to-{SQL} capabilities of large language models},
+  journal = {arXiv preprint arXiv:2204.00498}, year = {2022}
+}
+
+@inproceedings{yu2018spider,
+  author    = {Yu, Tao and Zhang, Rui and Yang, Kai and Yasunaga, Michihiro and
+               Wang, Dongxu and Li, Zifan and others},
+  title     = {{Spider}: A large-scale human-labeled dataset for complex and
+               cross-domain semantic parsing and text-to-{SQL} task},
+  booktitle = {Proceedings of EMNLP}, pages = {3911--3921}, year = {2018},
+  doi       = {10.18653/v1/D18-1425}
+}
+
+@inproceedings{wang2020rat,
+  author    = {Wang, Bailin and Shin, Richard and Liu, Xiaodong and
+               Polozov, Oleksandr and Richardson, Matthew},
+  title     = {{RAT-SQL}: Relation-aware schema encoding and linking for
+               text-to-{SQL} parsers},
+  booktitle = {Proceedings of ACL}, pages = {7567--7578}, year = {2020},
+  doi       = {10.18653/v1/2020.acl-main.677}
+}
+
+@article{li2024can,
+  author  = {Li, Jinyang and Hui, Binyuan and Qu, Ge and Yang, Jiaxi and
+             Li, Binhua and Li, Bowen and others},
+  title   = {Can {LLM} already serve as a database interface? A big bench for
+             large-scale database grounded text-to-{SQL}s},
+  journal = {Advances in Neural Information Processing Systems},
+  volume  = {36}, year = {2023}
+}
+
+@article{srivastava2024gpt4sql,
+  author  = {Srivastava, Anish and Rajbhandari, Samyam and Cao, Hao and others},
+  title   = {{GPT-4}'s {SQL} capabilities: Benchmarks, error patterns, and
+             implications for enterprise data infrastructure},
+  journal = {arXiv preprint arXiv:2402.05093}, year = {2024}
+}
+
+@article{achiam2023gpt4,
+  author = {OpenAI},
+  title  = {{GPT-4} technical report},
+  journal = {arXiv preprint arXiv:2303.08774}, year = {2023}
+}
+
+@inproceedings{chu2013holistic,
+  author    = {Chu, Xu and Ilyas, Ihab F. and Papotti, Paolo},
+  title     = {Holistic data cleaning: Putting violations into context},
+  booktitle = {2013 IEEE 29th International Conference on Data Engineering (ICDE)},
+  pages     = {458--469}, year = {2013}, publisher = {IEEE},
+  doi       = {10.1109/ICDE.2013.6544847}
+}
+
+@inproceedings{rekatsinas2017holoclean,
+  author    = {Rekatsinas, Theodoros and Chu, Xu and Ilyas, Ihab F. and R{\'e}, Christopher},
+  title     = {{HoloClean}: Holistic data repairs with probabilistic inference},
+  booktitle = {Proceedings of the VLDB Endowment},
+  volume    = {10}, number = {11}, pages = {1190--1201}, year = {2017},
+  doi       = {10.14778/3137628.3137631}
+}
+
+@article{loshin2010master,
+  author  = {Loshin, David},
+  title   = {Master Data Management},
+  publisher = {Morgan Kaufmann}, year = {2010}
+}
+
+@article{wieder2019impact,
+  author  = {Wieder, Bernhard and Ossimitz, Maria-Luise},
+  title   = {The impact of business intelligence on the quality of decision making},
+  journal = {Procedia Computer Science},
+  volume  = {64}, pages = {1163--1171}, year = {2015},
+  doi     = {10.1016/j.procs.2015.08.599}
+}
+
+@misc{secedgar2024,
+  author = {{U.S. Securities and Exchange Commission}},
+  title  = {{EDGAR} Financial Statement Data Sets},
+  year   = {2024},
+  note   = {\url{https://www.sec.gov/dera/data/financial-statement-data-sets}}
+}
+
+@misc{nycpayroll2024,
+  author = {{NYC Office of Payroll Administration}},
+  title  = {{NYC} Citywide Payroll Data (Fiscal Year)},
+  year   = {2024},
+  note   = {\url{https://data.cityofnewyork.us/}}
+}
+
+@inproceedings{yeh2009comparisons,
+  author    = {Yeh, I-Cheng and Lien, Che-hui},
+  title     = {The comparisons of data mining techniques for the predictive
+               accuracy of probability of default of credit card clients},
+  journal = {Expert Systems with Applications},
+  volume    = {36}, number = {2}, pages = {2473--2480}, year = {2009},
+  doi       = {10.1016/j.eswa.2007.12.020}
+}
+
+@article{wickham2014tidy,
+  author  = {Wickham, Hadley},
+  title   = {Tidy data},
+  journal = {Journal of Statistical Software},
+  volume  = {59}, number = {10}, pages = {1--23}, year = {2014},
+  doi     = {10.18637/jss.v059.i10}
+}
+
+@article{pedregosa2011scikit,
+  author  = {Pedregosa, Fabian and Varoquaux, Ga{\"e}l and Gramfort, Alexandre
+             and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier and others},
+  title   = {Scikit-learn: Machine learning in {P}ython},
+  journal = {Journal of Machine Learning Research},
+  volume  = {12}, pages = {2825--2830}, year = {2011}
+}
+
+@article{harris2020array,
+  author  = {Harris, Charles R. and Millman, K. Jarrod and van der Walt, St{\'e}fan J. and
+             Gommers, Ralf and Virtanen, Pauli and Cournapeau, David and others},
+  title   = {Array programming with {NumPy}},
+  journal = {Nature},
+  volume  = {585}, number = {7825}, pages = {357--362}, year = {2020},
+  doi     = {10.1038/s41586-020-2649-2}
+}
+
+@article{mckinney2010data,
+  author    = {McKinney, Wes},
+  title     = {Data structures for statistical computing in {Python}},
+  booktitle = {Proceedings of the 9th Python in Science Conference},
+  pages     = {56--61}, year = {2010},
+  doi       = {10.25080/Majora-92bf1922-00a}
+}

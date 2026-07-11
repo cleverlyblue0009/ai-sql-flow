@@ -9,8 +9,12 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sqlparse
 from sqlparse import sql, tokens
-import google.generativeai as genai
 import json
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +47,16 @@ class AITranslationEngine:
         
         if api_key and api_key.strip():
             try:
+                if genai is None:
+                    raise ImportError("google-generativeai is not installed")
                 genai.configure(api_key=api_key)
                 # Use Gemini 1.5 Pro for best SQL translation quality
                 self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
                 self.use_api = True
                 logger.info("Google Gemini API initialized successfully for SQL translation")
+            except ImportError as e:
+                logger.warning(f"{str(e)}. Falling back to rule-based translation.")
+                self.use_api = False
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini API: {str(e)}. Falling back to rule-based translation.")
                 self.use_api = False

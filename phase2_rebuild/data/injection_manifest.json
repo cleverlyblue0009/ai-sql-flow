@@ -1,0 +1,62 @@
+{
+  "seed": 42,
+  "rate_per_family": 0.01,
+  "generated_at": "2026-05-27T09:01:39Z",
+  "datasets": {
+    "D1": {
+      "dataset_id": "D1",
+      "rows_in": 50000,
+      "rows_out": 50500,
+      "anomalies_total": 2498,
+      "anomalies_rate": 0.0495,
+      "anomalies_by_type": {
+        "A1_sign_flip": 500,
+        "A2_magnitude_outlier": 500,
+        "A3_tag_mismatch": 498,
+        "A4_period_violation": 500,
+        "A5_duplicate_posting": 500
+      },
+      "data_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\processed\\D1_injected.parquet",
+      "mask_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\labels\\D1_mask.parquet",
+      "data_sha256": "6b706b30a22a7e4a0c04b19c645bb8a9e7cfd0293e33b79959b7d435af8f74ce",
+      "mask_sha256": "decbe04b3092b178888a78c6fd40abc805ad97e525d43686b8957134792586b7"
+    },
+    "D2": {
+      "dataset_id": "D2",
+      "rows_in": 200000,
+      "rows_out": 202000,
+      "anomalies_total": 10000,
+      "anomalies_rate": 0.0495,
+      "anomalies_by_type": {
+        "B1_ot_regular_inconsistency": 2000,
+        "B2_salary_basis_mismatch": 2000,
+        "B3_near_duplicate_name": 2000,
+        "B4_agency_title_violation": 2000,
+        "B5_magnitude_outlier": 2000
+      },
+      "data_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\processed\\D2_injected.parquet",
+      "mask_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\labels\\D2_mask.parquet",
+      "data_sha256": "2cded7ccf704cf66d971897a6de8cc40af880f241e86e81cdab76ff39b71ad82",
+      "mask_sha256": "f6eedb0bf6e802a363c05941f99722a4ea718019032b3e615444db32461c545d"
+    },
+    "D3": {
+      "dataset_id": "D3",
+      "rows_in": 30000,
+      "rows_out": 30000,
+      "anomalies_total": 1500,
+      "anomalies_rate": 0.05,
+      "anomalies_by_type": {
+        "C1_education_out_of_domain": 300,
+        "C2_limitbal_inconsistency": 300,
+        "C3_bill_sign_violation": 300,
+        "C4_pay_temporal_violation": 300,
+        "C5_age_range_violation": 300
+      },
+      "data_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\processed\\D3_injected.parquet",
+      "mask_path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\labels\\D3_mask.parquet",
+      "data_sha256": "b1a4866287aa55c774e07f422b71a67bdcb2aed9369d5fd5fb889f23c0ef9f6f",
+      "mask_sha256": "052095445d966b71b616aaead10190197e36cf4d20dea3f75d0e4f55468d9dea"
+    }
+  },
+  "elapsed_sec": 3.84
+}

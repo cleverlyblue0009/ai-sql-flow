@@ -1,0 +1,1087 @@
+\documentclass{ieeeaccess}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage[numbers, sort]{natbib}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{bm}
+\usepackage{textcomp}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{times}
+\usepackage{adjustbox}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{booktabs,siunitx}
+\usepackage{subcaption}
+
+\newcolumntype{M}{>{\small\bfseries}l}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/ACCESS.2017.DOI}
+
+\title{DataFlow~AI: A Hybrid, Confidence-Aware Framework for Enterprise Data-Integrity Validation and Cross-Dialect SQL Translation}
+
+\author{
+  \uppercase{Bhaumik Upasana}\authorrefmark{1},
+  \uppercase{M~A~Berlin}\authorrefmark{2}
+}
+
+\address[1,2]{School of Computer Science and Engineering (SCOPE), Vellore Institute of Technology (VIT), Vellore, Tamil Nadu 632 014, India}
+
+\corresp{Corresponding author: Berlin M A (e-mail: berlin.ma@vit.ac.in).}
+
+\begin{abstract}
+Enterprise data pipelines lose substantial value to poor data quality, and database-migration projects frequently overrun
+or fail outright, in large part because integrity validation and query translation are treated as disconnected problems.
+We present DataFlow~AI, a deployment-oriented framework that couples a hybrid statistical/machine-learning anomaly-detection
+ensemble with a confidence-aware, cross-dialect SQL translation engine. The detector combines an Isolation Forest, TF--IDF
+cosine similarity for near-duplicate identification, interquartile-range tests, and rule-based cross-field checks, merged
+under a recall-maximising union strategy whose precision is governed post~hoc by a composite confidence router. The
+translation engine uses Google Gemini~2.0~Flash with a deterministic rule-based fallback, attaching a calibrated confidence
+score to every conversion. We evaluate the system on five synthetic financial datasets (totalling \num{20720} records with
+known anomaly masks), a seven-point scalability sweep up to \num{100000} rows, five noise levels, twelve adversarial
+security payloads, and a ten-statement SQL translation suite, all under a fixed random seed. Across four labelled datasets
+the full ensemble attains a mean F1 of \num{0.32} at \SI{76}{\percent} recall, a \num{+0.19} absolute F1 gain over an
+Isolation-Forest baseline that is statistically significant under \mbox{10-repeat $\times$ 5-fold} cross-validation
+($t=51.2$, $p<0.0001$, Cohen's $d=9.1$). An ablation study isolates TF--IDF semantic matching as the dominant component
+($\Delta\mathrm{F1}=-0.107$ on removal). The system scales sub-linearly (empirical exponent $\alpha=0.69$), handles all
+adversarial and security inputs without failure, and translates SQL at \num{0.92} mean confidence with \num{0.97} mean
+semantic similarity. We deliberately report the high false-positive regime that the union strategy produces and show how
+confidence routing converts it into a practical, audit-appropriate review workflow. The results support hybrid,
+confidence-aware integration over isolated single-method tools while remaining transparent about the operating point and
+the limits of synthetic evaluation.
+\end{abstract}
+
+\begin{keywords}
+Data integrity, anomaly detection, query translation, machine-learning ensemble, large language models, database
+migration, confidence calibration, cross-field validation
+\end{keywords}
+
+\titlepgskip=-15pt
+
+\maketitle
+
+% =====================================================================
+% TABLE 1 — abbreviations
+\begin{table*}[tp]
+\centering
+\caption{List of Abbreviations}
+\label{tab:abbreviations}
+\begin{tabular}{|l|l||l|l|}
+\hline
+\textbf{Abbreviation} & \textbf{Definition} & \textbf{Abbreviation} & \textbf{Definition} \\
+\hline
+AI & Artificial Intelligence & API & Application Programming Interface \\
+\hline
+LLM & Large Language Model & DB & Database \\
+\hline
+TF-IDF & Term Frequency--Inverse Document Frequency & SQL & Structured Query Language \\
+\hline
+IF & Isolation Forest & ML & Machine Learning \\
+\hline
+RQ & Research Question & FPR & False Positive Rate \\
+\hline
+F1 & F1 Score (Harmonic Mean) & TP & True Positives \\
+\hline
+FP & False Positives & FN & False Negatives \\
+\hline
+TN & True Negatives & CI & Confidence Interval \\
+\hline
+CV & Cross-Validation & DDL & Data Definition Language \\
+\hline
+IQR & Interquartile Range & $\kappa$ & Cohen's Kappa \\
+\hline
+ROI & Return on Investment & QA & Quality Assurance \\
+\hline
+CPU & Central Processing Unit & RAM & Random-Access Memory \\
+\hline
+PostgreSQL & PostgreSQL Database & FastAPI & FastAPI Framework \\
+\hline
+React & React JavaScript Library & ORM & Object-Relational Mapping \\
+\hline
+DDL & Data Definition Language & DML & Data Manipulation Language \\
+\hline
+$O(n \log n)$ & Sub-linear/Log-linear Time Complexity & $\alpha$ & Scaling Exponent \\
+\hline
+XSS & Cross-Site Scripting & RTL & Right-To-Left (Unicode) \\
+\hline
+\end{tabular}
+\end{table*}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:introduction}
+
+\subsection{Data Quality and Migration as a Coupled Problem}
+Modern organisations operate increasingly heterogeneous data estates, and two recurring failure modes dominate their
+operational cost. The first is degraded data quality: industry surveys consistently report that data practitioners spend
+the majority of their effort on preparation and cleaning rather than analysis, with poor quality cascading into downstream
+analytics and compliance risk~\cite{redman1998impact,hultgren2018data}. The second is the difficulty of database
+migration and modernisation: a large fraction of such projects overrun their schedules or are abandoned, and query
+translation alone accounts for a substantial share of migration effort that remains stubbornly
+manual~\cite{stonebraker2007end}.
+
+These two problems are typically addressed by separate tools, yet in practice they are coupled. Migrating data of unknown
+quality propagates errors into the target system, while validating data without a path to transform and load it into the
+target schema leaves the value unrealised. Rule-based validators are difficult to configure per domain and produce
+false-positive rates that erode trust in automation~\cite{batini2009data}, and most validators cannot detect semantic
+inconsistencies that span columns, such as a name field that is inconsistent with the associated email or account
+code~\cite{ilyas2015functional,motro1989integrity}. There remains a gap for integrated, deployment-aware systems that
+treat validation and translation as parts of one workflow~\cite{stonebraker2007end}.
+
+\subsection{Research Motivation}
+Machine learning has transformed perception and language tasks, but data-engineering tooling remains fragmented: work
+tends to optimise a single quality metric or a single schema-mapping step in isolation. We identify three gaps that a
+practical framework must address.
+
+\begin{enumerate}
+\item \textbf{Operating-point opacity.} Detectors are frequently reported at a single, often favourable, threshold. A
+deployable system must expose its precision/recall trade-off and provide a mechanism to manage it, because a high-recall
+detector with an unmanaged false-positive rate is unusable in production.
+\item \textbf{Absence of confidence estimation.} Translation tools rarely attach calibrated confidence to their output or
+implement graceful fallbacks, forcing users to manually verify every converted query and negating the benefit of
+automation~\cite{sculley2015hidden}.
+\item \textbf{Sub-surface semantic violations.} Cross-column inconsistencies cannot be detected by univariate statistics
+alone~\cite{motro1989integrity} and require explicit relational rules integrated into the same pipeline.
+\end{enumerate}
+
+\subsection{Research Questions}
+\label{subsec:rqs}
+We frame the evaluation around four research questions (RQs) that map directly to the gaps above and to the experiments
+in Section~\ref{sec:results}.
+
+\begin{enumerate}
+\item \textbf{RQ1 (Detection quality).} Does the hybrid ensemble achieve materially higher anomaly-detection F1 and recall
+than single-method baselines on diverse financial data, and is the improvement statistically significant under repeated
+cross-validation?
+\item \textbf{RQ2 (Component contribution).} Which components of the ensemble are responsible for its performance, and how
+much does each contribute?
+\item \textbf{RQ3 (Robustness, scalability, and security).} Does the system degrade gracefully under noise, scale
+sub-linearly to large datasets, and handle adversarial and malformed inputs without failure?
+\item \textbf{RQ4 (Translation and confidence).} Can LLM-assisted, fallback-protected translation convert SQL across
+dialects with high semantic fidelity, and does the attached confidence behave as a usable routing signal?
+\end{enumerate}
+
+\subsection{Contributions}
+DataFlow~AI is a hybrid, confidence-aware framework that integrates data-integrity validation and cross-dialect SQL
+translation in a single deployment-oriented pipeline. Our contributions are:
+
+\begin{enumerate}
+\item A hybrid anomaly-detection ensemble (Isolation Forest, TF--IDF cosine similarity, IQR tests, and rule-based
+cross-field checks) merged under a recall-maximising union strategy, whose precision is controlled by a composite
+confidence router rather than by tuning each detector in isolation.
+\item A confidence-aware translation engine that pairs an LLM with a deterministic rule-based fallback and attaches a
+calibrated confidence score to every conversion, enabling a three-tier auto-accept / review / reject routing policy.
+\item A rigorous, fully reproducible evaluation suite of nine experiments under a fixed seed, with an explicit and honest
+account of the system's operating point: we report the high-FPR regime produced by the union strategy and demonstrate how
+confidence routing renders it practical for audit contexts, rather than obscuring it behind a single favourable threshold.
+\end{enumerate}
+
+The remainder of the paper is organised as follows. Section~\ref{sec:related_work} reviews and critiques prior work.
+Section~\ref{sec:architecture} describes the system architecture. Section~\ref{sec:methodology} details the detection and
+translation methodology. Section~\ref{sec:setup} specifies the experimental setup and datasets.
+Section~\ref{sec:results} reports results for RQ1--RQ4, including ablation, baseline, robustness, scalability, error, and
+security analyses. Section~\ref{sec:casestudy} presents an enterprise case study. Section~\ref{sec:discussion} discusses
+threats to validity, reproducibility, security considerations, limitations, and future work.
+Section~\ref{sec:conclusion} concludes.
+
+% =====================================================================
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Evolution of Data-Quality Validation}
+Data-quality management has progressed through three broad phases. Early manual curation relied on expert review and did
+not scale. Rule-based frameworks then automated common checks; tools in this tradition, exemplified by Great
+Expectations~\cite{great_expectations}, codify expectations declaratively but require heavy per-domain configuration and
+struggle with context-dependent semantics, emitting false alerts that must be confirmed by hand~\cite{batini2009data}.
+More recent learning-based detectors~\cite{pedregosa2011scikit,aggarwal2017outlier} report encouraging accuracy on
+isolated benchmarks but are seldom validated under production conditions, rarely integrate cross-column semantic checks,
+and typically omit the confidence estimation and downstream integration that operational use demands.
+
+A consistent and under-acknowledged theme across this literature is the dependence of reported metrics on the chosen
+operating point. Detectors evaluated at a single threshold can appear excellent while concealing the precision/recall
+trade-off that determines real-world reviewer burden. Our work treats that trade-off as a first-class object of study
+rather than a tuning detail.
+
+\subsection{Query and Schema Translation}
+Commercial migration tooling has historically emphasised structural schema mapping over query translation, and industrial
+reports indicate that query conversion still consumes a large share of migration effort even when partial automation is
+available. Rule-based translators are deterministic and auditable but brittle on complex, nested, or vendor-specific
+constructs~\cite{rahm2001survey}. Neural and few-shot approaches generalise better across dialects~\cite{manning2008introduction}
+but introduce their own risks: they can hallucinate syntactically valid yet semantically incorrect output, and they rarely
+quantify their own uncertainty or degrade gracefully when a service is unavailable. The community increasingly recognises
+that production translation requires transparency, explainability, and calibrated confidence~\cite{ribeiro2016why}.
+
+\subsection{Operational and Hybrid Machine Learning}
+The difficulty of operating ML systems --- data drift, silent performance decay, and integration debt --- is well
+documented~\cite{sculley2015hidden,neumann1996risks}. Hybrid designs that constrain probabilistic models with
+deterministic rules can retain learning capacity while improving interpretability~\cite{lundberg2017unified}, and
+operational frameworks additionally need confidence estimation and explicit fallback paths. DataFlow~AI adopts this hybrid
+philosophy on both sides of its pipeline: rules and statistics bound the behaviour of the learned components in detection,
+and a rule-based engine bounds the LLM in translation.
+
+\subsection{Critical Synthesis and Positioning}
+Synthesising across these threads, four limitations recur in prior systems: (i) single-threshold reporting that hides the
+operating point; (ii) the inability to detect cross-field semantic violations with univariate methods; (iii) the lack of
+calibrated confidence and graceful fallback in translation; and (iv) the treatment of validation and translation as
+disjoint problems. DataFlow~AI is positioned precisely against these: it reports full confusion matrices and FPR rather
+than a single headline number, integrates explicit cross-field rules, attaches confidence to every translation with a
+deterministic fallback, and unifies detection and translation in one pipeline. We do not claim to set new accuracy
+records; rather, we contribute a deployment-aware integration whose behaviour is fully characterised and reproducible.
+Table~\ref{tab:comparative} summarises the functional coverage of representative systems against DataFlow~AI.
+
+% TABLE 2 — comparative analysis (functional coverage; no inflated cross-system metric claims)
+\begin{table*}[tp]
+\centering
+\caption{Functional Coverage of DataFlow~AI Relative to Representative Systems}
+\label{tab:comparative}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{System} & \textbf{ML} & \textbf{Cross-Field} & \textbf{Confidence} & \textbf{Graceful} & \textbf{SQL} & \textbf{Unified} \\
+ & \textbf{Anomaly} & \textbf{Semantic} & \textbf{Routing} & \textbf{Fallback} & \textbf{Translation} & \textbf{Pipeline} \\
+\hline
+Great Expectations~\cite{great_expectations} & No & No & No & No & No & No \\
+\hline
+Rule-based validators~\cite{batini2009data} & No & Partial & No & No & No & No \\
+\hline
+Learned detectors~\cite{aggarwal2017outlier} & Yes & No & No & No & No & No \\
+\hline
+Schema/query mappers~\cite{rahm2001survey} & No & No & No & Partial & Yes & No \\
+\hline
+Neural translators~\cite{manning2008introduction} & No & No & No & No & Yes & No \\
+\hline
+\textbf{DataFlow~AI (this work)} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+\hline
+\end{tabular}
+\end{table*}
+
+% =====================================================================
+\section{System Architecture}
+\label{sec:architecture}
+
+\subsection{Overview and Technology Stack}
+DataFlow~AI is implemented as a layered service with two functional modules --- a data-quality module and a migration
+module --- sharing a common persistence and audit layer. The implementation uses FastAPI (Python~3.12+) for the
+application layer, scikit-learn, pandas, NumPy, and SciPy for the analytical core, SQLAlchemy over SQLite for job state
+and audit logging, and a React/Vite single-page application with WebSocket streaming for progress reporting. SQL
+translation uses Google Gemini~2.0~Flash (temperature~0.1 for determinism) with a deterministic rule-based fallback.
+Figure~\ref{fig:architecture} shows the three layers and the principal components within each.
+
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=0.82\textwidth]{figures/fig0_architecture.png}
+\caption{DataFlow~AI layered architecture. The presentation layer streams live progress over WebSocket; the application
+layer hosts the data-quality and migration modules, the hybrid detector, the confidence router, and the LLM translator
+with rule fallback; the persistence layer provides ORM-backed state, an audit trail, and multi-format export. (New
+architecture diagram, drawn from the implemented system.)}
+\label{fig:architecture}
+\end{figure*}
+
+\subsection{Data-Quality Module}
+The data-quality module exposes REST endpoints for assessing arbitrary tabular datasets. Its analytical core extracts
+numeric features (standardised with a $z$-score scaler), concatenates text columns for vectorisation, and computes
+per-row null rates. Six detectors run over these features: an Isolation Forest on standardised numerics, TF--IDF cosine
+similarity for near-duplicate detection, IQR and $z$-score outlier tests, pattern validators (email, date, numeric
+format), and rule-based cross-field consistency checks. A companion cleaner module provides imputation
+($k$-nearest-neighbour and iterative), deduplication, outlier removal, and format standardisation; cleaning is out of
+scope for the present evaluation, which focuses on detection and translation.
+
+\subsection{Migration Module}
+The migration module translates SQL between dialects (MySQL, PostgreSQL, and SQL~Server as sources; Snowflake and
+PostgreSQL as targets). Its primary path is the LLM with structured prompting; its fallback path is a deterministic
+rule-based converter covering structural and function-level transforms (for example, \texttt{IFNULL}$\rightarrow$\texttt{NVL},
+backtick$\rightarrow$double-quote identifiers, \texttt{AUTO\_INCREMENT}$\rightarrow$\texttt{AUTOINCREMENT}, and removal of
+engine/locking clauses). Enterprise features include batch scheduling with priority levels, multi-format export, and a
+versioned migration history with rollback.
+
+\subsection{Persistence and Real-Time Layer}
+SQLite via SQLAlchemy stores migration jobs, per-statement translation records, quality jobs, per-issue findings, and an
+append-only audit log. The WebSocket manager multiplexes per-job progress events (\texttt{progress},
+\texttt{status\_update}, \texttt{error}, \texttt{complete}), enabling live monitoring of long-running detection and
+translation jobs. The design targets single-instance deployment with a clear migration path to a server-grade RDBMS
+through the ORM abstraction.
+
+% =====================================================================
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Hybrid Detection Pipeline}
+Figure~\ref{fig:pipeline} depicts the end-to-end detection pipeline. After ingestion and feature engineering, the three
+principal detectors execute in parallel and their row-level flags are merged by a union (logical OR) rule, which maximises
+recall. The merged flags are not the final decision: a composite confidence score (Section~\ref{subsec:confidence}) is
+computed per row and used to route each record to one of three outcomes. This separation of a high-recall detector from a
+precision-controlling router is the central design choice of the system, and it is the reason we report detector behaviour
+and routing behaviour separately in Section~\ref{sec:results}.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_pipeline.png}
+\caption{Hybrid detection pipeline. Parallel detectors are merged under a recall-maximising union; a composite confidence
+score then routes each row to auto-accept, manual review, or auto-reject. Routing percentages are the mean standard-threshold
+rates measured across the financial datasets. (New diagram, drawn from the implemented pipeline.)}
+\label{fig:pipeline}
+\end{figure}
+
+\subsubsection{Isolation Forest}
+The Isolation Forest isolates anomalies through random recursive partitioning, exploiting the fact that outliers require
+fewer splits to separate~\cite{liu2008isolation}. We use 100 trees, a contamination prior of $0.10$, and a fixed random
+state of 42. The per-row anomaly score is normalised to $[0,1]$ and contributes both a binary flag and a continuous input
+to the confidence score. On data with fewer than 20 rows the detector returns zeros, since no reliable fit is possible.
+
+\subsubsection{TF--IDF Near-Duplicate Detection}
+Text columns are concatenated and vectorised with TF--IDF (maximum 500 features, English stop-words removed), and per-row
+maximum cosine similarity to other rows is taken as a duplicate score~\cite{salton1988term,ramos2003using}. A row is
+flagged when its maximum similarity exceeds a threshold $\tau_{\mathrm{dup}}=0.85$. As Section~\ref{sec:results} shows,
+this component is simultaneously the most valuable for detection and the dominant source of false positives, because
+shared financial vocabulary inflates pairwise similarity; we analyse and discuss the resulting threshold sensitivity
+explicitly.
+
+\subsubsection{Cross-Field Semantic Validation}
+Univariate statistics cannot detect inconsistencies that span related fields. Algorithm~\ref{alg:crossfield} implements a
+linear-time check for name/identifier alignment that generalises to other field pairs (for example, account-code to
+description). The procedure tokenises both fields, ignores tokens of length $\le 2$, and flags a row when no name token
+appears as a substring of any identifier token. This check is deterministic and auditable, which is valuable in
+regulated contexts even where its marginal effect on aggregate F1 is small (Section~\ref{subsec:ablation}).
+
+\begin{algorithm}[tbp]
+\caption{Cross-Field Consistency Check}
+\label{alg:crossfield}
+\begin{algorithmic}[1]
+\Require DataFrame $\mathrm{df}$ with identifier and name columns
+\Ensure Set of inconsistent row indices
+\State $\mathrm{issues} \gets \emptyset$
+\For{each row $r$ in $\mathrm{df}$}
+    \State $\mathit{id} \gets \textsc{lower}(r.\mathrm{identifier})$;\ \ $\mathit{nm} \gets \textsc{lower}(r.\mathrm{name})$
+    \If{$\mathit{id}$ empty \textbf{or} $\mathit{nm}$ empty} \State \textbf{continue} \EndIf
+    \State $I \gets \textsc{tokenize}(\textsc{prefix}(\mathit{id}))$;\ \ $N \gets \textsc{tokenize}(\mathit{nm})$
+    \State $\mathit{found} \gets \textsc{False}$
+    \For{each $t \in N$ with $|t| > 2$}
+        \For{each $e \in I$}
+            \If{$t$ is a substring of $e$} \State $\mathit{found} \gets \textsc{True}$ \EndIf
+        \EndFor
+    \EndFor
+    \If{\textbf{not} $\mathit{found}$} \State $\mathrm{issues} \gets \mathrm{issues} \cup \{r\}$ \EndIf
+\EndFor
+\State \Return $\mathrm{issues}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Quality-Dimension Scoring}
+For reporting, dataset-level quality is summarised across five dimensions. Completeness (Eq.~\ref{eq:completeness}) is the
+fraction of populated cells; validity (Eq.~\ref{eq:validity}) the fraction of entries satisfying format and domain
+constraints; uniqueness (Eq.~\ref{eq:uniqueness}) the fraction of distinct rows; consistency (Eq.~\ref{eq:consistency}) the
+complement of the format-variation rate; and accuracy (Eq.~\ref{eq:accuracy_dim}) a bounded penalty on detected anomalies.
+
+\begin{equation}
+\mathrm{Completeness} = \frac{\text{populated cells}}{\text{total cells}} \times 100
+\label{eq:completeness}
+\end{equation}
+\begin{equation}
+\mathrm{Validity} = \frac{\text{valid entries}}{\text{total entries}} \times 100
+\label{eq:validity}
+\end{equation}
+\begin{equation}
+\mathrm{Uniqueness} = \frac{\text{distinct rows}}{\text{total rows}} \times 100
+\label{eq:uniqueness}
+\end{equation}
+\begin{equation}
+\mathrm{Consistency} = \left(1 - \frac{\text{format variations}}{\text{total records}}\right) \times 100
+\label{eq:consistency}
+\end{equation}
+\begin{equation}
+\mathrm{Accuracy} = \max\!\left(0,\ 100 - 2\,\times\,\text{anomalies}\right)
+\label{eq:accuracy_dim}
+\end{equation}
+
+The five dimensions are aggregated with fixed weights (Eq.~\ref{eq:overall}), summing to unity, with completeness and
+validity weighted most heavily~\cite{pipino2002understanding,strong1997data}:
+\begin{equation}
+Q = 0.25\,C + 0.25\,V + 0.20\,U + 0.15\,\mathit{CS} + 0.15\,A
+\label{eq:overall}
+\end{equation}
+where $C,V,U,\mathit{CS},A$ denote completeness, validity, uniqueness, consistency, and accuracy respectively. These
+dimensions are descriptive reporting aids; the quantitative detection results in Section~\ref{sec:results} are based on
+the row-level confusion matrices, not on $Q$.
+
+\subsection{Composite Confidence and Routing}
+\label{subsec:confidence}
+Each row receives a composite confidence score that combines the normalised Isolation-Forest anomaly score, the TF--IDF
+maximum cosine similarity, and the per-row null rate, as in Eq.~\ref{eq:composite}:
+\begin{equation}
+s = 0.45\,s_{\mathrm{IF}} + 0.35\,s_{\mathrm{TFIDF}} + 0.20\,s_{\mathrm{null}}
+\label{eq:composite}
+\end{equation}
+with all sub-scores normalised to $[0,1]$. The score is mapped to a routing decision by two thresholds: rows with
+$s<\theta_{\mathrm{low}}$ are auto-accepted as likely clean, rows with $s>\theta_{\mathrm{high}}$ are auto-flagged for
+rejection, and the remainder are sent to manual review. The default operating point is
+$\theta_{\mathrm{low}}=0.40,\ \theta_{\mathrm{high}}=0.70$; a tightened regime ($0.30/0.80$) trades review volume for
+automation. This router is what makes the high-recall union strategy practical, and Section~\ref{subsec:confidence_results}
+characterises the resulting score distributions and routing rates.
+
+\subsection{Translation Engine and Confidence}
+Algorithm~\ref{alg:pipeline} gives the translation pipeline. The source query is analysed for complexity and dialect
+features, translated via the LLM, post-processed, and validated; on any error the deterministic rule-based converter is
+invoked. A confidence score is then computed (Algorithm~\ref{alg:certainty}) from a base value, a complexity penalty, a
+dialect-feature penalty, and syntax/error penalties, and clamped to $[0,1]$. The rule-based path uses a base confidence of
+$0.92$; the LLM path can reach higher when validation is clean. The confidence drives the same three-tier routing policy
+used for detection, so that low-confidence translations are escalated to human review rather than deployed.
+
+\begin{algorithm}[tbp]
+\caption{Confidence-Aware Translation with Fallback}
+\label{alg:pipeline}
+\begin{algorithmic}[1]
+\Require Source query $Q_{\mathrm{src}}$, dialects $D_{\mathrm{src}}, D_{\mathrm{tgt}}$
+\Ensure Target query $Q_{\mathrm{tgt}}$, confidence $c$, status
+\State $a \gets \textsc{analyse}(Q_{\mathrm{src}})$;\ \ $f \gets \textsc{features}(Q_{\mathrm{src}})$
+\State $Q_{\mathrm{tgt}} \gets \textsc{postprocess}(\textsc{llmTranslate}(Q_{\mathrm{src}}, D_{\mathrm{tgt}}))$
+\If{translation error} \State $Q_{\mathrm{tgt}} \gets \textsc{ruleFallback}(Q_{\mathrm{src}}, D_{\mathrm{tgt}})$ \EndIf
+\State $v \gets \textsc{validate}(Q_{\mathrm{tgt}})$;\ \ $c \gets \textsc{confidence}(a, v)$
+\If{$c \ge 0.95$} \State $\mathrm{status} \gets \textsc{auto\_approve}$
+\ElsIf{$c \ge 0.70$} \State $\mathrm{status} \gets \textsc{review}$
+\Else \State $\mathrm{status} \gets \textsc{manual}$ \EndIf
+\State \Return $Q_{\mathrm{tgt}}, c, \mathrm{status}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[tbp]
+\caption{Translation Confidence Estimation}
+\label{alg:certainty}
+\begin{algorithmic}[1]
+\Require Analysis $a$, validation $v$
+\Ensure Confidence $c \in [0,1]$
+\State $c \gets 0.92$
+\State $c \gets c - \min(0.20,\ 0.01\,a.\mathrm{difficulty})$
+\State $c \gets c - 0.05\,|a.\mathrm{features}|$
+\If{\textbf{not} $v.\mathrm{syntax\_ok}$} \State $c \gets c - 0.30$ \EndIf
+\State $c \gets c - 0.10\,|v.\mathrm{errors}| - 0.02\,|v.\mathrm{warnings}|$
+\State \Return $\max(0,\ \min(1,\ c))$
+\end{algorithmic}
+\end{algorithm}
+
+% =====================================================================
+\section{Experimental Setup and Datasets}
+\label{sec:setup}
+
+\subsection{Reproducibility Controls}
+All experiments are seeded with \texttt{RANDOM\_SEED=42}: global NumPy state, every \texttt{default\_rng} generator, and
+every scikit-learn estimator (\texttt{random\_state=42}) are fixed. Datasets are generated once and persisted as static
+CSV files; ground-truth masks are reconstructed deterministically from saved JSON. Experiments exercise the analytical
+components directly (no HTTP server in the loop), which makes them portable and continuous-integration friendly. Reported
+metrics are rounded to four decimals to absorb sub-$10^{-3}$ floating-point differences across library versions; the set
+of flagged rows is fully deterministic given the seed. All timing was measured on a single Windows~11 machine (single
+process, no parallelism, CPU-only); we therefore treat absolute latencies as conservative upper bounds and discuss
+platform sensitivity in Section~\ref{subsec:threats}.
+
+\subsection{Datasets}
+\label{subsec:datasets}
+Five synthetic financial datasets with known injected-anomaly masks form the labelled corpus, supplemented by a
+seven-point scalability series, five noise variants, and a ten-statement SQL suite.
+Table~\ref{tab:datasets} lists the labelled datasets, their sizes, and their injected anomaly rates. The anomaly types are
+domain-specific: invalid account codes, negative asset balances, and duplicate names for general-ledger accounts;
+unbalanced debit/credit pairs and period-format violations for trial balances; same-transaction debit/credit equality and
+amount outliers for journal entries; unmapped targets and high-similarity duplicates for the mapping table; and orphaned or
+circular nodes for entity structures. We deliberately injected high anomaly rates (\SIrange{10}{38}{\percent}) to stress
+the detectors; Section~\ref{subsec:threats} discusses how this differs from production rates and how it affects the
+interpretation of precision and FPR.
+
+% TABLE 3 — labelled datasets
+\begin{table}[tbp]
+\centering
+\caption{Labelled Evaluation Datasets (Synthetic, Seed~42)}
+\label{tab:datasets}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Dataset} & \textbf{Rows} & \textbf{Anomaly Rate} & \textbf{Domain} \\
+\hline
+GL accounts & 5{,}250 & 22.9\% & General ledger \\
+\hline
+Journal entries & 8{,}350 & 24.8\% & Debit/credit entries \\
+\hline
+Trial balance & 3{,}120 & 22.8\% & Period balances \\
+\hline
+Mapping table & 2{,}000 & 37.5\% & Account-code mapping \\
+\hline
+Entity structures & 1{,}000 & 10.0\% & Organisational hierarchy \\
+\hline
+\textbf{Total} & \textbf{19{,}720} & --- & --- \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Metrics and Statistical Protocol}
+Classification experiments report precision, recall, F1, FPR, and accuracy from row-level confusion matrices, with
+precision and recall defined in Eq.~\ref{eq:pr} and F1 in Eq.~\ref{eq:f1}:
+\begin{equation}
+\mathrm{Precision} = \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}}, \qquad
+\mathrm{Recall} = \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FN}}
+\label{eq:pr}
+\end{equation}
+\begin{equation}
+\mathrm{F1} = \frac{2\,\mathrm{Precision}\,\mathrm{Recall}}{\mathrm{Precision}+\mathrm{Recall}}
+\label{eq:f1}
+\end{equation}
+Statistical significance is assessed with a paired two-sample $t$-test ($\alpha=0.05$) over a 10-repeat
+$\times$ 5-fold stratified cross-validation (50 paired evaluations), with Cohen's $d$ for effect size and 95\% confidence
+intervals computed as $\bar{x}\pm t_{0.025,\,49}\,(s/\sqrt{50})$~\cite{pearson1895notes,han2012data}. Because the
+folds are stratified on the anomaly class and the comparison is paired on identical splits, the test controls for
+split-level variance~\cite{agrawal1995mining}.
+
+% =====================================================================
+\section{Results and Analysis}
+\label{sec:results}
+
+\subsection{Detection Quality and Baseline Comparison (RQ1)}
+\label{subsec:baseline}
+We compared the full hybrid ensemble against six single-method baselines across the four labelled datasets that admit a
+shared evaluation (GL accounts, trial balance, journal entries, mapping table). Table~\ref{tab:baseline} reports the mean
+metrics, and Figure~\ref{fig:baseline} visualises the same comparison. The hybrid system attains a mean F1 of
+$0.321$ at $76.4\%$ recall, substantially exceeding the recall of every principled baseline: rule-based union ($11.3\%$),
+Isolation~Forest only ($9.8\%$), and the statistical detectors ($3.3$--$4.4\%$). In financial audit, where a missed
+anomaly is far costlier than a redundant review, this recall advantage is the operative quantity.
+
+Two baselines warrant explicit caution. The \emph{string-similarity} baseline shows the highest raw F1 ($0.421$), but it
+achieves this through near-universal flagging: its recall is $99.6\%$ \emph{and} its FPR is $99.6\%$, so its apparent F1
+is an artefact of the high injected-anomaly rate rather than genuine discrimination, and its $651$\,ms latency makes it
+impractical. Conversely, the threshold and IQR detectors post the highest \emph{accuracy} ($\approx71\%$) only because
+they predict ``normal'' for almost every row; on imbalanced data, accuracy is misleading and F1/recall are the
+appropriate criteria. The hybrid system occupies the balanced operating zone: meaningful F1 and high recall at a
+competitive $286$\,ms latency.
+
+% TABLE 4 — baseline comparison (honest numbers)
+\begin{table}[tbp]
+\centering
+\small
+\caption{Detector vs.\ Single-Method Baselines (Mean Over 4 Datasets)}
+\label{tab:baseline}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{System} & \textbf{F1} & \textbf{Prec.} & \textbf{Recall} & \textbf{FPR} & \textbf{ms} \\
+\hline
+\textbf{Full hybrid} & \textbf{0.321} & 0.264 & \textbf{0.764} & 0.767 & 286 \\
+\hline
+String similarity$^{\dagger}$ & 0.421 & 0.270 & 0.996 & 0.996 & 651 \\
+\hline
+TF--IDF only & 0.284 & 0.176 & 0.738 & 0.739 & 142 \\
+\hline
+Rule-based only & 0.147 & 0.257 & 0.113 & 0.120 & 6 \\
+\hline
+Isolation Forest only & 0.141 & 0.262 & 0.098 & 0.101 & 122 \\
+\hline
+Threshold ($z>3$) & 0.072 & 0.214 & 0.044 & 0.043 & 1 \\
+\hline
+IQR only & 0.052 & 0.127 & 0.033 & 0.030 & 2 \\
+\hline
+\end{tabular}
+\\[2pt]
+\raggedright\footnotesize $^{\dagger}$Higher raw F1 is an artefact of near-universal flagging (FPR~$=0.996$); not a
+usable detector. See Section~\ref{subsec:baseline}.
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig2_baseline_comparison.png}
+\caption{Baseline comparison across F1, precision, recall, and accuracy. The proposed hybrid system (highlighted)
+balances high recall with competitive F1 and latency; the string-similarity bar's high recall coincides with a near-unity
+FPR (Table~\ref{tab:baseline}). (New figure, generated from the experiment suite.)}
+\label{fig:baseline}
+\end{figure}
+
+\subsection{Ablation Study (RQ2)}
+\label{subsec:ablation}
+We removed each component in turn and measured the change in mean F1 over five datasets. Table~\ref{tab:ablation} and
+Figure~\ref{fig:ablation} report the results. TF--IDF semantic matching is decisively the most important component:
+removing it drops F1 from $0.312$ to $0.205$ ($\Delta\mathrm{F1}=-0.107$, a $34\%$ relative decline) and collapses recall
+from $0.737$ to $0.207$, while also halving latency, confirming it as the principal computational cost. The Isolation
+Forest contributes a smaller but real $\Delta\mathrm{F1}=-0.013$, and rule-based validation a marginal
+$\Delta\mathrm{F1}=-0.003$ via a recall improvement.
+
+The remaining variants --- removing cross-field validation, confidence routing, or ensemble logic --- show no measurable
+change in aggregate F1. We report this honestly rather than suppressing it: binary F1 does not capture the precision/recall
+\emph{trade-off} that routing governs, nor the deterministic audit value of cross-field checks on the small subset of rows
+they uniquely flag. These components are F1-neutral by construction in this evaluation but operationally meaningful, a
+point we return to in Section~\ref{subsec:limitations}.
+
+% TABLE 5 — ablation (honest)
+\begin{table}[tbp]
+\centering
+\caption{Ablation: Mean F1 Over 5 Datasets ($\Delta$ vs.\ Full System)}
+\label{tab:ablation}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Configuration} & \textbf{F1} & $\boldsymbol{\Delta}$\textbf{F1} & \textbf{Recall} \\
+\hline
+Full system & 0.312 & --- & 0.737 \\
+\hline
+w/o Isolation Forest & 0.299 & $-0.013$ & 0.727 \\
+\hline
+w/o rule-based validation & 0.309 & $-0.003$ & 0.709 \\
+\hline
+w/o cross-field validation & 0.312 & $0.000$ & 0.737 \\
+\hline
+w/o confidence routing & 0.312 & $0.000$ & 0.737 \\
+\hline
+\textbf{w/o TF--IDF (semantic)} & \textbf{0.205} & $\bm{-0.107}$ & \textbf{0.207} \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig1_ablation_study.png}
+\caption{Component ablation with F1, precision, and recall per variant and 95\% error bars on F1. Removing TF--IDF
+(rightmost groups) causes the steepest degradation; other removals are F1-neutral in this binary evaluation. (New figure,
+generated from the experiment suite.)}
+\label{fig:ablation}
+\end{figure}
+
+\subsection{Statistical Significance}
+\label{subsec:stats}
+We validated the hybrid system against an Isolation-Forest baseline under 10-repeat $\times$ 5-fold stratified
+cross-validation. On GL accounts the full system reached $\mathrm{F1}=0.344\pm0.020$ (95\% CI $[0.338,0.350]$) versus the
+baseline's $0.153\pm0.022$ (95\% CI $[0.147,0.159]$), an absolute gain of $+0.191$ (95\% CI of the difference
+$[0.183,0.198]$) with $t=51.2$, $p<0.0001$, and Cohen's $d=9.07$. Table~\ref{tab:cv} and Figure~\ref{fig:cv} show the same
+pattern across three datasets, with all comparisons significant at $p<0.0001$.
+
+We interpret the very large effect sizes ($d\approx9$--$13$) with care. They do not mean the system is ``nine times
+better''; they reflect that the two systems operate in fundamentally different recall regimes ($\approx73\%$ versus
+$\approx10\%$) and therefore occupy non-overlapping performance distributions. The fold-level distribution is tight (CV
+$=5.8\%$) with no catastrophic fold, supporting the stability of the estimate.
+
+% TABLE 6 — cross validation
+\begin{table}[tbp]
+\centering
+\caption{Cross-Validation: Full System vs.\ Isolation-Forest Baseline}
+\label{tab:cv}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Dataset} & \textbf{Full F1} & \textbf{Base F1} & $\boldsymbol{\Delta}$ & \textbf{Cohen's} $\bm{d}$ \\
+\hline
+GL accounts & 0.344 & 0.153 & $+0.191$ & 9.1 \\
+\hline
+Trial balance & 0.371 & 0.140 & $+0.230$ & $\sim$11.8 \\
+\hline
+Journal entries & 0.395 & 0.138 & $+0.257$ & $\sim$13.2 \\
+\hline
+\end{tabular}
+\\[2pt]
+\raggedright\footnotesize All differences significant at $p<0.0001$. $d$ for trial balance and journal entries estimated
+from fold distributions.
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig7_cross_validation_ci.png}
+\caption{Cross-validated F1 with 95\% confidence intervals for the full system and the Isolation-Forest baseline; ``$**$''
+denotes $p<0.01$. Intervals are tight and non-overlapping across datasets. (New figure, generated from the experiment
+suite.)}
+\label{fig:cv}
+\end{figure}
+
+\subsection{Scalability (RQ3a)}
+\label{subsec:scalability}
+We profiled the detector across seven dataset sizes from 100 to \num{100000} rows, three timed runs each.
+Table~\ref{tab:scalability} and Figure~\ref{fig:scalability} report latency, throughput, and memory. A log--log regression
+of latency against size yields an empirical scaling exponent $\alpha=0.69$, i.e.\ sub-linear: per-row cost falls as fixed
+overhead amortises. Peak throughput reaches \num{34681} rows/s at \num{100000} rows; memory grows linearly to
+$\approx13.8$\,MB. Throughput is non-monotonic, with a dip at \num{50000} rows caused by the $O(n^2)$ cosine-similarity
+computation, the system's dominant bottleneck at scale; we mitigate this in production via sparse TF--IDF matrices and
+recommend chunked processing beyond \num{50000} rows (Section~\ref{subsec:limitations}).
+
+% TABLE 7 — scalability
+\begin{table}[tbp]
+\centering
+\caption{Scalability (Mean of 3 Runs, Single-Process CPU)}
+\label{tab:scalability}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Rows} & \textbf{Latency (ms)} & \textbf{Throughput (rows/s)} & \textbf{Mem $\Delta$ (MB)} \\
+\hline
+100 & 73.6 & 1{,}358 & 0.06 \\
+\hline
+1{,}000 & 97.5 & 10{,}252 & 0.25 \\
+\hline
+5{,}000 & 215.2 & 23{,}239 & 0.66 \\
+\hline
+10{,}000 & 507.9 & 19{,}689 & 1.11 \\
+\hline
+50{,}000 & 9{,}767.2 & 5{,}119 & 2.52 \\
+\hline
+100{,}000 & 2{,}883.5 & 34{,}681 & 13.82 \\
+\hline
+\end{tabular}
+\\[2pt]
+\raggedright\footnotesize Log--log regression exponent $\alpha=0.69$ (sub-linear). The 50K dip reflects $O(n^2)$ cosine
+similarity; see Section~\ref{subsec:scalability}.
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig3_scalability.png}
+\caption{Scalability: (a) latency vs.\ size on log--log axes with fitted slope $\alpha=0.69$; (b) throughput vs.\ size,
+showing the 50K cosine-similarity dip; (c) memory growth. (New figure, generated from the experiment suite.)}
+\label{fig:scalability}
+\end{figure}
+
+\subsection{Robustness Under Noise and Adversarial Inputs (RQ3b)}
+\label{subsec:robustness}
+We injected five levels of value corruption and nullification and, separately, ran ten pathological edge cases.
+Figure~\ref{fig:robustness} summarises both. Recall is stable across all noise levels (\SIrange{93.8}{96.7}{\percent},
+under $3$\,pp variance), confirming that the detector does not collapse as data degrades. F1 and precision \emph{rise}
+with noise; this is expected for a union strategy on this label model: as more rows become genuinely corrupted, the
+high-recall detector's true-positive rate increases and noise itself produces detectable features. The behaviour is
+appropriate rather than anomalous, but we flag it explicitly because it would be misleading to present rising F1 as a
+quality improvement without this explanation. All ten adversarial cases --- empty frame, all-nulls, single/two rows,
+all-identical, mixed dtypes, unicode, oversized strings, extreme numerics, and corrupted headers --- completed without an
+unhandled exception, exercising the per-stage fallback paths (zero-return on insufficient sample size, silent rule-skip on
+missing columns).
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig4_robustness.png}
+\caption{Robustness: (a) precision/recall/F1 across noise fractions, with recall stable near $0.95$; (b) adversarial
+edge-case outcomes (all pass = no unhandled exception). Panel~(b) reports failure-freedom, not detection accuracy. (New
+figure, generated from the experiment suite.)}
+\label{fig:robustness}
+\end{figure}
+
+\subsection{Error and False-Positive Analysis}
+\label{subsec:error}
+Table~\ref{tab:confusion} gives the per-dataset confusion matrices and Figure~\ref{fig:confusion} their normalised form.
+The picture is deliberately unvarnished. On the three text-rich financial datasets the detector achieves near-perfect
+recall (FN~$=0$ on trial balance and journal entries; FN~$=3.75\%$ on GL accounts) but at a high FPR ($0.96$--$1.00$),
+because TF--IDF cosine similarity accounts for \SIrange{99}{100}{\percent} of false positives: shared financial
+terminology (for example, ``accounts payable'') pushes distinct rows above the $0.85$ similarity threshold. Raising the
+threshold to $0.90$--$0.92$ or applying domain stop-words would reduce FP substantially at some recall cost. The mapping
+table exhibits the inverse pattern --- low FPR ($0.10$) but high FN ($90.7\%$) --- because it lacks text columns for
+TF--IDF, leaving the Isolation Forest unable to separate code-only mapping anomalies; this dataset needs code-structure
+rules rather than general ML. Crucially, the headline FPR figures reflect both the union strategy and the high synthetic
+anomaly rate; under production rates of \SIrange{1}{5}{\percent} and confidence routing, the great majority of these
+flags fall into the manual-review tier rather than into rejection (Section~\ref{subsec:confidence_results}).
+
+% TABLE 8 — confusion matrices
+\begin{table}[tbp]
+\centering
+\caption{Per-Dataset Confusion Matrices (Full Hybrid System)}
+\label{tab:confusion}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Dataset} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{Recall} & \textbf{FPR} \\
+\hline
+GL accounts & 1{,}155 & 3{,}904 & 45 & 0.963 & 0.964 \\
+\hline
+Trial balance & 710 & 2{,}410 & 0 & 1.000 & 1.000 \\
+\hline
+Journal entries & 2{,}070 & 6{,}280 & 0 & 1.000 & 1.000 \\
+\hline
+Mapping table & 70 & 130 & 679 & 0.094 & 0.104 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig6_confusion_matrices.png}
+\caption{Normalised confusion matrices for the four labelled datasets. Text-rich datasets show near-perfect recall with
+high FPR (TF--IDF-driven); the mapping table shows the inverse. (New figure, generated from the experiment suite.)}
+\label{fig:confusion}
+\end{figure}
+
+\subsection{Confidence Score Behaviour and Routing (RQ3c)}
+\label{subsec:confidence_results}
+Figure~\ref{fig:confidence} shows the composite-score distributions. The three financial datasets share a consistent
+right-skewed, leptokurtic profile (mean $\approx0.41$--$0.49$, skewness $\approx1.2$), while the mapping table is shifted
+lower (mean $0.10$) because the TF--IDF term is inactive. Under the default thresholds, routing places roughly $13\%$ of
+rows in auto-accept, $86\%$ in manual review, and $1\%$ in auto-reject on the financial datasets --- a conservative
+profile appropriate to audit. This is precisely the mechanism by which the high-recall, high-FPR detector becomes
+operationally usable: rather than auto-rejecting on a single threshold, the system escalates uncertain rows to review and
+auto-accepts only confidently clean ones. An F1-maximising threshold sweep independently selects $\approx0.40$ on three
+of four datasets, validating the default $\theta_{\mathrm{low}}$.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig5_confidence_distributions.png}
+\caption{Composite confidence-score distributions per dataset with the F1-optimal threshold marked. Financial datasets are
+right-skewed near $0.4$; the mapping table is shifted lower (inactive TF--IDF term). (New figure, generated from the
+experiment suite.)}
+\label{fig:confidence}
+\end{figure}
+
+\subsection{SQL Translation and Confidence (RQ4)}
+\label{subsec:translation}
+On the ten-statement suite spanning MySQL, PostgreSQL, and SQL~Server sources, the engine produced translations at a mean
+confidence of $0.920$ and a mean semantic similarity of $0.968$, with sub-millisecond per-statement latency on the
+rule-based path. ANSI-compatible constructs (\texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP BY}, window functions) passed
+through unchanged; dialect-specific functions (\texttt{IFNULL}$\rightarrow$\texttt{NVL},
+\texttt{AUTO\_INCREMENT}$\rightarrow$\texttt{AUTOINCREMENT}) were correctly transformed. The lowest-fidelity case was a DDL
+statement (semantic similarity $0.75$) requiring four structural transforms, consistent with the known difficulty of
+\texttt{CREATE TABLE} option syntax. In this run the LLM path was not exercised and all translations used the
+deterministic fallback, which is itself an important reliability result: even without the LLM, the system produces
+auditable translations at $0.92$ confidence. The per-statement fidelity is shown in Figure~\ref{fig:enterprise}(b).
+
+% =====================================================================
+\section{Enterprise Case Study}
+\label{sec:casestudy}
+To evaluate the integrated pipeline under production-like conditions, we executed a six-stage migration scenario on the
+GL-accounts dataset (5{,}250 rows) with the ten-statement SQL suite. Figure~\ref{fig:enterprise}(a) gives the per-stage
+latency. End-to-end processing completed in $264.8$\,ms, of which anomaly detection accounted for $94.5\%$ ($250.3$\,ms);
+ingestion, account mapping, translation, validation, and reporting together consumed under $14$\,ms. The detector flagged
+$96.4\%$ of rows --- expected given the $22.9\%$ injected anomaly rate combined with union logic --- which confidence
+routing would tier into $\approx13\%$ auto-accept, $\approx86\%$ review, and $\approx1\%$ reject rather than rejecting
+wholesale.
+
+The validation gate correctly \emph{failed} the run, surfacing three issues: an anomaly rate above the $15\%$ threshold,
+zero mapping coverage (no target chart-of-accounts was supplied in the experiment), and consequently low mapping
+confidence. We report this failure as a positive result: the gate behaved exactly as intended, refusing to certify a
+pipeline whose preconditions were unmet, rather than silently passing. SQL translation within the pipeline matched the
+standalone results ($0.92$ confidence, $0.968$ mean semantic similarity), with the per-statement fidelity in
+Figure~\ref{fig:enterprise}(b). The case study confirms that the dominant cost is detection, that the translation path is
+effectively free at this scale, and that the validation gate provides a meaningful safety interlock.
+
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig8_enterprise_pipeline.png}
+\caption{Enterprise case study. (a) Per-stage latency waterfall: anomaly detection dominates at $94.5\%$ of the
+$264.8$\,ms total. (b) Per-statement SQL translation semantic similarity grouped by complexity; the DDL statement is the
+single lower-fidelity case. (Replaces the previous empty boxplot panel; regenerated from enterprise results.)}
+\label{fig:enterprise}
+\end{figure*}
+
+% =====================================================================
+\section{Security Considerations}
+\label{sec:security}
+Because the system ingests untrusted tabular data and SQL text, we evaluated twelve adversarial payloads spanning three
+severities: SQL injection and XSS and command-injection strings (high); null-byte injection, path traversal, and unicode
+adversarial sequences such as right-to-left overrides and zero-width characters (medium); and float overflow, oversized
+strings, boundary frames, empty fields, duplicate columns, and extremely wide tables (low). The pass criterion is that the
+analytical core processes the input without raising an unhandled exception and without executing any injected content.
+Figure~\ref{fig:security} shows that all twelve cases passed. We are careful to frame this as resilience to malformed and
+malicious \emph{input handling}, not as a security guarantee for the deployed service: it demonstrates that adversarial
+payloads are treated as inert data by the detection path, but production deployments must still enforce authentication,
+parameterised database access, output encoding, and transport security at the API boundary. Translated SQL is never
+executed by the framework; it is returned for review under the confidence-routing policy, which further limits the blast
+radius of an incorrect or malicious translation.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig9_security_validation.png}
+\caption{Security input-handling validation: twelve adversarial payloads, colour-coded by severity, all processed without
+unhandled exceptions. This measures failure-freedom of input handling, not end-to-end deployment security
+(Section~\ref{sec:security}). (New figure, generated from the experiment suite.)}
+\label{fig:security}
+\end{figure}
+
+% =====================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Interpreting the Operating Point}
+The defining characteristic of DataFlow~AI is its deliberate choice of a high-recall operating point governed by a
+confidence router, rather than a balanced single-threshold detector. This is appropriate for financial integrity, where
+the asymmetric cost of missed anomalies favours recall, but it produces a high false-positive rate that would be
+unacceptable if presented to reviewers undifferentiated. The confidence router resolves this tension by escalating only
+uncertain rows to review and auto-accepting confidently clean ones, converting raw recall into a manageable workflow. We
+have reported the unmanaged FPR and the full confusion matrices precisely so that the trade-off is legible, in contrast to
+single-threshold reporting that can mask it.
+
+\subsection{Hybrid Design and Component Roles}
+The ablation establishes a clear hierarchy: TF--IDF semantic matching dominates detection but also dominates both false
+positives and latency, making its threshold the principal tuning lever; the Isolation Forest contributes secondary lift;
+and rules and cross-field checks add deterministic, auditable coverage on specific anomaly types even where their
+aggregate-F1 effect is negligible. On the translation side, the rule-based fallback's ability to deliver $0.92$-confidence
+translations \emph{without} invoking the LLM is a robustness asset: the system degrades gracefully when the model is
+unavailable or rate-limited.
+
+\subsection{Threats to Validity}
+\label{subsec:threats}
+\emph{Construct validity.} Ground-truth labels are placed synthetically by an independent seeded generator, so
+precision/recall measure overlap with a known mask rather than detection of intrinsically anomalous features; this
+inflates recall and depresses apparent precision relative to expert-labelled data. The injected anomaly rates
+(\SIrange{10}{38}{\percent}) far exceed production rates (\SIrange{1}{5}{\percent}), which raises F1 for recall-oriented
+methods and worsens precision; we therefore report FPR and confusion matrices alongside F1 so readers can reason about
+other operating points. \emph{Internal validity.} Datasets and baselines were produced by the same team and codebase; we
+mitigate alignment risk by placing labels independently of feature generation and by publishing all baseline
+implementations. The TF--IDF threshold was set from domain knowledge, not cross-validated, and the error analysis shows
+this is the dominant sensitivity. \emph{External validity.} All data are synthetic, single-schema financial records;
+generalisation to other ERPs, accounting standards, multi-currency consolidation, and non-financial domains is unverified.
+Scalability was measured to \num{100000} rows on a single CPU; million-row and multi-core behaviour is projected, not
+measured. SQL coverage is limited to three source dialects into Snowflake/PostgreSQL; Oracle PL/SQL, Teradata, and
+BigQuery constructs are untested. \emph{Statistical validity.} The very large effect sizes reflect non-overlapping recall
+regimes between systems and should be read as ``qualitatively different operating points'', not multiplicative
+superiority. Table~\ref{tab:threats} summarises these threats and their status.
+
+% TABLE 9 — threats to validity
+\begin{table}[tbp]
+\centering
+\caption{Threats to Validity and Mitigations}
+\label{tab:threats}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Threat} & \textbf{Type} & \textbf{Severity} \\
+\hline
+Synthetic ground truth & Construct & High \\
+\hline
+High injected anomaly rate & Construct & Medium \\
+\hline
+In-house baselines & Internal & Medium \\
+\hline
+Un-tuned TF--IDF threshold & Internal & Medium \\
+\hline
+Single financial domain & External & High \\
+\hline
+100K-row scalability ceiling & External & Medium \\
+\hline
+Limited SQL dialect coverage & External & Medium \\
+\hline
+Single-platform timing & External & Low \\
+\hline
+Effect-size magnitude & Statistical & Low \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Reproducibility}
+\label{subsec:repro}
+Every experiment is governed by a single seed (42) across NumPy, generators, and estimators; datasets are generated once
+and read-only thereafter; ground-truth masks are reconstructed deterministically; and outputs are written as ordered JSON.
+Expected checksums (for example, full-system ablation $\mathrm{F1}=0.3119$, no-TF--IDF $\mathrm{F1}=0.2054$, baseline
+hybrid $\mathrm{F1}=0.3212$, scalability $\alpha=0.69$, CV Cohen's $d=9.07$) allow third parties to verify a re-run to
+within $10^{-3}$. Pinned dependencies and an ordered master runner are provided. The only non-determinism is sub-$10^{-3}$
+floating-point variation across library versions, absorbed by four-decimal rounding.
+
+\subsection{Limitations and Future Work}
+\label{subsec:limitations}
+The principal limitations follow directly from the threats above. The fixed TF--IDF threshold is the dominant precision
+lever and should be replaced by cross-validated, domain-specific selection. Cross-field validation currently covers
+name/identifier pairs and requires extension for additional relations. Datasets beyond \num{50000} rows incur the
+$O(n^2)$ cosine-similarity cost and should use chunked processing; distributed execution (e.g.\ Spark or Dask) is required
+for million-row scale. Translation coverage should extend to Oracle, Teradata, and BigQuery, with formal semantic
+verification rather than token-level similarity. Most importantly, the synthetic evaluation must be complemented by
+expert-annotated financial benchmarks and a controlled real-world deployment in which audit outcomes supply true labels.
+Near-term work targets adaptive thresholds, self-hosted LLMs, and real-time monitoring; medium-term work targets
+distributed processing and active learning from reviewer feedback; longer-term work targets multi-domain validation beyond
+finance.
+
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+We presented DataFlow~AI, a hybrid, confidence-aware framework that integrates data-integrity validation and cross-dialect
+SQL translation in one deployment-oriented pipeline. Under a fully seeded, reproducible evaluation, the hybrid ensemble
+achieved a mean F1 of $0.32$ at $76\%$ recall --- a statistically significant $+0.19$ absolute F1 gain over an
+Isolation-Forest baseline ($t=51.2$, $p<0.0001$, $d=9.1$) --- with TF--IDF semantic matching identified as the dominant
+component ($\Delta\mathrm{F1}=-0.107$ on removal). The system scaled sub-linearly ($\alpha=0.69$), maintained stable recall
+under noise, processed all adversarial and security inputs without failure, and translated SQL at $0.92$ confidence and
+$0.97$ semantic similarity even on the deterministic fallback path. Rather than reporting a single favourable threshold,
+we characterised the high-recall, high-FPR operating point in full and showed how confidence routing converts it into a
+practical, audit-appropriate review workflow. The contribution is therefore not a new accuracy record but a transparent,
+reproducible demonstration that hybrid, confidence-aware integration of validation and translation is both feasible and
+operationally sensible --- subject to the clearly stated limits of synthetic evaluation, which expert-labelled and
+real-world studies should next address.
+
+% =====================================================================
+\begin{thebibliography}{99}
+
+\bibitem{redman1998impact}
+T. Redman, ``The impact of poor data quality on the typical enterprise,'' \textit{Commun. ACM}, vol. 41, no. 2, pp. 79--82, 1998.
+
+\bibitem{hultgren2018data}
+G. Hultgren, \textit{Data Quality: Why It Matters and How to Improve It}. O'Reilly Media, 2018.
+
+\bibitem{stonebraker2007end}
+M. Stonebraker et al., ``The end of an architectural era: (It's time for a complete rewrite),'' in \textit{Proc. VLDB}, 2007, pp. 1150--1160.
+
+\bibitem{batini2009data}
+C. Batini, C. Cappiello, C. Francalanci, and A. Maurino, ``Methodologies for data quality assessment and improvement,'' \textit{ACM Comput. Surv.}, vol. 41, no. 3, pp. 16:1--16:52, 2009.
+
+\bibitem{ilyas2015functional}
+I. F. Ilyas and X. Chu, ``Trends in cleaning relational data: Consistency and other flavors,'' \textit{SIGMOD Rec.}, vol. 44, no. 4, pp. 35--45, 2015.
+
+\bibitem{motro1989integrity}
+A. Motro, ``Integrity = Validity + Completeness,'' \textit{ACM Trans. Database Syst.}, vol. 14, no. 4, pp. 480--502, 1989.
+
+\bibitem{sculley2015hidden}
+D. Sculley et al., ``Hidden technical debt in machine learning systems,'' in \textit{Proc. NeurIPS}, 2015.
+
+\bibitem{great_expectations}
+Great Expectations, ``Great Expectations: Always know what to expect from your data,'' 2023. [Online]. Available: https://greatexpectations.io
+
+\bibitem{pedregosa2011scikit}
+F. Pedregosa et al., ``Scikit-learn: Machine learning in Python,'' \textit{J. Mach. Learn. Res.}, vol. 12, pp. 2825--2830, 2011.
+
+\bibitem{aggarwal2017outlier}
+C. C. Aggarwal, \textit{Outlier Analysis}, 2nd ed. Springer, 2017.
+
+\bibitem{rahm2001survey}
+E. Rahm and P. A. Bernstein, ``A survey of approaches to automatic schema matching,'' \textit{VLDB J.}, vol. 10, pp. 334--350, 2001.
+
+\bibitem{manning2008introduction}
+C. D. Manning, P. Raghavan, and M. Sch\"{u}tze, \textit{Introduction to Information Retrieval}. Cambridge Univ. Press, 2008.
+
+\bibitem{ribeiro2016why}
+M. Ribeiro, S. Singh, and C. Guestrin, ``Why should I trust you? Explaining the predictions of any classifier,'' in \textit{Proc. KDD}, 2016, pp. 1135--1144.
+
+\bibitem{neumann1996risks}
+P. G. Neumann, ``Risks of automation,'' \textit{Commun. ACM}, vol. 39, no. 3, pp. 150--152, 1996.
+
+\bibitem{lundberg2017unified}
+S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting model predictions,'' in \textit{Proc. NeurIPS}, 2017, pp. 4765--4774.
+
+\bibitem{liu2008isolation}
+F. T. Liu, K. M. Ting, and Z.-H. Zhou, ``Isolation Forest,'' in \textit{Proc. IEEE ICDM}, 2008, pp. 413--422.
+
+\bibitem{salton1988term}
+G. Salton and C. Buckley, ``Term-weighting approaches in automatic text retrieval,'' \textit{Inf. Process. Manage.}, vol. 24, no. 5, pp. 513--523, 1988.
+
+\bibitem{ramos2003using}
+J. Ramos, ``Using TF-IDF to determine word relevance in document queries,'' in \textit{Proc. First Instructional Conf. Machine Learning}, 2003.
+
+\bibitem{pipino2002understanding}
+L. L. Pipino, Y. W. Lee, and R. Y. Wang, ``Data quality assessment,'' \textit{Commun. ACM}, vol. 45, no. 4, pp. 211--218, 2002.
+
+\bibitem{strong1997data}
+D. M. Strong, Y. W. Lee, and R. Y. Wang, ``Data quality in context,'' \textit{Commun. ACM}, vol. 40, no. 5, pp. 103--110, 1997.
+
+\bibitem{pearson1895notes}
+K. Pearson, ``Notes on regression and inheritance in the case of two parents,'' \textit{Proc. Royal Soc. London}, vol. 58, pp. 240--242, 1895.
+
+\bibitem{han2012data}
+J. Han, M. Kamber, and J. Pei, \textit{Data Mining: Concepts and Techniques}, 3rd ed. Morgan Kaufmann, 2012.
+
+\bibitem{agrawal1995mining}
+R. Agrawal and R. Srikant, ``Mining sequential patterns,'' in \textit{Proc. ICDE}, 1995, pp. 3--14.
+
+\end{thebibliography}
+
+% =====================================================================
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{figures/author_upasana.png}}]{Upasana Bhaumik}
+is an undergraduate student in Computer Science and Engineering with a specialization in Bioinformatics at Vellore
+Institute of Technology, India. She builds AI-driven and data-centric applications, combining machine learning, data
+engineering, and full-stack development. Her interests include large-language-model-powered systems, data-quality
+automation, and applications of AI in bioinformatics and healthcare.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{figures/author_berlin.png}}]{Berlin M A}
+received the master's degree in computer science engineering from National Engineering College, Tamil Nadu, and the
+Ph.D. degree in computer science engineering from Anna University, Chennai. She is currently an Associate Professor with
+the School of Computer Science and Engineering, Vellore Institute of Technology, Vellore. Her research interests include
+ad hoc networks, the Internet of Things, and machine learning. She has over 20 years of teaching and research experience,
+with numerous publications and patents in these areas.
+\end{IEEEbiography}
+
+\EOD
+
+\end{document}

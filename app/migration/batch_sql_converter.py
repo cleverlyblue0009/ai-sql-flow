@@ -6,10 +6,14 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor
 import json
 import re
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 from .ai_translator import AITranslationEngine
 
@@ -31,10 +35,15 @@ class BatchSQLConverter:
         api_key = getattr(settings, 'gemini_api_key', None) or getattr(settings, 'google_api_key', None)
         if api_key and api_key.strip():
             try:
+                if genai is None:
+                    raise ImportError("google-generativeai is not installed")
                 genai.configure(api_key=api_key)
                 self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
                 self.use_gemini = True
                 logger.info("Gemini API initialized for dialect detection")
+            except ImportError as e:
+                logger.warning(f"{str(e)}. Using rule-based dialect detection.")
+                self.use_gemini = False
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini: {str(e)}")
                 self.use_gemini = False

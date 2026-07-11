@@ -1,0 +1,2 @@
+n_queries,n_pairs,parse_rate,transpile_rate,ast_equiv_rate,latency_ms_mean,latency_ms_p95
+109,575,0.991304347826087,0.991304347826087,0.8,1.092793043478261,2.506499999999999
