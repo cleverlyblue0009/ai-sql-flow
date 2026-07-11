@@ -1,7 +1,7 @@
 {
   "seed": 42,
   "rate_per_family": 0.01,
-  "generated_at": "2026-05-27T09:01:39Z",
+  "generated_at": "2026-07-11T18:01:14Z",
   "datasets": {
     "D1": {
       "dataset_id": "D1",
@@ -58,5 +58,5 @@
       "mask_sha256": "052095445d966b71b616aaead10190197e36cf4d20dea3f75d0e4f55468d9dea"
     }
   },
-  "elapsed_sec": 3.84
+  "elapsed_sec": 3.32
 }

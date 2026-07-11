@@ -173,7 +173,7 @@ def main() -> int:
     by_cx.to_csv(OUT_TABLES / "sql_migration_by_complexity.csv", index=False)
 
     overall = pd.DataFrame([{
-        "n_queries": df["query"].nunique(),
+        "n_queries": df[["src_folder", "query"]].drop_duplicates().shape[0],
         "n_pairs": len(df),
         "parse_rate": df["parse_ok"].mean(),
         "transpile_rate": df["transpile_ok"].mean(),
@@ -183,7 +183,7 @@ def main() -> int:
     }])
     overall.to_csv(OUT_TABLES / "sql_migration_summary.csv", index=False)
 
-    print(f"\nQueries:        {df['query'].nunique()}")
+    print(f"\nQueries:        {df[['src_folder','query']].drop_duplicates().shape[0]}")
     print(f"Source-target pairs: {len(df)}")
     print(f"Parse success:  {df['parse_ok'].mean():.3f}")
     print(f"Transpile rate: {df['transpile_ok'].mean():.3f}")

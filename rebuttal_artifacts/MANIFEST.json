@@ -1,0 +1,207 @@
+{
+  "manuscript": "DataFlow AI \u2014 Access-2026-28181",
+  "generated": "2026-07-11T00:00:00Z",
+  "phase": "Phase 0 gates G1-G4",
+  "artifacts": [
+    {
+      "path": "phase2_rebuild\\data\\processed\\D1_injected.parquet",
+      "sha256": "6b706b30a22a7e4a0c04b19c645bb8a9e7cfd0293e33b79959b7d435af8f74ce",
+      "size_bytes": 1400869,
+      "description": "SEC EDGAR 50,500-row injected dataset (D1)",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\processed\\D2_injected.parquet",
+      "sha256": "2cded7ccf704cf66d971897a6de8cc40af880f241e86e81cdab76ff39b71ad82",
+      "size_bytes": 6399405,
+      "description": "NYC Payroll 202,000-row injected dataset (D2)",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\processed\\D3_injected.parquet",
+      "sha256": "b1a4866287aa55c774e07f422b71a67bdcb2aed9369d5fd5fb889f23c0ef9f6f",
+      "size_bytes": 1747562,
+      "description": "UCI Credit 30,000-row injected dataset (D3)",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\labels\\D1_mask.parquet",
+      "sha256": "decbe04b3092b178888a78c6fd40abc805ad97e525d43686b8957134792586b7",
+      "size_bytes": 49367,
+      "description": "D1 anomaly ground-truth mask",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\labels\\D2_mask.parquet",
+      "sha256": "f6eedb0bf6e802a363c05941f99722a4ea718019032b3e615444db32461c545d",
+      "size_bytes": 182326,
+      "description": "D2 anomaly ground-truth mask",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\labels\\D3_mask.parquet",
+      "sha256": "052095445d966b71b616aaead10190197e36cf4d20dea3f75d0e4f55468d9dea",
+      "size_bytes": 18899,
+      "description": "D3 anomaly ground-truth mask",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\data\\injection_manifest.json",
+      "sha256": "e352a594110d495a6f0e6a6264084feee3c2c8002460fd44f53b06b5fa3ea9f7",
+      "size_bytes": 2514,
+      "description": "Injection parameters and SHA-256 hashes at SEED=42",
+      "producing_script": "02_inject_anomalies.py",
+      "runtime_sec": 3.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\baseline.csv",
+      "sha256": "5da25153f8b585528866d00b03ea27038ac7531b4f4780e9433c791b27254427",
+      "size_bytes": 2546,
+      "description": "18 rows: 6 detectors x 3 datasets (F1, AUC-PR, FPR, etc.)",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\per_family.csv",
+      "sha256": "0417b1d9c58c469b07b298f3b26f509cee75a5e11b10d988722be89c9d744d0a",
+      "size_bytes": 665,
+      "description": "15 rows: per-family recall at hybrid_lr best-F1 threshold",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\ablation.csv",
+      "sha256": "6b60ea578da9ec3d82b02ba7e7ec6b405c7481569e9705374cde905c9d9d1876",
+      "size_bytes": 1253,
+      "description": "Leave-one-detector-out ablation on D1/D2/D3",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\cv.csv",
+      "sha256": "73acd359dd27aaf48ea2e944bd9beb2f9ba4f603cfea53cccd6cfa4a660b846f",
+      "size_bytes": 1368,
+      "description": "5-fold CV on hybrid_lr, D1/D2/D3",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\threshold_sweep.csv",
+      "sha256": "30e6a5881d67fc889544bcb7564b8c57d533b207024e55152db54bcf1bb5265a",
+      "size_bytes": 9678,
+      "description": "Threshold sweep (25 quantiles) on hybrid_lr",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\scalability.csv",
+      "sha256": "dbef939e3945542af59d65272e2fefbaa09f9badb3ef562e2707dd08429b7411",
+      "size_bytes": 385,
+      "description": "Scalability on D2 sub-samples (10k-200k rows)",
+      "producing_script": "10_run_anomaly_experiments.py",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\sql_migration_summary.csv",
+      "sha256": "b04fb3380d423b5087bee43f627b0e30dbcdf088aa15abdaddd6febf5188875d",
+      "size_bytes": 177,
+      "description": "SQL migration headline numbers (n_queries=115 after G2 fix)",
+      "producing_script": "30_run_sql_migration.py",
+      "runtime_sec": 2.0
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\sql_migration_by_difficulty.csv",
+      "sha256": "4c0e52f2802b5476c13b429fa2706db48d31a900cfae6f3fa59798db5b2742b1",
+      "size_bytes": 271,
+      "description": "AST-equivalence rate by difficulty",
+      "producing_script": "30_run_sql_migration.py",
+      "runtime_sec": 2.0
+    },
+    {
+      "path": "phase2_rebuild\\results\\tables\\sql_migration_matrix.csv",
+      "sha256": "d3ad80c0c36a8ea6518a56fc30cdead1125d11804af3c358091efd9167d783cc",
+      "size_bytes": 1403,
+      "description": "5x5 dialect transpile/AST-equiv matrix",
+      "producing_script": "30_run_sql_migration.py",
+      "runtime_sec": 2.0
+    },
+    {
+      "path": "rebuttal_artifacts\\MANUSCRIPT_AUDIT.csv",
+      "sha256": "bb75af94cf7fc94c16a32aebc896bca442b1b2ce20a885f213ab9f10224b101e",
+      "size_bytes": 10258,
+      "description": "G3 audit: 80 rows mapping every numeric claim to backing files",
+      "producing_script": "manual_audit",
+      "runtime_sec": null
+    },
+    {
+      "path": "rebuttal_artifacts\\REPRODUCTION_OK.md",
+      "sha256": "86ee7462c74f07476a375a6be194ff5969503fa0bfd7ae8c4a11ea5b0ce22170",
+      "size_bytes": 4123,
+      "description": "G1 reproduction verdict",
+      "producing_script": "g1 protocol",
+      "runtime_sec": 66.3
+    },
+    {
+      "path": "rebuttal_artifacts\\SEED42_VERIFY.md",
+      "sha256": "7b37d64c84f42f50c48cb74e68c8e12b9553485721eebbfbeb39f7e624d477d7",
+      "size_bytes": 3571,
+      "description": "G4 seed-parameterisation verification (PASS)",
+      "producing_script": "g4_gate.py",
+      "runtime_sec": 30.3
+    },
+    {
+      "path": "rebuttal_artifacts\\REPORT.md",
+      "sha256": "1cabab85ec73688e96fa80a121f66f34af9b96217ad011079f839a31f15d47d0",
+      "size_bytes": 5184,
+      "description": "Phase 0 master narrative report",
+      "producing_script": "g4_gate.py",
+      "runtime_sec": null
+    },
+    {
+      "path": "rebuttal_artifacts\\SUMMARY_FOR_PAPER.md",
+      "sha256": "9ee43ff3464758e9eaa2f9a36131c9a9af4861b3d7e649a6b7a12c7bed01cc53",
+      "size_bytes": 5780,
+      "description": "Per-correction manuscript change instructions (C1-C5)",
+      "producing_script": "manual",
+      "runtime_sec": null
+    },
+    {
+      "path": "rebuttal_artifacts\\ENVIRONMENT.md",
+      "sha256": "db51b93a8cadb3581f515e4ba35fd78f1d0a6961128703f06e2af8dc88673aaa",
+      "size_bytes": 2240,
+      "description": "Python/package versions, dataset SHA-256, runtimes",
+      "producing_script": "manual",
+      "runtime_sec": null
+    },
+    {
+      "path": "rebuttal_artifacts\\pip_freeze.txt",
+      "sha256": "a81229dc59f483bb59d29e5ffe1853359265fc9d7e160d377b5e5937691b44d9",
+      "size_bytes": 2996,
+      "description": "Full pip freeze snapshot",
+      "producing_script": "pip freeze",
+      "runtime_sec": null
+    },
+    {
+      "path": "phase2_rebuild\\rebuttal\\run_pipeline_seed.py",
+      "sha256": "5c881845462a0c0c0599f5aafdd96faa38eb3eec8fc6ce46658f55f6124da29f",
+      "size_bytes": 32201,
+      "description": "G4/E1: seed-parameterised full pipeline (--seed N)",
+      "producing_script": "new",
+      "runtime_sec": null
+    },
+    {
+      "path": "phase2_rebuild\\rebuttal\\g4_gate.py",
+      "sha256": "e9ee412c47268106963bb03775e633ddc97007699b2d0f937a194c3875641257",
+      "size_bytes": 12763,
+      "description": "G4 verification gate (imports original functions)",
+      "producing_script": "new",
+      "runtime_sec": null
+    }
+  ]
+}
