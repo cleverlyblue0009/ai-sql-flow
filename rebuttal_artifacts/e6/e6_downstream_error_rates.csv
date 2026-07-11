@@ -1,0 +1,7 @@
+dataset,difficulty,n_queries,pct_wrong_no_gate,pct_wrong_sql_gate,pct_wrong_data_gate,pct_wrong_joint_gate,n_joint_required
+D2,easy,8,100.0,100.0,0.0,0.0,0
+D2,medium,6,100.0,100.0,0.0,0.0,0
+D2,hard,5,100.0,100.0,0.0,0.0,0
+D3,easy,5,100.0,100.0,0.0,0.0,0
+D3,medium,6,100.0,100.0,16.7,0.0,1
+D3,hard,4,100.0,100.0,75.0,0.0,3

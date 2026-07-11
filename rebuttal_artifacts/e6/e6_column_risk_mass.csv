@@ -1,0 +1,14 @@
+dataset,family,column,n_injected,n_quarantined,quarantine_rate,risk_mass
+D2,B1_ot_regular_inconsistency,Total_OT_Paid,2000,1887,0.9435,0.07607950651130911
+D2,B1_ot_regular_inconsistency,Regular_Hours,2000,1887,0.9435,0.07607950651130911
+D2,B2_salary_basis_mismatch,Regular_Gross_Paid,2000,1987,0.9935,0.08011127686166995
+D2,B2_salary_basis_mismatch,Pay_Basis,2000,1987,0.9935,0.08011127686166995
+D2,B3_near_duplicate_name,Last_Name,2000,183,0.0915,0.007378139741160344
+D2,B4_agency_title_violation,Agency_Name,2000,842,0.421,0.0339475063500383
+D2,B4_agency_title_violation,Title_Description,2000,842,0.421,0.0339475063500383
+D2,B5_magnitude_outlier,Regular_Gross_Paid,2000,1348,0.674,0.054348264322864166
+D3,C1_education_out_of_domain,EDUCATION,300,300,1.0,0.16778523489932887
+D3,C2_limitbal_inconsistency,LIMIT_BAL,300,291,0.97,0.16275167785234898
+D3,C3_bill_sign_violation,BILL_AMT1,300,0,0.0,0.0
+D3,C4_pay_temporal_violation,PAY_0,300,288,0.96,0.1610738255033557
+D3,C5_age_range_violation,AGE,300,300,1.0,0.16778523489932887
