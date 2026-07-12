@@ -1,6 +1,6 @@
 {
   "seed": 42,
-  "generated_at": "2026-05-27T08:55:05Z",
+  "generated_at": "2026-07-11T18:00:31Z",
   "datasets": {
     "D1": {
       "rows": 50000,
@@ -9,17 +9,14 @@
     },
     "D2": {
       "rows": 200000,
-      "fy2024_total": 562898,
-      "rows_seen": 6775830,
       "path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\processed\\D2_nyc_fy2024.parquet",
-      "status": "written"
+      "status": "skip-existing"
     },
     "D3": {
       "rows": 30000,
-      "cols": 25,
       "path": "C:\\Users\\UPASANA\\ai-sql-flow\\phase2_rebuild\\data\\processed\\D3_uci_credit.parquet",
-      "status": "written"
+      "status": "skip-existing"
     }
   },
-  "elapsed_sec": 19.25
+  "elapsed_sec": 8.94
 }

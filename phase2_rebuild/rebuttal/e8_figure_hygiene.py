@@ -250,6 +250,156 @@ def fig_per_family():
 
 
 # ---------------------------------------------------------------------------
+# Figure: Confusion matrix (hybrid_lr at best_threshold)
+# ---------------------------------------------------------------------------
+def fig_confmat():
+    from sklearn.metrics import confusion_matrix as sk_cm
+    bl = pd.read_csv(RESULTS / "baseline.csv")
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+    for ax, did in zip(axes, DATASETS):
+        df = pd.read_parquet(SCORES_DIR / f"{did}_scores.parquet")
+        y = (df["y"].to_numpy() > 0.5).astype(int)
+        s = df["hybrid_lr"].to_numpy()
+        tau = float(bl[(bl["dataset"] == did) & (bl["detector"] == "hybrid_lr")]["best_threshold"].iloc[0])
+        pred = (s >= tau).astype(int)
+        cm = sk_cm(y, pred)
+        im = ax.imshow(cm, cmap="Blues")
+        labels = [["TN", "FP"], ["FN", "TP"]]
+        for i in range(2):
+            for j in range(2):
+                ax.text(j, i, f"{labels[i][j]}\n{cm[i,j]:,}", ha="center", va="center",
+                        fontsize=11, color="black" if cm[i, j] < cm.max() * 0.7 else "white")
+        ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
+        ax.set_xticklabels(["Pred Clean", "Pred Anomaly"])
+        ax.set_yticklabels(["True Clean", "True Anomaly"])
+        ax.set_title(DATASET_LABELS[did])
+    fig.suptitle("Confusion Matrix — hybrid_lr at best_threshold (committed data)", fontsize=11)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig3_confmat.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig3_confmat.png")
+
+
+# ---------------------------------------------------------------------------
+# Figure: Scalability
+# ---------------------------------------------------------------------------
+def fig_scalability():
+    sc = pd.read_csv(RESULTS / "scalability.csv")
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    ax0, ax1 = axes
+    for did in DATASETS:
+        sub = sc[sc["dataset"] == did] if "dataset" in sc.columns else sc
+        if sub.empty:
+            continue
+        ax0.plot(sub["n_rows"], sub["elapsed_sec"], "o-", label=did)
+        ax1.plot(sub["n_rows"], sub["rows_per_sec"] / 1000, "o-", label=did)
+    ax0.set_xlabel("n_rows"); ax0.set_ylabel("Elapsed (s)"); ax0.set_title("Runtime vs Dataset Size")
+    ax1.set_xlabel("n_rows"); ax1.set_ylabel("Throughput (k rows/s)"); ax1.set_title("Throughput vs Dataset Size")
+    ax0.legend(); ax1.legend()
+    fig.suptitle("Scalability (committed data — wall-clock times may vary by run)", fontsize=10)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig5_scalability.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig5_scalability.png")
+
+
+# ---------------------------------------------------------------------------
+# Figure: Ablation
+# ---------------------------------------------------------------------------
+def fig_ablation():
+    abl = pd.read_csv(RESULTS / "ablation.csv")
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    for ax, did in zip(axes, DATASETS):
+        sub = abl[abl["dataset"] == did]
+        leave_outs = sub["leave_out"].tolist()
+        f1s = sub["f1"].tolist()
+        baseline_f1 = sub[sub["leave_out"] == "none"]["f1"].values
+        bl_val = float(baseline_f1[0]) if len(baseline_f1) else float("nan")
+        colors = ["darkorange" if lo == "none" else "steelblue" for lo in leave_outs]
+        ax.bar(leave_outs, f1s, color=colors, edgecolor="black", linewidth=0.5)
+        if not np.isnan(bl_val):
+            ax.axhline(bl_val, color="red", linestyle="--", linewidth=1, label=f"full={bl_val:.3f}")
+        ax.set_title(DATASET_LABELS[did])
+        ax.set_ylabel("F1")
+        ax.set_ylim(0, max(f1s) * 1.15 if f1s else 1)
+        ax.tick_params(axis="x", rotation=45)
+        ax.legend(fontsize=7)
+        for i, (lo, f1) in enumerate(zip(leave_outs, f1s)):
+            ax.text(i, f1 + 0.005, f"{f1:.3f}", ha="center", fontsize=7)
+    fig.suptitle("Ablation: F1 when each detector is removed (committed data)", fontsize=11)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig7_ablation.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig7_ablation.png")
+
+
+# ---------------------------------------------------------------------------
+# Figure: Failure analysis (SQL migration)
+# ---------------------------------------------------------------------------
+def fig_failure_analysis():
+    fa = pd.read_csv(RESULTS / "failure_analysis.csv")
+    if fa.empty:
+        print("  failure_analysis.csv empty; skipping")
+        return
+    cause_col = "cause" if "cause" in fa.columns else fa.columns[-1]
+    counts = fa[cause_col].value_counts().head(12)
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.bar(counts.index, counts.values, color="tomato", edgecolor="black", linewidth=0.5)
+    ax.set_xlabel("Failure cause"); ax.set_ylabel("Count")
+    ax.set_title("SQL Migration Failure Analysis by Cause (committed data)")
+    ax.tick_params(axis="x", rotation=45)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig9_failure_analysis.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig9_failure_analysis.png")
+
+
+# ---------------------------------------------------------------------------
+# Figure: Confidence distribution (hybrid_lr scores)
+# ---------------------------------------------------------------------------
+def fig_confidence_dist():
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    for ax, did in zip(axes, DATASETS):
+        df = pd.read_parquet(SCORES_DIR / f"{did}_scores.parquet")
+        s = df["hybrid_lr"].to_numpy()
+        y = (df["y"].to_numpy() > 0.5).astype(int)
+        ax.hist(s[y == 0], bins=60, alpha=0.6, color="steelblue", label="Clean", density=True)
+        ax.hist(s[y == 1], bins=60, alpha=0.6, color="tomato", label="Anomaly", density=True)
+        ax.set_xlabel("hybrid_lr score"); ax.set_ylabel("Density")
+        ax.set_title(DATASET_LABELS[did])
+        ax.legend(fontsize=8)
+    fig.suptitle("Confidence Distribution: hybrid_lr scores by true label (committed data)", fontsize=11)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig10_confidence_dist.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig10_confidence_dist.png")
+
+
+# ---------------------------------------------------------------------------
+# Figure: Case study
+# ---------------------------------------------------------------------------
+def fig_case_study():
+    cs = pd.read_csv(RESULTS / "case_study_record.csv")
+    if cs.empty:
+        print("  case_study_record.csv empty; skipping")
+        return
+    fig, ax = plt.subplots(figsize=(8, 4))
+    dets = cs["detector"].tolist()
+    scores = cs["score"].tolist()
+    colors = ["tomato" if s >= 0.5 else "steelblue" for s in scores]
+    ax.barh(dets, scores, color=colors, edgecolor="black", linewidth=0.5)
+    ax.axvline(0.5, color="red", linestyle="--", label="tau=0.5")
+    ax.set_xlabel("Score"); ax.set_title("Case Study: Detector Scores on Representative Record")
+    ax.legend(fontsize=8)
+    for i, (d, s) in enumerate(zip(dets, scores)):
+        ax.text(s + 0.01, i, f"{s:.3f}", va="center", fontsize=9)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "fig11_case_study.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("  Saved fig11_case_study.png")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -262,12 +412,18 @@ def main():
     print("[E8] Regenerating figures ...", flush=True)
     fig_pr_curves()
     fig_threshold_sweep()
+    fig_confmat()
     fig_baseline_bars()
     try:
         fig_ast_matrix()
     except Exception as ex:
         print(f"  fig_ast_matrix skipped: {ex}")
     fig_per_family()
+    fig_scalability()
+    fig_ablation()
+    fig_failure_analysis()
+    fig_confidence_dist()
+    fig_case_study()
 
     elapsed = round(time.perf_counter() - t0, 1)
     print(f"\n[E8] Done in {elapsed}s")
