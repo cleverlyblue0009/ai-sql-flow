@@ -1,0 +1,36 @@
+query_id,dataset,stratum,uses_pg_syntax,description,ref_ok,C1_true_trans_verdict,C1_is_error,C2_sql_gate_verdict,C2_is_error,C3_no_gate_verdict,C3_is_error,C4_joint_gate_verdict,C4_is_error,C5_data_gate_verdict,C5_is_error,joint_required,trans_ok
+T01,D2,targeted,True,Total OT pay across all employees,True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T02,D2,targeted,False,Count employees with OT pay and zero regular hours,True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T03,D2,targeted,True,Average regular gross pay (affected by B2/B5 injections),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T04,D2,targeted,False,Count employees with gross pay above 200k (magnitude outlier threshold),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T05,D2,targeted,True,Top-5 agencies by total OT pay,True,match,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T06,D2,targeted,True,OT-to-gross ratio across all employees,True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T07,D2,targeted,True,"Average gross pay per title, top-10 by avg (ILIKE filter)",True,match,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T08,D2,targeted,False,Count distinct title descriptions (B4 creates new titles),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T09,D2,targeted,True,Percentile-90 of regular gross pay,True,value_diff,True,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T10,D2,targeted,True,Window-rank of total OT pay per agency,True,match,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T11,D3,targeted,False,Education distribution (C1 creates out-of-domain value 7),True,match,False,row_count_diff,True,row_count_diff,True,value_diff,True,value_diff,True,False,True
+T12,D3,targeted,False,Count of invalid EDUCATION codes (outside 1-6),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T13,D3,targeted,True,Average credit limit (C2 modifies LIMIT_BAL),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T14,D3,targeted,False,"Count of outlier credit limits (> 500k, from C2)",True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T15,D3,targeted,False,Count of negative BILL_AMT1 (C3 flips sign),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T16,D3,targeted,True,"Sum of BILL_AMT1 (C3 flips sign, inflating negative sum)",True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T17,D3,targeted,False,Count of anomalous pay statuses (PAY_0 outside -2 to 8),True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,False,True
+T18,D3,targeted,True,Average age (C5 introduces age-range violations),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+T19,D3,targeted,False,Count of out-of-range ages (C5: < 18 or > 100),True,within_float_tolerance,False,value_diff,True,value_diff,True,within_float_tolerance,False,within_float_tolerance,False,False,True
+T20,D3,targeted,True,Credit limit avg by education (combined targeted columns),True,match,False,row_count_diff,True,row_count_diff,True,value_diff,True,value_diff,True,False,True
+C01,D2,control,False,Count distinct agencies (B3 adds rows with existing agencies),True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,False,True
+C02,D2,control,False,Work borough distribution,True,match,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C03,D2,control,False,Pay basis distribution,True,match,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C04,D2,control,True,Average regular hours (not a perturbed column),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C05,D2,control,True,Total other pay (not a perturbed column),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C06,D2,control,True,Average OT hours (not a perturbed column),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C07,D2,control,False,Count active employees (Leave Status — safe column),True,within_float_tolerance,False,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C08,D2,control,True,"Agency regular hours ranking (window function, safe columns only)",True,value_diff,True,value_diff,True,value_diff,True,value_diff,True,value_diff,True,False,True
+C09,D3,control,False,Sex distribution (safe column),True,match,False,match,False,match,False,value_diff,True,value_diff,True,False,True
+C10,D3,control,False,Marriage status distribution (safe column),True,match,False,match,False,match,False,value_diff,True,value_diff,True,False,True
+C11,D3,control,True,"Average BILL_AMT2 (safe column, not perturbed)",True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,value_diff,True,value_diff,True,False,True
+C12,D3,control,True,"Sum of PAY_AMT1 (safe column, not perturbed)",True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,value_diff,True,value_diff,True,False,True
+C13,D3,control,False,Default payment distribution (safe column),True,match,False,match,False,match,False,value_diff,True,value_diff,True,False,True
+C14,D3,control,True,Average PAY_AMT3 (safe column),True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,value_diff,True,value_diff,True,False,True
+C15,D3,control,False,Count long delinquent PAY_2 statuses (PAY_2 safe: not perturbed),True,within_float_tolerance,False,within_float_tolerance,False,within_float_tolerance,False,value_diff,True,value_diff,True,False,True

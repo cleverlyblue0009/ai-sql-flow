@@ -1,0 +1,1927 @@
+[
+  {
+    "query_id": "T01",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Total OT pay across all employees",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS total_ot FROM payroll_true",
+        "result": "[(Decimal('1084623282.33'),)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS total_ot FROM payroll_true",
+        "result": "[(Decimal('1084623282.33'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS total_ot FROM payroll_dirty",
+        "result": "[(Decimal('1101557742.82'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS total_ot FROM payroll_dirty",
+        "result": "[(Decimal('1101557742.82'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS total_ot FROM payroll_clean",
+        "result": "[(Decimal('795218835.35'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS total_ot FROM payroll_clean",
+        "result": "[(Decimal('795218835.35'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T02",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Count employees with OT pay and zero regular hours",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_true WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(4788,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_true WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(4788,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_dirty WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(6825,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_dirty WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(6825,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_clean WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(177,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_clean WHERE \"Total_OT_Paid\" > 0 AND \"Regular_Hours\" = 0",
+        "result": "[(177,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T03",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Average regular gross pay (affected by B2/B5 injections)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gross FROM payroll_true",
+        "result": "[(51852.26,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gross FROM payroll_true",
+        "result": "[(51852.26,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gross FROM payroll_dirty",
+        "result": "[(55803.9,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gross FROM payroll_dirty",
+        "result": "[(55803.9,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gross FROM payroll_clean",
+        "result": "[(52232.45,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gross FROM payroll_clean",
+        "result": "[(52232.45,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T04",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Count employees with gross pay above 200k (magnitude outlier threshold)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_true WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(959,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_true WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(959,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_dirty WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(2163,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_dirty WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(2163,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_clean WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(19,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n FROM payroll_clean WHERE \"Regular_Gross_Paid\" > 200000",
+        "result": "[(19,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T05",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Top-5 agencies by total OT pay",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS agency_ot FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC NULLS LAST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('449547526.16')), ('FIRE DEPARTMENT', Decimal('214320060.99')), ('DEPARTMENT OF CORRECTION', Decimal('97880767.16')), ('NYC HOUSING AUTHORITY', Decimal('72744934.74')), ('DEPARTMENT OF SANITATION', Decimal('58979759.86'))]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS agency_ot FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('449547526.16')), ('FIRE DEPARTMENT', Decimal('214320060.99')), ('DEPARTMENT OF CORRECTION', Decimal('97880767.16')), ('NYC HOUSING AUTHORITY', Decimal('72744934.74')), ('DEPARTMENT OF SANITATION', Decimal('58979759.86'))]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS agency_ot FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC NULLS LAST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('454343856.59')), ('FIRE DEPARTMENT', Decimal('216406879.66')), ('DEPARTMENT OF CORRECTION', Decimal('98901636.98')), ('NYC HOUSING AUTHORITY', Decimal('73663137.12')), ('DEPARTMENT OF SANITATION', Decimal('59755254.66'))]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS agency_ot FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('454343856.59')), ('FIRE DEPARTMENT', Decimal('216406879.66')), ('DEPARTMENT OF CORRECTION', Decimal('98901636.98')), ('NYC HOUSING AUTHORITY', Decimal('73663137.12')), ('DEPARTMENT OF SANITATION', Decimal('59755254.66'))]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(\"Total_OT_Paid\"::numeric), 2) AS agency_ot FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC NULLS LAST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('347707628.75')), ('FIRE DEPARTMENT', Decimal('148305626.08')), ('DEPARTMENT OF CORRECTION', Decimal('58100412.82')), ('DEPARTMENT OF SANITATION', Decimal('52436637.48')), ('NYC HOUSING AUTHORITY', Decimal('40756054.72'))]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)), 2) AS agency_ot FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY agency_ot DESC LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('347707628.75')), ('FIRE DEPARTMENT', Decimal('148305626.08')), ('DEPARTMENT OF CORRECTION', Decimal('58100412.82')), ('DEPARTMENT OF SANITATION', Decimal('52436637.48')), ('NYC HOUSING AUTHORITY', Decimal('40756054.72'))]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T06",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "OT-to-gross ratio across all employees",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric) / NULLIF(SUM(\"Regular_Gross_Paid\"::numeric), 0), 4) AS ot_ratio FROM payroll_true",
+        "result": "[(0.1046,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) / NULLIF(SUM(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 0), 4) AS ot_ratio FROM payroll_true",
+        "result": "[(0.1046,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric) / NULLIF(SUM(\"Regular_Gross_Paid\"::numeric), 0), 4) AS ot_ratio FROM payroll_dirty",
+        "result": "[(0.0977,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) / NULLIF(SUM(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 0), 4) AS ot_ratio FROM payroll_dirty",
+        "result": "[(0.0977,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_OT_Paid\"::numeric) / NULLIF(SUM(\"Regular_Gross_Paid\"::numeric), 0), 4) AS ot_ratio FROM payroll_clean",
+        "result": "[(0.0859,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) / NULLIF(SUM(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 0), 4) AS ot_ratio FROM payroll_clean",
+        "result": "[(0.0859,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T07",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Average gross pay per title, top-10 by avg (ILIKE filter)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gp FROM payroll_true WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC NULLS LAST LIMIT 10",
+        "result": "[('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 122864.95), ('ADMINISTRATIVE PROCUREMENT ANALYST', 117055.09), ('ADMINISTRATIVE STAFF ANALYST', 116055.55), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 115171.28), ('ADMINISTRATIVE SPACE ANALYST', 111329.28), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29), ('SENIOR LEGISLATIVE POLICY ANALYST', 96696.14), ('LABOR RELATIONS ANALYST', 94604.24)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gp FROM payroll_true WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC LIMIT 10",
+        "result": "[('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 122864.95), ('ADMINISTRATIVE PROCUREMENT ANALYST', 117055.09), ('ADMINISTRATIVE STAFF ANALYST', 116055.55), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 115171.28), ('ADMINISTRATIVE SPACE ANALYST', 111329.28), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29), ('SENIOR LEGISLATIVE POLICY ANALYST', 96696.14), ('LABOR RELATIONS ANALYST', 94604.24)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gp FROM payroll_dirty WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC NULLS LAST LIMIT 10",
+        "result": "[('ASSOCIATE LABOR RELATIONS ANALYST', 154727.89), ('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('ADMINISTRATIVE STAFF ANALYST', 128031.4), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 119638.65), ('ADMINISTRATIVE PROCUREMENT ANALYST', 114821.51), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 113199.85), ('ADMINISTRATIVE SPACE ANALYST', 110858.51), ('ADMINISTRATIVE PROCUREMENT ANALYST-NON-MGRL', 97968.87), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gp FROM payroll_dirty WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC LIMIT 10",
+        "result": "[('ASSOCIATE LABOR RELATIONS ANALYST', 154727.89), ('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('ADMINISTRATIVE STAFF ANALYST', 128031.4), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 119638.65), ('ADMINISTRATIVE PROCUREMENT ANALYST', 114821.51), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 113199.85), ('ADMINISTRATIVE SPACE ANALYST', 110858.51), ('ADMINISTRATIVE PROCUREMENT ANALYST-NON-MGRL', 97968.87), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(\"Regular_Gross_Paid\"::numeric), 2) AS avg_gp FROM payroll_clean WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC NULLS LAST LIMIT 10",
+        "result": "[('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 123515.14), ('ADMINISTRATIVE STAFF ANALYST', 117181.16), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 115162.94), ('ADMINISTRATIVE PROCUREMENT ANALYST', 114929.08), ('ADMINISTRATIVE SPACE ANALYST', 99475.29), ('ASSOCIATE EDUCATION ANALYST', 99435.07), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29), ('SENIOR LEGISLATIVE POLICY ANALYST', 96696.14)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Title_Description\", ROUND(AVG(CAST(\"Regular_Gross_Paid\" AS DECIMAL)), 2) AS avg_gp FROM payroll_clean WHERE \"Title_Description\" ILIKE '%ANALYST%' GROUP BY \"Title_Description\" ORDER BY avg_gp DESC LIMIT 10",
+        "result": "[('PRINCIPAL LEGISLATIVE FINANCIAL ANALYST', 139534.16), ('SENIOR SYSTEMS ANALYSTS', 126904.45), ('ADMINISTRATIVE EDUCATION ANALYST', 123515.14), ('ADMINISTRATIVE STAFF ANALYST', 117181.16), ('ADMINISTRATIVE LABOR RELATIONS ANALYST', 115162.94), ('ADMINISTRATIVE PROCUREMENT ANALYST', 114929.08), ('ADMINISTRATIVE SPACE ANALYST', 99475.29), ('ASSOCIATE EDUCATION ANALYST', 99435.07), ('LEGISLATIVE PROGRAMMER/ANALYST', 97637.29), ('SENIOR LEGISLATIVE POLICY ANALYST', 96696.14)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T08",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Count distinct title descriptions (B4 creates new titles)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_true",
+        "result": "[(1233,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_true",
+        "result": "[(1233,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_dirty",
+        "result": "[(1232,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_dirty",
+        "result": "[(1232,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_clean",
+        "result": "[(1086,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Title_Description\") AS n_titles FROM payroll_clean",
+        "result": "[(1086,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T09",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Percentile-90 of regular gross pay",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY \"Regular_Gross_Paid\"), 2) AS p90 FROM payroll_true",
+        "result": "[(125062.38,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(QUANTILE_CONT(CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END, 0.9 ORDER BY CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Regular_Gross_Paid\" NULLS FIRST), 2) AS p90 FROM payroll_true",
+        "result": "[(0.0,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY \"Regular_Gross_Paid\"), 2) AS p90 FROM payroll_dirty",
+        "result": "[(125512.15,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(QUANTILE_CONT(CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END, 0.9 ORDER BY CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Regular_Gross_Paid\" NULLS FIRST), 2) AS p90 FROM payroll_dirty",
+        "result": "[(0.0,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY \"Regular_Gross_Paid\"), 2) AS p90 FROM payroll_clean",
+        "result": "[(120703.54,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(QUANTILE_CONT(CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END, 0.9 ORDER BY CASE WHEN \"Regular_Gross_Paid\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Regular_Gross_Paid\" NULLS FIRST), 2) AS p90 FROM payroll_clean",
+        "result": "[(0.0,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T10",
+    "dataset": "D2",
+    "stratum": "targeted",
+    "description": "Window-rank of total OT pay per agency",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Agency_Name\", SUM(\"Total_OT_Paid\"::numeric) AS agency_ot, RANK() OVER (ORDER BY SUM(\"Total_OT_Paid\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('449547526.160'), 1), ('FIRE DEPARTMENT', Decimal('214320060.990'), 2), ('DEPARTMENT OF CORRECTION', Decimal('97880767.160'), 3), ('NYC HOUSING AUTHORITY', Decimal('72744934.740'), 4), ('DEPARTMENT OF SANITATION', Decimal('58979759.860'), 5)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Agency_Name\", SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) AS agency_ot, RANK() OVER (ORDER BY SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) DESC) AS rnk FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('449547526.160'), 1), ('FIRE DEPARTMENT', Decimal('214320060.990'), 2), ('DEPARTMENT OF CORRECTION', Decimal('97880767.160'), 3), ('NYC HOUSING AUTHORITY', Decimal('72744934.740'), 4), ('DEPARTMENT OF SANITATION', Decimal('58979759.860'), 5)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Agency_Name\", SUM(\"Total_OT_Paid\"::numeric) AS agency_ot, RANK() OVER (ORDER BY SUM(\"Total_OT_Paid\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('454343856.590'), 1), ('FIRE DEPARTMENT', Decimal('216406879.660'), 2), ('DEPARTMENT OF CORRECTION', Decimal('98901636.980'), 3), ('NYC HOUSING AUTHORITY', Decimal('73663137.120'), 4), ('DEPARTMENT OF SANITATION', Decimal('59755254.660'), 5)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Agency_Name\", SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) AS agency_ot, RANK() OVER (ORDER BY SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) DESC) AS rnk FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('454343856.590'), 1), ('FIRE DEPARTMENT', Decimal('216406879.660'), 2), ('DEPARTMENT OF CORRECTION', Decimal('98901636.980'), 3), ('NYC HOUSING AUTHORITY', Decimal('73663137.120'), 4), ('DEPARTMENT OF SANITATION', Decimal('59755254.660'), 5)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Agency_Name\", SUM(\"Total_OT_Paid\"::numeric) AS agency_ot, RANK() OVER (ORDER BY SUM(\"Total_OT_Paid\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('347707628.750'), 1), ('FIRE DEPARTMENT', Decimal('148305626.080'), 2), ('DEPARTMENT OF CORRECTION', Decimal('58100412.820'), 3), ('DEPARTMENT OF SANITATION', Decimal('52436637.480'), 4), ('NYC HOUSING AUTHORITY', Decimal('40756054.720'), 5)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Agency_Name\", SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) AS agency_ot, RANK() OVER (ORDER BY SUM(CAST(\"Total_OT_Paid\" AS DECIMAL)) DESC) AS rnk FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 5",
+        "result": "[('POLICE DEPARTMENT', Decimal('347707628.750'), 1), ('FIRE DEPARTMENT', Decimal('148305626.080'), 2), ('DEPARTMENT OF CORRECTION', Decimal('58100412.820'), 3), ('DEPARTMENT OF SANITATION', Decimal('52436637.480'), 4), ('NYC HOUSING AUTHORITY', Decimal('40756054.720'), 5)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T11",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Education distribution (C1 creates out-of-domain value 7)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_true GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 14), (1, 10585), (2, 14030), (3, 4917), (4, 123), (5, 280), (6, 51)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_true GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 14), (1, 10585), (2, 14030), (3, 4917), (4, 123), (5, 280), (6, 51)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_dirty GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 13), (1, 10475), (2, 13898), (3, 4863), (4, 123), (5, 278), (6, 50), (7, 300)]",
+        "error": null,
+        "verdict": "row_count_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_dirty GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 13), (1, 10475), (2, 13898), (3, 4863), (4, 123), (5, 278), (6, 50), (7, 300)]",
+        "error": null,
+        "verdict": "row_count_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_clean GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 12), (1, 9875), (2, 13291), (3, 4623), (4, 112), (5, 253), (6, 46)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"EDUCATION\", COUNT(*) AS n FROM credit_clean GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 12), (1, 9875), (2, 13291), (3, 4623), (4, 112), (5, 253), (6, 46)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T12",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Count of invalid EDUCATION codes (outside 1-6)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_true WHERE \"EDUCATION\" NOT IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(14,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_true WHERE NOT \"EDUCATION\" IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(14,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_dirty WHERE \"EDUCATION\" NOT IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(313,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_dirty WHERE NOT \"EDUCATION\" IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(313,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_clean WHERE \"EDUCATION\" NOT IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(12,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_invalid FROM credit_clean WHERE NOT \"EDUCATION\" IN (1, 2, 3, 4, 5, 6)",
+        "result": "[(12,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T13",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Average credit limit (C2 modifies LIMIT_BAL)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_limit FROM credit_true",
+        "result": "[(167484.32,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_limit FROM credit_true",
+        "result": "[(167484.32,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_limit FROM credit_dirty",
+        "result": "[(165729.66,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_limit FROM credit_dirty",
+        "result": "[(165729.66,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_limit FROM credit_clean",
+        "result": "[(165206.43,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_limit FROM credit_clean",
+        "result": "[(165206.43,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T14",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Count of outlier credit limits (> 500k, from C2)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_true WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(206,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_true WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(206,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_dirty WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(204,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_dirty WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(204,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_clean WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(188,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_outlier FROM credit_clean WHERE \"LIMIT_BAL\" > 500000",
+        "result": "[(188,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T15",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Count of negative BILL_AMT1 (C3 flips sign)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_true WHERE \"BILL_AMT1\" < 0",
+        "result": "[(590,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_true WHERE \"BILL_AMT1\" < 0",
+        "result": "[(590,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_dirty WHERE \"BILL_AMT1\" < 0",
+        "result": "[(890,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_dirty WHERE \"BILL_AMT1\" < 0",
+        "result": "[(890,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_clean WHERE \"BILL_AMT1\" < 0",
+        "result": "[(882,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_neg FROM credit_clean WHERE \"BILL_AMT1\" < 0",
+        "result": "[(882,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T16",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Sum of BILL_AMT1 (C3 flips sign, inflating negative sum)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(SUM(\"BILL_AMT1\"::numeric), 2) AS sum_bill1 FROM credit_true",
+        "result": "[(Decimal('1536699927.00'),)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(SUM(CAST(\"BILL_AMT1\" AS DECIMAL)), 2) AS sum_bill1 FROM credit_true",
+        "result": "[(Decimal('1536699927.00'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(SUM(\"BILL_AMT1\"::numeric), 2) AS sum_bill1 FROM credit_dirty",
+        "result": "[(Decimal('1499541575.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"BILL_AMT1\" AS DECIMAL)), 2) AS sum_bill1 FROM credit_dirty",
+        "result": "[(Decimal('1499541575.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(SUM(\"BILL_AMT1\"::numeric), 2) AS sum_bill1 FROM credit_clean",
+        "result": "[(Decimal('1413059679.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"BILL_AMT1\" AS DECIMAL)), 2) AS sum_bill1 FROM credit_clean",
+        "result": "[(Decimal('1413059679.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T17",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Count of anomalous pay statuses (PAY_0 outside -2 to 8)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_true WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_true WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_dirty WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_dirty WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_clean WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_pay FROM credit_clean WHERE \"PAY_0\" > 8",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T18",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Average age (C5 introduces age-range violations)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"AGE\"::numeric), 2) AS avg_age FROM credit_true",
+        "result": "[(35.49,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"AGE\" AS DECIMAL)), 2) AS avg_age FROM credit_true",
+        "result": "[(35.49,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"AGE\"::numeric), 2) AS avg_age FROM credit_dirty",
+        "result": "[(35.78,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"AGE\" AS DECIMAL)), 2) AS avg_age FROM credit_dirty",
+        "result": "[(35.78,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"AGE\"::numeric), 2) AS avg_age FROM credit_clean",
+        "result": "[(35.44,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"AGE\" AS DECIMAL)), 2) AS avg_age FROM credit_clean",
+        "result": "[(35.44,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T19",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Count of out-of-range ages (C5: < 18 or > 100)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_true WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(0,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_true WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_dirty WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(247,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_dirty WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(247,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_clean WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_bad_age FROM credit_clean WHERE \"AGE\" < 18 OR \"AGE\" > 100",
+        "result": "[(0,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "T20",
+    "dataset": "D3",
+    "stratum": "targeted",
+    "description": "Credit limit avg by education (combined targeted columns)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_lim FROM credit_true GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 217142.86), (1, 212956.07), (2, 147062.44), (3, 126550.27), (4, 220894.31), (5, 168164.29), (6, 148235.29)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_lim FROM credit_true GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 217142.86), (1, 212956.07), (2, 147062.44), (3, 126550.27), (4, 220894.31), (5, 168164.29), (6, 148235.29)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_lim FROM credit_dirty GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 211538.46), (1, 210454.42), (2, 145733.63), (3, 124908.02), (4, 220894.31), (5, 164050.36), (6, 147800.0), (7, 172100.0)]",
+        "error": null,
+        "verdict": "row_count_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_lim FROM credit_dirty GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 211538.46), (1, 210454.42), (2, 145733.63), (3, 124908.02), (4, 220894.31), (5, 164050.36), (6, 147800.0), (7, 172100.0)]",
+        "error": null,
+        "verdict": "row_count_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(\"LIMIT_BAL\"::numeric), 2) AS avg_lim FROM credit_clean GROUP BY \"EDUCATION\" ORDER BY \"EDUCATION\"",
+        "result": "[(0, 208333.33), (1, 210176.2), (2, 145551.12), (3, 124448.99), (4, 217678.57), (5, 165873.52), (6, 143913.04)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"EDUCATION\", ROUND(AVG(CAST(\"LIMIT_BAL\" AS DECIMAL)), 2) AS avg_lim FROM credit_clean GROUP BY \"EDUCATION\" ORDER BY CASE WHEN \"EDUCATION\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"EDUCATION\" NULLS FIRST",
+        "result": "[(0, 208333.33), (1, 210176.2), (2, 145551.12), (3, 124448.99), (4, 217678.57), (5, 165873.52), (6, 143913.04)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C01",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Count distinct agencies (B3 adds rows with existing agencies)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_true",
+        "result": "[(159,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_true",
+        "result": "[(159,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_dirty",
+        "result": "[(159,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_dirty",
+        "result": "[(159,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_clean",
+        "result": "[(159,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(DISTINCT \"Agency_Name\") AS n_agencies FROM payroll_clean",
+        "result": "[(159,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C02",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Work borough distribution",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_true GROUP BY \"Work_Location_Borough\" ORDER BY n DESC",
+        "result": "[('MANHATTAN', 147028), ('QUEENS', 20966), ('BROOKLYN', 17831), ('BRONX', 9365), ('RICHMOND', 2824), ('OTHER', 1545), ('WESTCHESTER', 218), ('ULSTER', 107), ('SULLIVAN', 39), ('DELAWARE', 33), ('SCHOHARIE', 11), ('PUTNAM', 9), ('DUTCHESS', 9), ('NASSAU', 8), ('ALBANY', 4), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_true GROUP BY \"Work_Location_Borough\" ORDER BY CASE WHEN n IS NULL THEN 1 ELSE 0 END DESC, n DESC",
+        "result": "[('MANHATTAN', 147028), ('QUEENS', 20966), ('BROOKLYN', 17831), ('BRONX', 9365), ('RICHMOND', 2824), ('OTHER', 1545), ('WESTCHESTER', 218), ('ULSTER', 107), ('SULLIVAN', 39), ('DELAWARE', 33), ('SCHOHARIE', 11), ('DUTCHESS', 9), ('PUTNAM', 9), ('NASSAU', 8), ('ALBANY', 4), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_dirty GROUP BY \"Work_Location_Borough\" ORDER BY n DESC",
+        "result": "[('MANHATTAN', 148470), ('QUEENS', 21196), ('BROOKLYN', 18003), ('BRONX', 9473), ('RICHMOND', 2856), ('OTHER', 1559), ('WESTCHESTER', 219), ('ULSTER', 107), ('SULLIVAN', 39), ('DELAWARE', 33), ('SCHOHARIE', 11), ('DUTCHESS', 10), ('PUTNAM', 9), ('NASSAU', 8), ('ALBANY', 4), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_dirty GROUP BY \"Work_Location_Borough\" ORDER BY CASE WHEN n IS NULL THEN 1 ELSE 0 END DESC, n DESC",
+        "result": "[('MANHATTAN', 148470), ('QUEENS', 21196), ('BROOKLYN', 18003), ('BRONX', 9473), ('RICHMOND', 2856), ('OTHER', 1559), ('WESTCHESTER', 219), ('ULSTER', 107), ('SULLIVAN', 39), ('DELAWARE', 33), ('SCHOHARIE', 11), ('DUTCHESS', 10), ('PUTNAM', 9), ('NASSAU', 8), ('ALBANY', 4), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_clean GROUP BY \"Work_Location_Borough\" ORDER BY n DESC",
+        "result": "[('MANHATTAN', 131588), ('QUEENS', 18308), ('BROOKLYN', 15316), ('BRONX', 8333), ('RICHMOND', 2413), ('OTHER', 849), ('WESTCHESTER', 189), ('ULSTER', 96), ('SULLIVAN', 37), ('DELAWARE', 31), ('SCHOHARIE', 9), ('PUTNAM', 8), ('NASSAU', 7), ('DUTCHESS', 7), ('ALBANY', 3), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Work_Location_Borough\", COUNT(*) AS n FROM payroll_clean GROUP BY \"Work_Location_Borough\" ORDER BY CASE WHEN n IS NULL THEN 1 ELSE 0 END DESC, n DESC",
+        "result": "[('MANHATTAN', 131588), ('QUEENS', 18308), ('BROOKLYN', 15316), ('BRONX', 8333), ('RICHMOND', 2413), ('OTHER', 849), ('WESTCHESTER', 189), ('ULSTER', 96), ('SULLIVAN', 37), ('DELAWARE', 31), ('SCHOHARIE', 9), ('PUTNAM', 8), ('DUTCHESS', 7), ('NASSAU', 7), ('ALBANY', 3), ('GREENE', 2), ('ORANGE', 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C03",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Pay basis distribution",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_true GROUP BY \"Pay_Basis\" ORDER BY \"Pay_Basis\"",
+        "result": "[('Prorated Annual', 863), ('per Annum', 122865), ('per Day', 47136), ('per Hour', 29136)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_true GROUP BY \"Pay_Basis\" ORDER BY CASE WHEN \"Pay_Basis\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Pay_Basis\" NULLS FIRST",
+        "result": "[('Prorated Annual', 863), ('per Annum', 122865), ('per Day', 47136), ('per Hour', 29136)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_dirty GROUP BY \"Pay_Basis\" ORDER BY \"Pay_Basis\"",
+        "result": "[('Prorated Annual', 870), ('per Annum', 124096), ('per Day', 47617), ('per Hour', 29417)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_dirty GROUP BY \"Pay_Basis\" ORDER BY CASE WHEN \"Pay_Basis\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Pay_Basis\" NULLS FIRST",
+        "result": "[('Prorated Annual', 870), ('per Annum', 124096), ('per Day', 47617), ('per Hour', 29417)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_clean GROUP BY \"Pay_Basis\" ORDER BY \"Pay_Basis\"",
+        "result": "[('Prorated Annual', 846), ('per Annum', 103492), ('per Day', 45395), ('per Hour', 27464)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Pay_Basis\", COUNT(*) AS n FROM payroll_clean GROUP BY \"Pay_Basis\" ORDER BY CASE WHEN \"Pay_Basis\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"Pay_Basis\" NULLS FIRST",
+        "result": "[('Prorated Annual', 846), ('per Annum', 103492), ('per Day', 45395), ('per Hour', 27464)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C04",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Average regular hours (not a perturbed column)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hours FROM payroll_true",
+        "result": "[(644.3099,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hours FROM payroll_true",
+        "result": "[(644.3099,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hours FROM payroll_dirty",
+        "result": "[(644.7715,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hours FROM payroll_dirty",
+        "result": "[(644.7715,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hours FROM payroll_clean",
+        "result": "[(664.5427,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hours FROM payroll_clean",
+        "result": "[(664.5427,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C05",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Total other pay (not a perturbed column)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(SUM(\"Total_Other_Pay\"::numeric), 2) AS total_other FROM payroll_true",
+        "result": "[(Decimal('1202353906.44'),)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_Other_Pay\" AS DECIMAL)), 2) AS total_other FROM payroll_true",
+        "result": "[(Decimal('1202353906.44'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_Other_Pay\"::numeric), 2) AS total_other FROM payroll_dirty",
+        "result": "[(Decimal('1214788593.49'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_Other_Pay\" AS DECIMAL)), 2) AS total_other FROM payroll_dirty",
+        "result": "[(Decimal('1214788593.49'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(SUM(\"Total_Other_Pay\"::numeric), 2) AS total_other FROM payroll_clean",
+        "result": "[(Decimal('1012535754.40'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"Total_Other_Pay\" AS DECIMAL)), 2) AS total_other FROM payroll_clean",
+        "result": "[(Decimal('1012535754.40'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C06",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Average OT hours (not a perturbed column)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"OT_Hours\"::numeric), 4) AS avg_ot_hrs FROM payroll_true",
+        "result": "[(71.4843,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"OT_Hours\" AS DECIMAL)), 4) AS avg_ot_hrs FROM payroll_true",
+        "result": "[(71.4843,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"OT_Hours\"::numeric), 4) AS avg_ot_hrs FROM payroll_dirty",
+        "result": "[(71.5138,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"OT_Hours\" AS DECIMAL)), 4) AS avg_ot_hrs FROM payroll_dirty",
+        "result": "[(71.5138,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"OT_Hours\"::numeric), 4) AS avg_ot_hrs FROM payroll_clean",
+        "result": "[(64.5054,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"OT_Hours\" AS DECIMAL)), 4) AS avg_ot_hrs FROM payroll_clean",
+        "result": "[(64.5054,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C07",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Count active employees (Leave Status \u2014 safe column)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_true WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(168797,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_true WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(168797,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_dirty WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(170506,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_dirty WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(170506,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_clean WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(159782,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_active FROM payroll_clean WHERE \"Leave_Status_as_of_June_30\" = 'ACTIVE'",
+        "result": "[(159782,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C08",
+    "dataset": "D2",
+    "stratum": "control",
+    "description": "Agency regular hours ranking (window function, safe columns only)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(\"Regular_Hours\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 10",
+        "result": "[('BROOKLYN COMMUNITY BOARD #8', 1820.0, 1), ('BRONX COMMUNITY BOARD #9', 1820.0, 1), ('MANHATTAN COMMUNITY BOARD #1', 1820.0, 1), ('QUEENS COMMUNITY BOARD #11', 1820.0, 1), ('PUBLIC ADMINISTRATOR-QUEENS', 1820.0, 1), ('STATEN ISLAND COMMUNITY BD #1', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #11', 1820.0, 1), ('QUEENS COMMUNITY BOARD #13', 1820.0, 1), ('BRONX COMMUNITY BOARD #2', 1820.0, 1), ('QUEENS COMMUNITY BOARD #1', 1820.0, 1)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(CAST(\"Regular_Hours\" AS DECIMAL)) DESC) AS rnk FROM payroll_true GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 10",
+        "result": "[('BRONX COMMUNITY BOARD #11', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #7', 1820.0, 1), ('BRONX COMMUNITY BOARD #5', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #5', 1820.0, 1), ('BRONX COMMUNITY BOARD #10', 1820.0, 1), ('QUEENS COMMUNITY BOARD #4', 1820.0, 1), ('BRONX COMMUNITY BOARD #12', 1820.0, 1), ('QUEENS COMMUNITY BOARD #10', 1820.0, 1), ('BRONX COMMUNITY BOARD #9', 1820.0, 1), ('MANHATTAN COMMUNITY BOARD #11', 1820.0, 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(\"Regular_Hours\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 10",
+        "result": "[('QUEENS COMMUNITY BOARD #7', 1820.0, 1), ('QUEENS COMMUNITY BOARD #12', 1820.0, 1), ('QUEENS COMMUNITY BOARD #1', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #11', 1820.0, 1), ('MUNICIPAL WATER FIN AUTHORITY', 1820.0, 1), ('BRONX COMMUNITY BOARD #5', 1820.0, 1), ('BRONX COMMUNITY BOARD #4', 1820.0, 1), ('MANHATTAN COMMUNITY BOARD #7', 1820.0, 1), ('QUEENS COMMUNITY BOARD #2', 1820.0, 1), ('QUEENS COMMUNITY BOARD #9', 1820.0, 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(CAST(\"Regular_Hours\" AS DECIMAL)) DESC) AS rnk FROM payroll_dirty GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 10",
+        "result": "[('QUEENS COMMUNITY BOARD #11', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #8', 1820.0, 1), ('BRONX COMMUNITY BOARD #5', 1820.0, 1), ('BRONX COMMUNITY BOARD #9', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #18', 1820.0, 1), ('QUEENS COMMUNITY BOARD #4', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #9', 1820.0, 1), ('QUEENS COMMUNITY BOARD #10', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #7', 1820.0, 1), ('BROOKLYN COMMUNITY BOARD #2', 1820.0, 1)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(\"Regular_Hours\"::numeric), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(\"Regular_Hours\"::numeric) DESC NULLS LAST) AS rnk FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY rnk LIMIT 10",
+        "result": "[('FIRE DEPARTMENT', 1967.1895, 1), ('DEPARTMENT OF SANITATION', 1881.4401, 2), ('DEPARTMENT OF CORRECTION', 1847.7382, 3), ('QUEENS COMMUNITY BOARD #11', 1820.0, 4), ('BRONX COMMUNITY BOARD #5', 1820.0, 4), ('MANHATTAN COMMUNITY BOARD #4', 1820.0, 4), ('STATEN ISLAND COMMUNITY BD #1', 1820.0, 4), ('PUBLIC ADMINISTRATOR-QUEENS', 1820.0, 4), ('BROOKLYN COMMUNITY BOARD #7', 1820.0, 4), ('QUEENS COMMUNITY BOARD #12', 1820.0, 4)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"Agency_Name\", ROUND(AVG(CAST(\"Regular_Hours\" AS DECIMAL)), 4) AS avg_hrs, RANK() OVER (ORDER BY AVG(CAST(\"Regular_Hours\" AS DECIMAL)) DESC) AS rnk FROM payroll_clean GROUP BY \"Agency_Name\" ORDER BY CASE WHEN rnk IS NULL THEN 1 ELSE 0 END NULLS FIRST, rnk NULLS FIRST LIMIT 10",
+        "result": "[('FIRE DEPARTMENT', 1967.1895, 1), ('DEPARTMENT OF SANITATION', 1881.4401, 2), ('DEPARTMENT OF CORRECTION', 1847.7382, 3), ('QUEENS COMMUNITY BOARD #13', 1820.0, 4), ('BRONX COMMUNITY BOARD #9', 1820.0, 4), ('MANHATTAN COMMUNITY BOARD #6', 1820.0, 4), ('QUEENS COMMUNITY BOARD #12', 1820.0, 4), ('MANHATTAN COMMUNITY BOARD #4', 1820.0, 4), ('BROOKLYN COMMUNITY BOARD #6', 1820.0, 4), ('BRONX COMMUNITY BOARD #12', 1820.0, 4)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C09",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Sex distribution (safe column)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_true GROUP BY \"SEX\" ORDER BY \"SEX\"",
+        "result": "[(1, 11888), (2, 18112)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_true GROUP BY \"SEX\" ORDER BY CASE WHEN \"SEX\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"SEX\" NULLS FIRST",
+        "result": "[(1, 11888), (2, 18112)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_dirty GROUP BY \"SEX\" ORDER BY \"SEX\"",
+        "result": "[(1, 11888), (2, 18112)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_dirty GROUP BY \"SEX\" ORDER BY CASE WHEN \"SEX\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"SEX\" NULLS FIRST",
+        "result": "[(1, 11888), (2, 18112)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_clean GROUP BY \"SEX\" ORDER BY \"SEX\"",
+        "result": "[(1, 11169), (2, 17043)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"SEX\", COUNT(*) AS n FROM credit_clean GROUP BY \"SEX\" ORDER BY CASE WHEN \"SEX\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"SEX\" NULLS FIRST",
+        "result": "[(1, 11169), (2, 17043)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C10",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Marriage status distribution (safe column)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_true GROUP BY \"MARRIAGE\" ORDER BY \"MARRIAGE\"",
+        "result": "[(0, 54), (1, 13659), (2, 15964), (3, 323)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_true GROUP BY \"MARRIAGE\" ORDER BY CASE WHEN \"MARRIAGE\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"MARRIAGE\" NULLS FIRST",
+        "result": "[(0, 54), (1, 13659), (2, 15964), (3, 323)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_dirty GROUP BY \"MARRIAGE\" ORDER BY \"MARRIAGE\"",
+        "result": "[(0, 54), (1, 13659), (2, 15964), (3, 323)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_dirty GROUP BY \"MARRIAGE\" ORDER BY CASE WHEN \"MARRIAGE\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"MARRIAGE\" NULLS FIRST",
+        "result": "[(0, 54), (1, 13659), (2, 15964), (3, 323)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_clean GROUP BY \"MARRIAGE\" ORDER BY \"MARRIAGE\"",
+        "result": "[(0, 53), (1, 12833), (2, 15019), (3, 307)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"MARRIAGE\", COUNT(*) AS n FROM credit_clean GROUP BY \"MARRIAGE\" ORDER BY CASE WHEN \"MARRIAGE\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"MARRIAGE\" NULLS FIRST",
+        "result": "[(0, 53), (1, 12833), (2, 15019), (3, 307)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C11",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Average BILL_AMT2 (safe column, not perturbed)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"BILL_AMT2\"::numeric), 2) AS avg_bill2 FROM credit_true",
+        "result": "[(49179.08,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"BILL_AMT2\" AS DECIMAL)), 2) AS avg_bill2 FROM credit_true",
+        "result": "[(49179.08,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"BILL_AMT2\"::numeric), 2) AS avg_bill2 FROM credit_dirty",
+        "result": "[(49179.08,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"BILL_AMT2\" AS DECIMAL)), 2) AS avg_bill2 FROM credit_dirty",
+        "result": "[(49179.08,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"BILL_AMT2\"::numeric), 2) AS avg_bill2 FROM credit_clean",
+        "result": "[(49603.71,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"BILL_AMT2\" AS DECIMAL)), 2) AS avg_bill2 FROM credit_clean",
+        "result": "[(49603.71,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C12",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Sum of PAY_AMT1 (safe column, not perturbed)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(SUM(\"PAY_AMT1\"::numeric), 2) AS sum_pay1 FROM credit_true",
+        "result": "[(Decimal('169907415.00'),)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(SUM(CAST(\"PAY_AMT1\" AS DECIMAL)), 2) AS sum_pay1 FROM credit_true",
+        "result": "[(Decimal('169907415.00'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(SUM(\"PAY_AMT1\"::numeric), 2) AS sum_pay1 FROM credit_dirty",
+        "result": "[(Decimal('169907415.00'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"PAY_AMT1\" AS DECIMAL)), 2) AS sum_pay1 FROM credit_dirty",
+        "result": "[(Decimal('169907415.00'),)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(SUM(\"PAY_AMT1\"::numeric), 2) AS sum_pay1 FROM credit_clean",
+        "result": "[(Decimal('157475763.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(SUM(CAST(\"PAY_AMT1\" AS DECIMAL)), 2) AS sum_pay1 FROM credit_clean",
+        "result": "[(Decimal('157475763.00'),)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C13",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Default payment distribution (safe column)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_true GROUP BY \"default_payment_next_month\" ORDER BY \"default_payment_next_month\"",
+        "result": "[(0, 23364), (1, 6636)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_true GROUP BY \"default_payment_next_month\" ORDER BY CASE WHEN \"default_payment_next_month\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"default_payment_next_month\" NULLS FIRST",
+        "result": "[(0, 23364), (1, 6636)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_dirty GROUP BY \"default_payment_next_month\" ORDER BY \"default_payment_next_month\"",
+        "result": "[(0, 23364), (1, 6636)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_dirty GROUP BY \"default_payment_next_month\" ORDER BY CASE WHEN \"default_payment_next_month\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"default_payment_next_month\" NULLS FIRST",
+        "result": "[(0, 23364), (1, 6636)]",
+        "error": null,
+        "verdict": "match",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_clean GROUP BY \"default_payment_next_month\" ORDER BY \"default_payment_next_month\"",
+        "result": "[(0, 21816), (1, 6396)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT \"default_payment_next_month\", COUNT(*) AS n FROM credit_clean GROUP BY \"default_payment_next_month\" ORDER BY CASE WHEN \"default_payment_next_month\" IS NULL THEN 1 ELSE 0 END NULLS FIRST, \"default_payment_next_month\" NULLS FIRST",
+        "result": "[(0, 21816), (1, 6396)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C14",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Average PAY_AMT3 (safe column)",
+    "uses_pg_syntax": true,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT ROUND(AVG(\"PAY_AMT3\"::numeric), 2) AS avg_pay3 FROM credit_true",
+        "result": "[(5225.68,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT ROUND(AVG(CAST(\"PAY_AMT3\" AS DECIMAL)), 2) AS avg_pay3 FROM credit_true",
+        "result": "[(5225.68,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT ROUND(AVG(\"PAY_AMT3\"::numeric), 2) AS avg_pay3 FROM credit_dirty",
+        "result": "[(5225.68,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"PAY_AMT3\" AS DECIMAL)), 2) AS avg_pay3 FROM credit_dirty",
+        "result": "[(5225.68,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT ROUND(AVG(\"PAY_AMT3\"::numeric), 2) AS avg_pay3 FROM credit_clean",
+        "result": "[(5080.19,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT ROUND(AVG(CAST(\"PAY_AMT3\" AS DECIMAL)), 2) AS avg_pay3 FROM credit_clean",
+        "result": "[(5080.19,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  },
+  {
+    "query_id": "C15",
+    "dataset": "D3",
+    "stratum": "control",
+    "description": "Count long delinquent PAY_2 statuses (PAY_2 safe: not perturbed)",
+    "uses_pg_syntax": false,
+    "transpile_err": {
+      "true": null,
+      "dirty": null,
+      "clean": null
+    },
+    "conditions": {
+      "C0_ref": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_true WHERE \"PAY_2\" >= 2",
+        "result": "[(4410,)]",
+        "error": null
+      },
+      "C1_true_trans": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_true WHERE \"PAY_2\" >= 2",
+        "result": "[(4410,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C2_sql_gate": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_dirty WHERE \"PAY_2\" >= 2",
+        "result": "[(4410,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C3_no_gate": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_dirty WHERE \"PAY_2\" >= 2",
+        "result": "[(4410,)]",
+        "error": null,
+        "verdict": "within_float_tolerance",
+        "is_error": false
+      },
+      "C4_joint_gate": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_clean WHERE \"PAY_2\" >= 2",
+        "result": "[(4252,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      },
+      "C5_data_gate": {
+        "sql": "SELECT COUNT(*) AS n_delin FROM credit_clean WHERE \"PAY_2\" >= 2",
+        "result": "[(4252,)]",
+        "error": null,
+        "verdict": "value_diff",
+        "is_error": true
+      }
+    },
+    "joint_required": false
+  }
+]

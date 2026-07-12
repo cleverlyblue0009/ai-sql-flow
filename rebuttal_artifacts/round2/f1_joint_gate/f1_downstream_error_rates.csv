@@ -1,0 +1,4 @@
+stratum,n_queries,n_ref_executable,pct_wrong_true_trans,pct_wrong_sql_gate,pct_wrong_no_gate,pct_wrong_joint_gate,pct_wrong_data_gate,n_joint_required
+targeted,20,20,5.0,95.0,95.0,90.0,90.0,0
+control,15,15,6.7,46.7,46.7,93.3,93.3,0
+all,35,35,5.7,74.3,74.3,91.4,91.4,0

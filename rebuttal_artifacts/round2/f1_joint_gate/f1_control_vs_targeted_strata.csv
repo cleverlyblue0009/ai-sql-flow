@@ -1,0 +1,3 @@
+stratum,n_queries,pct_wrong_sql_gate,pct_wrong_no_gate,pct_wrong_joint_gate,pct_wrong_data_gate,n_joint_required
+control,15,46.7,46.7,93.3,93.3,0
+targeted,20,95.0,95.0,90.0,90.0,0
