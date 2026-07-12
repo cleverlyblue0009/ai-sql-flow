@@ -336,10 +336,55 @@ a design choice with known performance bounds, not a globally optimal stacker.
 
 ---
 
-## Next steps: Experiments E4–E8
+---
 
-Priority order per reviewer comments:
-- **E4** (Confidence-aware routing)
+## E4 — Confidence-Aware Routing
+
+**Status: COMPLETE** (7.7s)
+
+Script: `phase2_rebuild/rebuttal/e4_confidence_routing.py`
+Outputs: `rebuttal_artifacts/e4/`
+
+### Calibration
+
+| Dataset | ECE (raw) | ECE (Platt) | Improvement | Brier (raw) | Brier (Platt) |
+|---------|-----------|-------------|-------------|-------------|---------------|
+| D1 | 0.246 | **0.004** | −0.242 | 0.112 | 0.035 |
+| D2 | 0.323 | **0.013** | −0.309 | 0.163 | 0.042 |
+| D3 | 0.041 | 0.012 | −0.029 | 0.037 | 0.021 |
+
+**Raw hybrid_lr scores are severely miscalibrated on D1 and D2.** A Platt-scaling
+logistic regression (5-fold OOF) reduces ECE by 97% on D1 and 96% on D2. The paper
+should NOT interpret raw scores as probabilities; Platt scaling is mandatory for the
+confidence-aware routing policy.
+
+D3 is well-calibrated even without scaling (ECE=0.041), consistent with the higher
+domain-rule signal that produces sharp score separation.
+
+### 3-Lane Routing Policy (q60 clean / q95 pass threshold)
+
+| Dataset | Auto-clean | Manual review | Auto-pass | Missed in pass |
+|---------|-----------|---------------|-----------|----------------|
+| D1 | 5.0% | 35.0% | 60.0% | 347 / 2,498 (13.9%) |
+| D2 | 5.0% | 35.0% | 60.0% | 2,261 / 10,000 (22.6%) |
+| D3 | 5.0% | 35.0% | 60.0% | **0** / 1,500 (0%) |
+
+D3 achieves zero missed anomalies in the auto-pass lane: the structured domain-rule
+signal is sharp enough that all anomalies score above even the conservative pass threshold.
+
+D1/D2 have meaningful miss rates in the auto-pass lane (14–23%). A tighter pass
+threshold (q99) reduces but doesn't eliminate misses, shifting rows to manual review.
+
+### Interpretation for the paper
+
+Calibration is a necessary prerequisite for confidence-aware routing. The paper should
+add a Platt-scaling step and report ECE. The 3-lane policy is practical for D3 (0% misses)
+but requires careful threshold selection for D1/D2 where score separation is weaker.
+
+---
+
+## Next steps: Experiments E5, E7, E8
+
 - **E5** (Hard query AST failure analysis)
 - **E7** (Limits of injected anomalies)
 - **E8** (Figure and table hygiene)
