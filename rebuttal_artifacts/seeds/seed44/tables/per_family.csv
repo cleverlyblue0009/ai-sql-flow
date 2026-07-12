@@ -1,0 +1,16 @@
+dataset,family,n_injected,recovered,recall
+D1,A1_sign_flip,500,500,1.0
+D1,A2_magnitude_outlier,500,108,0.216
+D1,A3_tag_mismatch,495,14,0.028282828282828285
+D1,A4_period_violation,500,499,0.998
+D1,A5_duplicate_posting,500,500,1.0
+D2,B1_ot_regular_inconsistency,2000,1852,0.926
+D2,B2_salary_basis_mismatch,2000,1941,0.9705
+D2,B3_near_duplicate_name,2000,170,0.085
+D2,B4_agency_title_violation,2000,971,0.4855
+D2,B5_magnitude_outlier,2000,1195,0.5975
+D3,C1_education_out_of_domain,300,300,1.0
+D3,C2_limitbal_inconsistency,300,300,1.0
+D3,C3_bill_sign_violation,300,103,0.3433333333333333
+D3,C4_pay_temporal_violation,300,27,0.09
+D3,C5_age_range_violation,300,300,1.0

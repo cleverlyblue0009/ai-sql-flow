@@ -1,0 +1,10 @@
+dataset,split,n,n_pos,prevalence,f1_fixed_tau,precision_fixed_tau,recall_fixed_tau,auc_pr,temporal_note
+D1,early_70pct,35350,1427,0.0404,0.4052,0.396,0.4149,0.3526,row_order_not_temporal_flag
+D1,late_30pct,15150,1071,0.0707,0.6492,0.6182,0.6835,0.6099,row_order_not_temporal_flag
+D1,full_100pct,50500,2498,0.0495,0.5115,0.4942,0.53,0.4642,row_order_not_temporal_flag
+D2,early_70pct,141400,5664,0.0401,0.3743,0.2481,0.7618,0.2328,row_order_approx_temporal_d2_fiscal_year
+D2,late_30pct,60600,4336,0.0716,0.3289,0.2606,0.4456,0.1898,row_order_approx_temporal_d2_fiscal_year
+D2,full_100pct,202000,10000,0.0495,0.359,0.2519,0.6247,0.2105,row_order_approx_temporal_d2_fiscal_year
+D3,early_70pct,21000,1062,0.0506,0.7277,0.6772,0.7863,0.8201,row_order_not_temporal_flag
+D3,late_30pct,9000,438,0.0487,0.6928,0.6198,0.7854,0.811,row_order_not_temporal_flag
+D3,full_100pct,30000,1500,0.05,0.7172,0.6594,0.786,0.8164,row_order_not_temporal_flag

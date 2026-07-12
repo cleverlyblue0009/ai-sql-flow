@@ -1,0 +1,1 @@
+src_folder,query,src_dialect,tgt_dialect,level,parse_ok,transpile_ok,footprint_committed,footprint_recomputed,strict_text_roundtrip,exec_equiv_src2dkdb,mismatch_committed

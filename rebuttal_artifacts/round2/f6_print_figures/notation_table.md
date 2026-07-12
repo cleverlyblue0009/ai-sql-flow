@@ -1,0 +1,18 @@
+# Appendix: Notation Table
+
+| Symbol | Definition | Notes |
+|---|---|---|
+| $D$ | Dataset identifier | D1 = SEC EDGAR, D2 = NYC Payroll, D3 = UCI Credit |
+| $n$ | Number of rows in dataset | D1: 50k, D2: 202k, D3: 30k |
+| $y_i$ | Binary anomaly label for row i | y_i \in \{0, 1\} |
+| $f_k(x)$ | Anomaly score from base detector k | k \in \{rule, stat, iforest, lof\} |
+| $s_i$ | Stacked score for row i | Output of meta-learner on (f_1(x_i), ..., f_K(x_i)) |
+| $\tau$ | Decision threshold | Applied to s_i to produce binary prediction |
+| $\tau^*$ | Oracle threshold | argmax_{\tau} F_1(\tau) on held-out OOF scores |
+| $K$ | Number of base detectors | K = 4 in paper; K = 6 in F3 extended ablation |
+| $p$ | Injection prevalence | ~5% across all datasets |
+| $E_c$ | Error rate (condition c) | Fraction of 35 queries with wrong output under condition c |
+| $FP_{gate}$ | False-positive quarantine rate | Fraction of clean rows removed by data gate |
+| $AST(q)$ | AST structural footprint of query q | Node-type counts + table/column name sets |
+| $ECE$ | Expected calibration error | Sum_b |acc(b) - conf(b)| P(b) |
+| $\Delta_{nested}$ | Nested-threshold F1 delta vs LR | Used in MAJOR REVISION decision rule |

@@ -1,0 +1,10 @@
+dataset,config,detectors,f1_oracle,note
+D1,Base4,"rule,stat,iforest,lof",0.5115,paper_baseline
+D1,Base4+ECOD,"rule,stat,iforest,lof,ecod",0.5285,ok
+D1,Base6,"rule,stat,iforest,lof,ecod,deep_svdd",0.5283,ok
+D2,Base4,"rule,stat,iforest,lof",0.359,paper_baseline
+D2,Base4+ECOD,"rule,stat,iforest,lof,ecod",0.3664,ok
+D2,Base6,"rule,stat,iforest,lof,ecod,deep_svdd",0.4198,ok
+D3,Base4,"rule,stat,iforest,lof",0.7172,paper_baseline
+D3,Base4+ECOD,"rule,stat,iforest,lof,ecod",0.7143,ok
+D3,Base6,"rule,stat,iforest,lof,ecod,deep_svdd",0.7684,ok
