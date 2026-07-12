@@ -202,6 +202,30 @@
       "description": "G4 verification gate (imports original functions)",
       "producing_script": "new",
       "runtime_sec": null
+    },
+    {
+      "path": "e8/e8_table_check.csv",
+      "sha256": "8ac2072993ed63817032122b96a8dcf3c7c0786d4d93023920225e2c2ffa3001"
+    },
+    {
+      "path": "e8/figures/fig_ast_matrix.png",
+      "sha256": "a85bbd53319cd2056263157c97c1426181a74468b433cdf538300ba30c16d3de"
+    },
+    {
+      "path": "e8/figures/fig_baseline_f1.png",
+      "sha256": "cf19194c3761d11f4cd4e55c5e59aabe87e0b0748a00174f66098df857f3dd54"
+    },
+    {
+      "path": "e8/figures/fig_per_family_recall.png",
+      "sha256": "48c78b961aafe6be3c564fce12fb5ac79b8eddb5a548dc21efb372323c07f0d8"
+    },
+    {
+      "path": "e8/figures/fig_pr_curves.png",
+      "sha256": "daf425e9ecc3b37b740d7e27045cf0199ebfc3f05a28abb30ae34985b94a4aad"
+    },
+    {
+      "path": "e8/figures/fig_threshold_sweep.png",
+      "sha256": "69368cd219de795cc06690e1602bf7db866d62bcadec7b3e99819e25a43f4c94"
     }
   ]
 }
