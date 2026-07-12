@@ -1,0 +1,7 @@
+dataset,detector,ece_raw,brier_raw,ece_platt,brier_platt,platt_improvement,platt_necessary
+D1,hybrid_xgb,0.37393,0.0858,0.07182,0.03002,0.30211,True
+D1,hybrid_lr,0.38248,0.11159,0.11339,0.03305,0.26909,True
+D2,hybrid_xgb,0.37154,0.11324,0.11749,0.03241,0.25405,True
+D2,hybrid_lr,0.42853,0.16267,0.05201,0.0426,0.37652,True
+D3,hybrid_xgb,0.2962,0.02894,0.12496,0.0189,0.17124,True
+D3,hybrid_lr,0.39499,0.03726,0.18829,0.02261,0.2067,True

@@ -1,0 +1,10 @@
+condition,stratum,n,median,p90,max
+dirty_src,all,35,0.010477,1.0,246999999999.99997
+dirty_src,targeted,20,0.250824,3.265641,246999999999.99997
+dirty_src,control,15,0.0,0.789333,1.0
+clean_xgb_src,all,35,0.061433,1.0,1.0
+clean_xgb_src,targeted,20,0.07926,1.0,1.0
+clean_xgb_src,control,15,0.043311,1.0,1.0
+repaired_xgb_src,all,35,0.002157,0.740909,1.0
+repaired_xgb_src,targeted,20,0.006868,0.754545,1.0
+repaired_xgb_src,control,15,0.0,0.706,1.0

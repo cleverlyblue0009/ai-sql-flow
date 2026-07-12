@@ -1,0 +1,4 @@
+dataset,tau_lo,tau_star,n_auto_clean,n_review,n_quarantine,fp_fraction_quarantine,fn_escaped
+D1,0.1553,0.8891,25250,22899,2351,0.3803,1041
+D2,0.2859,0.8534,101000,92175,8825,0.3904,4620
+D3,0.0001,0.8867,14998,13065,1937,0.3252,193

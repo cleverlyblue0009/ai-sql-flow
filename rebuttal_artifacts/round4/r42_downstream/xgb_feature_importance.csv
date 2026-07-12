@@ -1,0 +1,13 @@
+dataset,feature,importance
+D1,rule,0.51314
+D1,stat,0.09012
+D1,iforest,0.32835
+D1,lof,0.0684
+D2,rule,0.27005
+D2,stat,0.12119
+D2,iforest,0.56938
+D2,lof,0.03938
+D3,rule,0.97252
+D3,stat,0.00836
+D3,iforest,0.00916
+D3,lof,0.00996

@@ -1,0 +1,5 @@
+dataset,detector,tau,n_quarantined,n_tp,n_fp,n_fn,fp_fraction
+D2,hybrid_xgb,0.8534,8825,5380.0,3445,4620.0,0.3904
+D2,hybrid_lr (F1b reference),0.671,24803,,18556,,0.7481
+D3,hybrid_xgb,0.8867,1937,1307.0,630,193.0,0.3252
+D3,hybrid_lr (F1b reference),0.9539,1788,,609,,0.3406
