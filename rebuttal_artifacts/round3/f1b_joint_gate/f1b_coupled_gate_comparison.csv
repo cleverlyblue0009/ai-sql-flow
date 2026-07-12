@@ -1,0 +1,4 @@
+stratum,n_queries,median_dirty_rel_err,median_cleansed_rel_err,median_repaired_rel_err,median_coupled_rel_err,best_single_median,coupled_beats_best_single,avg_n_reinstated
+all,35,0.010477,0.142857,0.000988,0.010477,0.000988,False,13530.2
+targeted,20,0.250824,0.160817,0.004029,0.247085,0.004029,False,13204.0
+control,15,0.0,0.097628,0.0,0.0,0.0,False,13965.1
