@@ -291,10 +291,54 @@ The reviewer is right that modern PyOD baselines should be compared. The honest 
 
 ---
 
-## Next steps: Experiments E3–E8
+---
+
+## E3 — Meta-Learner Comparison
+
+**Status: COMPLETE** (504.5s, 4 learners × 3 datasets)
+
+Script: `phase2_rebuild/rebuttal/e3_metalearner.py`
+Outputs: `rebuttal_artifacts/e3/`
+Note: XGBoost and LightGBM not installed in this environment; tested LR, RF, GBM, MLP.
+
+### Protocol
+
+5-fold StratifiedKFold OOF (same as paper), feeding the 4 base detector scores
+(rule, stat, iforest, lof) as stacking features. Oracle-threshold F1 at best PR point.
+Comparison: against LR (= paper baseline, `hybrid_lr`) within this experiment.
+
+### F1 results
+
+| Meta-learner | D1 F1 | D2 F1 | D3 F1 | ΔD1 vs LR | ΔD2 vs LR | ΔD3 vs LR |
+|-------------|--------|--------|--------|-----------|-----------|-----------|
+| **LR (paper)** | **0.512** | **0.359** | **0.717** | — | — | — |
+| RF | 0.541 | **0.583** | **0.757** | +0.029 | **+0.224** | +0.039 |
+| GBM | **0.595** | 0.567 | 0.752 | **+0.083** | +0.208 | +0.034 |
+| MLP | 0.522 | 0.477 | 0.720 | +0.011 | +0.118 | +0.002 |
+
+### Honest findings
+
+**RF and GBM dramatically outperform LR on D2 (+0.224 and +0.208 respectively).**
+The paper's choice of LogisticRegression as the meta-learner is a substantial
+underperformance on NYC Payroll FY2024 data, where non-linear decision boundaries
+between base detector combinations appear to be critical.
+
+**GBM outperforms LR on D1 by +0.083 F1** — the improvement is statistically
+and practically significant.
+
+**LR is competitive only on D3** (credit data): RF is +0.039 better, GBM +0.034
+better, MLP +0.002. On D3's simpler anomaly patterns, the linear stacker is adequate.
+
+**Implication for the paper**: if the revised paper switches the meta-learner to
+RandomForest or GBM, D2 hybrid F1 would rise from 0.359 to 0.567/0.583. This would
+change several manuscript numbers. Alternatively, the paper should acknowledge LR as
+a design choice with known performance bounds, not a globally optimal stacker.
+
+---
+
+## Next steps: Experiments E4–E8
 
 Priority order per reviewer comments:
-- **E3** (Meta-learner comparison: LR vs XGBoost/LightGBM/RF/GBM)
 - **E4** (Confidence-aware routing)
 - **E5** (Hard query AST failure analysis)
 - **E7** (Limits of injected anomalies)
