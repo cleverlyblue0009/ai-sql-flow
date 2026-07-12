@@ -1,0 +1,2 @@
+query,src_folder,src_dialect,tgt_dialect,level,difficulty,committed_transpile_ok,committed_footprint_equiv,recomputed_footprint_equiv,relaxed_equiv,exec_equiv,note
+json_operations,sqlserver,tsql,tsql,dialect_specific,hard,True,False,True,True,,
