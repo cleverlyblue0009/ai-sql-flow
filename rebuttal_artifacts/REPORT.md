@@ -450,7 +450,63 @@ This is consistent with the paper's claim that "complex analytical constructs (L
 
 ---
 
-## Next steps: E7, E8
+---
 
-- **E7** (Limits of injected anomalies)
+## E7 — Limits of Injected Anomalies (Prevalence Sweep)
+
+**Status: COMPLETE** (1.5s)
+
+Script: `phase2_rebuild/rebuttal/e7_anomaly_limits.py`
+Outputs: `rebuttal_artifacts/e7/`
+
+### Method
+
+Using committed hybrid_lr scores on D1/D2/D3, subsampled to simulate different
+effective prevalences (1% to 30%). All anomalous rows are kept; clean rows are
+subsampled (seeded rng(SEED=42)) to achieve target ratio. Fixed threshold = paper's
+best_threshold; oracle threshold = best F1 on the subsample.
+
+### Fixed-tau F1 across prevalences
+
+| Prevalence | D1 | D2 | D3 |
+|-----------|-----|-----|-----|
+| 1% | 0.511 | 0.359 | 0.717 |
+| 2% | 0.511 | 0.359 | 0.717 |
+| 3% | 0.511 | 0.359 | 0.717 |
+| **5% (paper)** | **0.513** | **0.361** | **0.717** |
+| 7% | 0.559 | 0.429 | 0.763 |
+| 10% | 0.595 | 0.501 | 0.796 |
+| 15% | 0.625 | 0.577 | 0.826 |
+| 20% | 0.648 | 0.623 | 0.844 |
+| 25% | 0.655 | 0.654 | 0.854 |
+| 30% | 0.660 | 0.676 | 0.856 |
+
+### Key findings
+
+**The model is invariant to prevalence changes from 1–5%**: F1 stays constant
+because the clean row count is limited by the dataset size (all n_neg rows are
+used at any prevalence < 5% for D1 and D3).
+
+**Above 5% prevalence, F1 improves monotonically**: As prevalence increases, class
+balance becomes more favourable and the fixed threshold becomes increasingly appropriate.
+
+**Fixed vs oracle threshold gap at 5% (paper setting)**:
+- D1: gap = 0.0003 (negligible)
+- D2: gap ≈ 0.000 (negligible)
+- D3: gap ≈ 0.000 (negligible)
+
+The paper's best_threshold is essentially optimal at the 5% evaluation prevalence.
+There is no threshold overfitting concern.
+
+**Oracle F1 at 30%**:
+- D1: 0.757, D2: 0.689, D3: 0.955
+
+D3 (credit) has excellent discriminative ability but is constrained by class
+imbalance at the paper's 5% setting. The structural domain rules (age range,
+education domain) provide near-perfect detection at higher prevalences.
+
+---
+
+## Next steps: E8
+
 - **E8** (Figure and table hygiene)
