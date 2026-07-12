@@ -39,6 +39,7 @@ from sklearn.metrics import (average_precision_score, balanced_accuracy_score,
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 REPO = Path(__file__).resolve().parents[2]
 PROC = REPO / "phase2_rebuild" / "data" / "processed"
@@ -252,11 +253,7 @@ def hybrid_score(rule: np.ndarray, stat: np.ndarray, iso: np.ndarray,
 
 
 def stacked_hybrid_score(y: np.ndarray, base_scores: np.ndarray, k: int = 5) -> np.ndarray:
-    """Logistic-regression stacker over base detectors with k-fold OOF predictions.
-
-    base_scores is (n_rows, n_detectors). Returns calibrated anomaly probability
-    in [0,1] that is leak-free (each row scored by a model that did not see it).
-    """
+    """Logistic-regression stacker over base detectors with k-fold OOF predictions."""
     out = np.zeros(len(y), dtype=float)
     skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=SEED)
     for tr, te in skf.split(base_scores, y):
@@ -267,7 +264,31 @@ def stacked_hybrid_score(y: np.ndarray, base_scores: np.ndarray, k: int = 5) -> 
     return out
 
 
-DETECTORS = ["rule", "stat", "iforest", "lof", "hybrid", "hybrid_lr"]
+def xgb_stacked_hybrid_score(y: np.ndarray, base_scores: np.ndarray, k: int = 5) -> np.ndarray:
+    """XGBoost stacker over base detectors with k-fold OOF predictions.
+
+    Uses scale_pos_weight to handle class imbalance without changing the
+    class distribution via resampling or class_weight.
+    """
+    n_neg = int((y == 0).sum())
+    n_pos = int((y == 1).sum())
+    spw = max(1.0, n_neg / max(1, n_pos))
+    out = np.zeros(len(y), dtype=float)
+    skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=SEED)
+    for tr, te in skf.split(base_scores, y):
+        clf = XGBClassifier(
+            n_estimators=300, max_depth=4, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=1.0,
+            scale_pos_weight=spw, random_state=SEED,
+            eval_metric="logloss", use_label_encoder=False,
+            verbosity=0, n_jobs=-1,
+        )
+        clf.fit(base_scores[tr], y[tr])
+        out[te] = clf.predict_proba(base_scores[te])[:, 1]
+    return out
+
+
+DETECTORS = ["rule", "stat", "iforest", "lof", "hybrid", "hybrid_lr", "hybrid_xgb"]
 
 
 # ---------------------------------------------------------------------------
@@ -296,11 +317,13 @@ def run_dataset(did: str) -> DatasetRun:
     hyb = hybrid_score(rule, stat, iso, lof)
     base_scores = np.column_stack([rule, stat, iso, lof])
     hyb_lr = stacked_hybrid_score(y, base_scores)
+    hyb_xgb = xgb_stacked_hybrid_score(y, base_scores)
 
     scores = pd.DataFrame({"y": y, "family": fam,
                            "rule": rule, "stat": stat,
                            "iforest": iso, "lof": lof,
-                           "hybrid": hyb, "hybrid_lr": hyb_lr})
+                           "hybrid": hyb, "hybrid_lr": hyb_lr,
+                           "hybrid_xgb": hyb_xgb})
 
     baseline_rows = []
     for name in DETECTORS:
@@ -312,10 +335,10 @@ def run_dataset(did: str) -> DatasetRun:
             print(f"  TRIPWIRE: {did}/{name} hit ≥99% — {m}")
         baseline_rows.append(m)
 
-    # Per-family recall at hybrid_lr best-F1 threshold (the workhorse hybrid).
-    base_hyb = next(r for r in baseline_rows if r["detector"] == "hybrid_lr")
+    # Per-family recall at hybrid_xgb best-F1 threshold (the adopted stacker).
+    base_hyb = next(r for r in baseline_rows if r["detector"] == "hybrid_xgb")
     thr = base_hyb["best_threshold"]
-    pred = (hyb_lr >= thr).astype(int)
+    pred = (hyb_xgb >= thr).astype(int)
     family_rows = []
     for f in sorted({x for x in fam if x}):
         mask = fam == f
@@ -331,10 +354,10 @@ def run_dataset(did: str) -> DatasetRun:
 # CV / ablation / scalability
 # ---------------------------------------------------------------------------
 def cv_eval(did: str, runs: dict, k: int = 5) -> list[dict]:
-    """K-fold CV on hybrid_lr scores: re-threshold within each fold for honest reporting."""
+    """K-fold CV on hybrid_xgb scores: re-threshold within each fold for honest reporting."""
     sc = runs[did].scores.copy()
     y = sc["y"].to_numpy()
-    hyb = sc["hybrid_lr"].to_numpy()
+    hyb = sc["hybrid_xgb"].to_numpy()
     kf = KFold(n_splits=k, shuffle=True, random_state=SEED)
     rows = []
     for i, (tr, te) in enumerate(kf.split(hyb)):
@@ -350,13 +373,13 @@ def cv_eval(did: str, runs: dict, k: int = 5) -> list[dict]:
 
 
 def ablation_eval(did: str, runs: dict) -> list[dict]:
-    """Leave-one-detector-out from the hybrid_lr stacker (refit on remaining detectors)."""
+    """Leave-one-detector-out from the hybrid_xgb stacker (refit on remaining detectors)."""
     sc = runs[did].scores.copy()
     y = sc["y"].to_numpy()
     cols = ["rule", "stat", "iforest", "lof"]
     rows = []
     full_scores = sc[cols].to_numpy()
-    full_hyb = stacked_hybrid_score(y, full_scores)
+    full_hyb = xgb_stacked_hybrid_score(y, full_scores)
     m = metrics_from_scores(y, full_hyb)
     rows.append({"dataset": did, "leave_out": "none",
                  "f1": m["f1"], "precision": m["precision"],
@@ -366,7 +389,7 @@ def ablation_eval(did: str, runs: dict) -> list[dict]:
         sub = sc[keep].to_numpy()
         if sub.shape[1] == 0:
             continue
-        hyb = stacked_hybrid_score(y, sub)
+        hyb = xgb_stacked_hybrid_score(y, sub)
         m = metrics_from_scores(y, hyb)
         rows.append({"dataset": did, "leave_out": drop,
                      "f1": m["f1"], "precision": m["precision"],
@@ -375,7 +398,7 @@ def ablation_eval(did: str, runs: dict) -> list[dict]:
 
 
 def scalability_eval(did: str = "D2", sizes=(10_000, 50_000, 100_000, 200_000)) -> list[dict]:
-    """Time hybrid end-to-end on increasing sub-samples."""
+    """Time hybrid_xgb end-to-end on increasing sub-samples of D2."""
     df, lab = load_dataset(did)
     rows = []
     for n in sizes:
@@ -391,7 +414,7 @@ def scalability_eval(did: str = "D2", sizes=(10_000, 50_000, 100_000, 200_000)) 
         iso = iforest_score(X)
         lof = lof_score(X)
         base = np.column_stack([rule, stat, iso, lof])
-        hyb = stacked_hybrid_score(y, base)
+        hyb = xgb_stacked_hybrid_score(y, base)
         elapsed = time.time() - t0
         m = metrics_from_scores(y, hyb)
         rows.append({"dataset": did, "n_rows": n, "elapsed_sec": round(elapsed, 3),
@@ -404,7 +427,7 @@ def scalability_eval(did: str = "D2", sizes=(10_000, 50_000, 100_000, 200_000)) 
 def threshold_sweep_eval(did: str, runs: dict, n_thresholds: int = 25) -> list[dict]:
     sc = runs[did].scores.copy()
     y = sc["y"].to_numpy()
-    s = sc["hybrid_lr"].to_numpy()
+    s = sc["hybrid_xgb"].to_numpy()
     qs = np.linspace(0.50, 0.99, n_thresholds)
     thresholds = np.quantile(s, qs)
     rows = []

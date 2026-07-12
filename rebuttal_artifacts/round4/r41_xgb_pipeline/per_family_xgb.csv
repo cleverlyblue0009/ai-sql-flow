@@ -1,0 +1,16 @@
+dataset,family,detector,n_injected,recovered,recall
+D1,A1_sign_flip,hybrid_xgb,500,328,0.656
+D1,A2_magnitude_outlier,hybrid_xgb,500,156,0.312
+D1,A3_tag_mismatch,hybrid_xgb,498,54,0.1084
+D1,A4_period_violation,hybrid_xgb,500,489,0.978
+D1,A5_duplicate_posting,hybrid_xgb,500,430,0.86
+D2,B1_ot_regular_inconsistency,hybrid_xgb,2000,1972,0.986
+D2,B2_salary_basis_mismatch,hybrid_xgb,2000,1806,0.903
+D2,B3_near_duplicate_name,hybrid_xgb,2000,28,0.014
+D2,B4_agency_title_violation,hybrid_xgb,2000,597,0.2985
+D2,B5_magnitude_outlier,hybrid_xgb,2000,977,0.4885
+D3,C1_education_out_of_domain,hybrid_xgb,300,300,1.0
+D3,C2_limitbal_inconsistency,hybrid_xgb,300,244,0.8133
+D3,C3_bill_sign_violation,hybrid_xgb,300,219,0.73
+D3,C4_pay_temporal_violation,hybrid_xgb,300,244,0.8133
+D3,C5_age_range_violation,hybrid_xgb,300,300,1.0

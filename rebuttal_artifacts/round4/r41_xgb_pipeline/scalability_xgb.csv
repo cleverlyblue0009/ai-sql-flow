@@ -1,0 +1,5 @@
+dataset,detector,n_rows,elapsed_sec,rows_per_sec,f1,precision,recall
+D2,hybrid_xgb,10000,0.683,14644,0.5431,0.5767,0.5132
+D2,hybrid_xgb,50000,1.413,35397,0.5641,0.587,0.543
+D2,hybrid_xgb,100000,2.369,42208,0.5752,0.6298,0.5293
+D2,hybrid_xgb,200000,4.341,46072,0.5716,0.6116,0.5364

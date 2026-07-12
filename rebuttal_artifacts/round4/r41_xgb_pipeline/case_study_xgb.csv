@@ -1,0 +1,7 @@
+detector,score,verdict_lr,verdict_xgb
+rule,0.6,pass,pass
+stat,0.115,pass,pass
+iforest,0.6321,pass,pass
+lof,0.0,pass,pass
+hybrid_lr,0.9297,QUARANTINE,QUARANTINE
+hybrid_xgb,0.9792,QUARANTINE,QUARANTINE
