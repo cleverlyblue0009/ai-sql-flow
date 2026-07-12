@@ -383,8 +383,74 @@ but requires careful threshold selection for D1/D2 where score separation is wea
 
 ---
 
-## Next steps: Experiments E5, E7, E8
+---
 
-- **E5** (Hard query AST failure analysis)
+## E5 — Hard Query AST Failure Analysis
+
+**Status: COMPLETE** (0.1s)
+
+Script: `phase2_rebuild/rebuttal/e5_hard_query_analysis.py`
+Outputs: `rebuttal_artifacts/e5/`
+Data source: committed `sql_migration_per_query.csv` (authoritative per-pair results)
+
+### Summary
+
+575 source-target pairs (115 queries × 5 targets −1 self):
+- 5 transpilation failures (0.9%) — all from `listen_notify` (PostgreSQL NOTIFY syntax)
+- 115 AST non-equivalent (20.0%) — breakdown below
+
+### Construct-level attribution (non-equivalence rate with vs without construct)
+
+| Construct | n_with | n_without | Non-equiv rate (with) | Lift vs baseline |
+|-----------|--------|-----------|----------------------|-----------------|
+| LATERAL | 10 | 565 | **50.0%** | 2.57× |
+| PIVOT | 10 | 565 | **40.0%** | 2.04× |
+| JSON | 20 | 555 | **35.0%** | 1.80× |
+| WINDOW | 50 | 525 | **34.0%** | 1.82× |
+| SUBQUERY | 45 | 530 | **33.3%** | 1.77× |
+| GROUP BY | 105 | 470 | 26.7% | 1.44× |
+| CTE | 30 | 545 | 23.3% | 1.18× |
+| dialect_specific | 85 | 490 | 15.3% | 0.73× |
+
+LATERAL and PIVOT are the highest-risk constructs. Dialect-specific constructs have
+LOWER non-equivalence rate than average (0.73×) — they're already expected to be
+unsupported and the sqlglot error handling is clean for them.
+
+### AST equivalence by difficulty
+
+| Difficulty | n | ast_equiv_rate |
+|------------|---|----------------|
+| easy | 190 | **0.921** |
+| medium | 195 | **0.739** |
+| hard | 190 | **0.742** |
+
+(Matches committed `sql_migration_by_difficulty.csv` — confirmed.)
+
+### Worst queries (most target dialects failing AST equivalence)
+
+| Query | Source | Difficulty | Non-equiv targets |
+|-------|--------|------------|-------------------|
+| listen_notify | PostgreSQL | hard | 5 (all) |
+| generate_series_dates | PostgreSQL | hard | 4 |
+| full_text_search | PostgreSQL | hard | 4 |
+| qualify_clause | Snowflake | medium | 4 |
+| jsonb_operations | PostgreSQL | medium | 4 |
+| insert_ignore | MySQL | hard | 4 |
+| try_convert | SQL Server | medium | 4 |
+| date_format | MySQL | medium | 4 |
+
+### Interpretation for the paper
+
+The failure pattern is clear: 3 categories of constructs drive non-equivalence:
+1. **PostgreSQL-specific syntax** (LATERAL, JSONB, generate_series, LISTEN/NOTIFY, full-text): no cross-dialect equivalent
+2. **Window functions**: NULLS LAST, QUALIFY, and frame semantics not universally supported
+3. **SQL-vendor specific functions**: DATE_FORMAT (MySQL), TRY_CONVERT (T-SQL), TO_CHAR (Oracle), IIF (T-SQL)
+
+This is consistent with the paper's claim that "complex analytical constructs (LATERAL, PIVOT, JSONB) drive the 20% AST non-equivalence on medium-to-hard queries."
+
+---
+
+## Next steps: E7, E8
+
 - **E7** (Limits of injected anomalies)
 - **E8** (Figure and table hygiene)

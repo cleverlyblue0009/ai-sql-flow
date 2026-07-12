@@ -1,0 +1,16 @@
+src_folder,difficulty,n,ast_equiv,parse_ok,transpile_ok
+mysql,easy,40,0.9,1.0,1.0
+mysql,hard,30,0.8,1.0,1.0
+mysql,medium,30,0.8,1.0,1.0
+oracle,easy,20,0.9,1.0,1.0
+oracle,hard,25,0.76,1.0,1.0
+oracle,medium,20,0.6,1.0,1.0
+postgresql,easy,100,0.96,1.0,1.0
+postgresql,hard,75,0.6133,0.9333,0.9333
+postgresql,medium,100,0.85,1.0,1.0
+snowflake,easy,20,0.8,1.0,1.0
+snowflake,hard,30,0.8667,1.0,1.0
+snowflake,medium,20,0.45,1.0,1.0
+sqlserver,easy,10,0.9,1.0,1.0
+sqlserver,hard,30,0.8667,1.0,1.0
+sqlserver,medium,25,0.56,1.0,1.0
