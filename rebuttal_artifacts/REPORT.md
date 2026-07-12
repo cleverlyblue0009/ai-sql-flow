@@ -232,11 +232,69 @@ sensitive to type-casting semantics during cross-dialect transpilation.
 
 ---
 
-## Next steps: Experiments E2–E8
+---
+
+## E2 — Modern PyOD Baselines
+
+**Status: COMPLETE** (302.3s, 6 detectors × 3 datasets)
+
+Script: `phase2_rebuild/rebuttal/e2_pyod_baselines.py`
+Outputs: `rebuttal_artifacts/e2/`
+
+### Protocol
+
+6 PyOD detectors (ECOD, COPOD, HBOS, KNN, LODA, AutoEncoder) evaluated at SEED=42 on D1/D2/D3.
+Same feature functions (`features_d1/d2/d3`) and evaluation protocol (`metrics_from_scores`,
+oracle threshold) as the paper baselines. KNN on D2 subsampled to 50K rows
+(documented; seeded with rng(SEED=42); subsample n shown next to F1).
+
+### F1 results
+
+| Model | D1 F1 | D2 F1 | D3 F1 |
+|-------|--------|--------|--------|
+| **hybrid_lr (paper)** | **0.511** | **0.359** | **0.717** |
+| AutoEncoder | 0.546 | 0.393 | 0.477 |
+| HBOS | 0.494 | 0.384 | 0.717 |
+| ECOD | 0.417 | 0.243 | 0.596 |
+| KNN (50K⁺) | 0.434 | 0.227 | 0.160 |
+| COPOD | 0.372 | 0.241 | 0.491 |
+| LODA | 0.155 | 0.189 | 0.331 |
+
+⁺ KNN subsampled to n=50,000 on D1 (50,500 rows total) and D2 (202,000 rows total).
+
+### Honest findings
+
+**AutoEncoder beats hybrid_lr on D1 (+0.035) and D2 (+0.034).** A DNN-based
+unsupervised detector outperforms the paper's stacked ensemble on SEC EDGAR and NYC
+Payroll data. This is an honest finding: the DataFlow stacked ensemble is NOT
+universally best.
+
+**HBOS ties hybrid_lr on D3 (F1 difference = −0.0005) and beats it on D2 (+0.025).**
+A simple histogram-based baseline is as good as the paper's stacker on credit data,
+and better on payroll data.
+
+**DataFlow hybrid_lr dominates on D3 when the PyOD field is taken as a whole**: only HBOS
+and ECOD approach it; AutoEncoder is −0.240 below. On credit data, the structured
+domain-rule component (age range violations, education domain checks) provides
+information that generic density estimators miss.
+
+**LODA, COPOD, KNN are consistently below the DataFlow baselines across all datasets.**
+
+### Interpretation for the paper
+
+The reviewer is right that modern PyOD baselines should be compared. The honest answer:
+- DataFlow hybrid_lr is competitive overall (wins on D3, close on D1/D2)
+- Two PyOD baselines (AutoEncoder on D1/D2, HBOS on D2) outperform hybrid_lr on specific datasets
+- The DataFlow pipeline's main contribution is the unified data+SQL pipeline, not SOTA anomaly detection
+- The revised paper should acknowledge that AutoEncoder and HBOS are competitive on financial data
+  and frame DataFlow's detection component as domain-adapted (not SOTA-claiming)
+
+---
+
+## Next steps: Experiments E3–E8
 
 Priority order per reviewer comments:
-- **E2** (PyOD modern baselines) — requires `pip install pyod`
-- **E3** (Meta-learner comparison)
+- **E3** (Meta-learner comparison: LR vs XGBoost/LightGBM/RF/GBM)
 - **E4** (Confidence-aware routing)
 - **E5** (Hard query AST failure analysis)
 - **E7** (Limits of injected anomalies)
